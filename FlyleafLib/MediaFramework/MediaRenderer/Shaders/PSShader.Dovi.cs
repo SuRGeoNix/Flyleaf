@@ -5,7 +5,7 @@ internal static partial class ShaderCompiler
     static ReadOnlySpan<byte> PS_DOVI => @"
 cbuffer DoviConfig : register(b2)
 {
-	float4 Dovi[190];
+	float4 Dovi[194];
 };
 
 #define DOVI_SAMPLE_SCALE       Dovi[0].x
@@ -25,6 +25,9 @@ cbuffer DoviConfig : register(b2)
 #define DOVI_TRIM_CHROMA     Dovi[188].w
 #define DOVI_TRIM_SAT        Dovi[189].x
 #define DOVI_TRIM_MS         Dovi[189].y
+#define DOVI_FEL_ACTIVE      Dovi[190].x
+#define DOVI_EL_CODE_SCALE   Dovi[190].y
+#define DOVI_EL_UV_SCALE     Dovi[190].zw
 
 // Chroma Weight is applied in IPTPQ after luminance and saturation trims.
 // The source retains absolute BT.2020 nits; final gamut mapping remains separate.
@@ -161,7 +164,34 @@ inline float DoviReshapeComponent(float3 sig, int component)
 	return clamp(s, Dovi[b].x, Dovi[b].y);
 }
 
-inline float3 DoviDecodeYCC(float3 c)
+#if defined(dDoviFEL)
+// EL is a coded YUV residual; round the sampled codes before NLQ.
+inline float3 DoviComposeFEL(float3 reshaped, float2 uv)
+{
+    if (DOVI_FEL_ACTIVE == 0.0)
+        return reshaped;
+
+    float2 elUV = saturate(uv * DOVI_EL_UV_SCALE);
+    float3 el = float3(
+        Texture3.SampleLevel(Sampler, elUV, 0).r,
+        Texture4.SampleLevel(Sampler, elUV, 0).rg);
+    float3 rr = round(el * DOVI_EL_CODE_SCALE);
+
+    float3 residual;
+    [unroll] for (int c = 0; c < 3; c++)
+    {
+        float4 nlq = Dovi[191 + c];
+        float centered = round(rr[c] - nlq.x);
+        float r = sign(centered) *
+                  ((abs(centered) - 0.5) * nlq.y + nlq.z);
+        residual[c] = clamp(r, -nlq.w, nlq.w);
+    }
+
+    return saturate(reshaped + residual);
+}
+#endif
+
+inline float3 DoviDecodeYCC(float3 c, float2 uv)
 {
 	float3 sig      = saturate(c * DOVI_SAMPLE_SCALE);
 	float3 reshaped = sig;
@@ -173,6 +203,10 @@ inline float3 DoviDecodeYCC(float3 c)
 			DoviReshapeComponent(sig, 1),
 			DoviReshapeComponent(sig, 2));
 	}
+
+#if defined(dDoviFEL)
+    reshaped = DoviComposeFEL(reshaped, uv);
+#endif
 
 	float4 v = float4(reshaped, 1.0);
 
@@ -206,7 +240,7 @@ inline float DoviDetailSourceLuma(float2 uv)
     uv = saturate(uv);
     float3 yuv = float3(Texture1.SampleLevel(Sampler, uv, 0).r,
                         Texture2.SampleLevel(Sampler, uv, 0).rg);
-    float3 doviRgb = DoviDecodeYCC(yuv);
+    float3 doviRgb = DoviDecodeYCC(yuv, uv);
     return max(Luma2020(DoviTo2020(PQToLinear(doviRgb, 10000.0))), 0.0);
 }
 
@@ -218,10 +252,7 @@ inline float DoviDetailMappedLuma(float sourceY)
         HDR.sourceMinNits >= HDR.targetMinNits)
         return max(sourceY, 0.0);
 
-    float y = clamp(sourceY, HDR.sourceMinNits,
-                    max(HDR.sourcePeakNits, HDR.sourceMinNits));
-    return clamp(PQToNits(saturate(ToneSpline(NitsToPQ(y)))),
-                 max(HDR.targetMinNits, 0.0), HDR.targetPeakNits);
+    return ToneSplineNits(sourceY);
 }
 
 inline float3 DoviToneDetail(float3 source2020Nits, float3 mapped2020, float2 uv)

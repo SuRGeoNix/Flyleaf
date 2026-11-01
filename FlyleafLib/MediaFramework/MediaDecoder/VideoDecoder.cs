@@ -286,6 +286,13 @@ public unsafe class VideoDecoder : DecoderBase
             codecCtx->get_format        = getHWformat;
             codecCtx->hw_device_ctx     = av_buffer_ref(Renderer.ffDevice);
             codecCtx->extra_hw_frames   = Config.Decoder.MaxVideoFrames + 1; // 1 extra for Renderer's LastFrame
+
+            if (VideoStream.DoviProfile == 7)
+            {   // Enables FEL early enough as we can't be sure if actually exists
+                // Will be rechecked after FillFromCodec
+                felCtx = new(this);
+                codecCtx->flags |= CodecFlags.CopyOpaque;
+            }
         }
         else
             codecCtx->thread_count      = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AVCodecID.Hevc ? 32 : 16);
@@ -341,6 +348,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                 DisposeFrames();
                 avcodec_flush_buffers(codecCtx);
+                felCtx?.Flush();
 
                 isDraining          = false;
                 keyFrameRequired    = false;
@@ -370,16 +378,29 @@ public unsafe class VideoDecoder : DecoderBase
             // Wait until Queue not Full or Stopped
             if (Frames.Count >= Config.Decoder.MaxVideoFrames)
             {
-                lock (lockStatus)
-                    if (Status == Status.Running) Status = Status.QueueFull;
-
-                while (Frames.Count >= Config.Decoder.MaxVideoFrames && Status == Status.QueueFull)
-                    Thread.Sleep(sleepMs);
-
-                lock (lockStatus)
+                // Seeking: discard oldest BL preroll instead of blocking EL input.
+                if (felCtx == null || !felCtx.Syncing || !Frames.DropOldestFELPreroll())
                 {
-                    if (Status != Status.QueueFull) break;
-                    Status = Status.Running;
+                    lock (lockStatus)
+                        if (Status == Status.Running) Status = Status.QueueFull;
+
+                    while (Frames.Count >= Config.Decoder.MaxVideoFrames && Status == Status.QueueFull)
+                    {
+                        // A single skipped picture would permanently shift FIFO pairing.
+                        // Invalidate alignment and recover at the next EL random-access picture.
+                        if (felCtx != null && !felCtx.Syncing && Frames.HasBlockedFEL())
+                        {
+                            felCtx.Resync();
+                            if (CanWarn) Log.Warn("FEL: BL/EL alignment lost (cache full); resynchronizing");
+                        }
+                        Thread.Sleep(sleepMs);
+                    }
+
+                    lock (lockStatus)
+                    {
+                        if (Status != Status.QueueFull) break;
+                        Status = Status.Running;
+                    }
                 }
             }
 
@@ -466,6 +487,9 @@ public unsafe class VideoDecoder : DecoderBase
                     }
                     else if (ret != AVERROR_EAGAIN)
                     {
+                        if (ret == AVERROR_EOF && felCtx != null)
+                            Frames.SkipUnmatchedFEL();
+
                         if (ret == -1234)
                             Status = Status.Stopping;
 
@@ -491,11 +515,16 @@ public unsafe class VideoDecoder : DecoderBase
                 }
 
                 ret = SendAVPacket(packet);
+
                 if (ret != 0)
                 {
                     if (isDraining)
                     {
+                        if (felCtx != null)
+                            Frames.SkipUnmatchedFEL();
+
                         Status = Status.Ended;
+
                         break;
                     }
 
@@ -549,6 +578,8 @@ public unsafe class VideoDecoder : DecoderBase
             keyPacketRequired = false;
         }
 
+        felCtx?.SendPacket(packet);
+
         // TBR: AVERROR(EAGAIN) ideally we keep the packet and resend it after recv (it shouldn't happen at all as we keep track)
         int ret = avcodec_send_packet(codecCtx, packet);
 
@@ -559,6 +590,9 @@ public unsafe class VideoDecoder : DecoderBase
         }
 
         av_packet_free(&packet);
+
+        if (ret != 0)
+            felCtx?.Resync(); // EL was fed, but this BL packet may not have been accepted.
 
         if (ret == 0 || ret == AVERROR_EAGAIN)
             return 0;
@@ -648,6 +682,7 @@ public unsafe class VideoDecoder : DecoderBase
             {
                 // TBR: it is possible to have a single frame / image with no dts/pts which actually means pts = 0 ? (ticket_3449.264) - GenPts will not affect it
                 // TBR: first frame might no have dts/pts which probably means pts = 0 (and not start time!)
+                felCtx?.Resync(); // Discarding a BL would shift every later FEL pair.
                 av_frame_unref(frame);
                 return RecvAVFrame();
             }
@@ -664,7 +699,7 @@ public unsafe class VideoDecoder : DecoderBase
                 return -1234;
         }
 
-        if (skipSpeedFrames > 1)
+        if (skipSpeedFrames > 1 && felCtx == null)
         {
             curSpeedFrame++;
             if (curSpeedFrame < skipSpeedFrames)
@@ -684,6 +719,18 @@ public unsafe class VideoDecoder : DecoderBase
         try
         {
             mFrame = Renderer.FillPlanes(ref frame);
+
+            if (felCtx != null)
+            {
+                if (mFrame == null)
+                    felCtx.Resync(); // One lost BL invalidates output-order pairing.
+                else
+                {
+                    //Log.Debug($"BL: id={(nint)mFrame.AVFrame->opaque}, pts={mFrame.AVFrame->pts}, best={mFrame.AVFrame->best_effort_timestamp}");
+                    mFrame.AVFrameFEL = felCtx.MergeBLFrame(mFrame.AVFrame);
+                    mFrame.isReady    = mFrame.AVFrameFEL != null;
+                }
+            }
         }
         catch(SharpGenException e)
         {
@@ -693,6 +740,7 @@ public unsafe class VideoDecoder : DecoderBase
         catch (Exception ex)
         {
             Log.Error($"FillAVFrame failed ({ex.Message})");
+            felCtx?.Resync();
             av_frame_unref(frame);
         }
 
@@ -760,6 +808,12 @@ public unsafe class VideoDecoder : DecoderBase
             try
             {
                 Renderer.VPConfig(VideoStream, frame);
+
+                if (felCtx != null && (!Renderer.isDovi || !VideoStream.DoviFELPresent))
+                {
+                    felCtx.Dispose();
+                    felCtx = null;
+                }
             }
             catch (Exception ex)
             {
@@ -892,6 +946,7 @@ public unsafe class VideoDecoder : DecoderBase
                     }
 
                     packet = (AVPacket*)curReverseVideoPackets[curReversePacketPos++];
+                    felCtx?.SendPacket(packet);
                     ret = avcodec_send_packet(codecCtx, packet);
 
                     if (ret != 0 && ret != AVERROR(EAGAIN))
@@ -912,6 +967,7 @@ public unsafe class VideoDecoder : DecoderBase
                         }
 
                         avcodec_flush_buffers(codecCtx);
+                        felCtx?.Flush();
                         curReversePacketPos = 0;
 
                         for (int i = curReverseVideoFrames.Count - 1; i >= 0; i--)
@@ -939,22 +995,27 @@ public unsafe class VideoDecoder : DecoderBase
                             av_packet_free(&packet);
                             curReverseVideoPackets[curReversePacketPos - 1] = 0;
                             var mFrame = FillAVFrame();
-                            if (mFrame != null)
+                            if (mFrame != null && (felCtx == null || mFrame.AVFrameFEL != null))
                                 curReverseVideoFrames.Add(mFrame);
                             else
                             {
-                                allowedErrors--;
-                                if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
+                                mFrame?.Dispose(); // Strict FEL: never enqueue an unmatched reverse frame.
+                                if (felCtx == null && --allowedErrors == 0)
+                                    { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
                             }
                         }
                         else
+                        {
+                            felCtx?.DropBLFrame(frame);
                             av_frame_unref(frame);
+                        }
                     }
 
                     if (curReversePacketPos == curReverseVideoPackets.Count)
                     {
                         curReverseVideoPackets.RemoveRange(Math.Max(0, Config.Decoder.MaxVideoFramesPrev + curReverseVideoPackets.Count - Config.Decoder.MaxVideoFrames), Math.Min(curReverseVideoPackets.Count, Config.Decoder.MaxVideoFrames - Config.Decoder.MaxVideoFramesPrev) );
                         avcodec_flush_buffers(codecCtx);
+                        felCtx?.Flush();
                         curReversePacketPos = 0;
 
                         for (int i = curReverseVideoFrames.Count - 1; i >= 0; i--)
@@ -1081,9 +1142,18 @@ public unsafe class VideoDecoder : DecoderBase
                 {   // At least return a previous frame in case of Tb inaccuracy and don't stuck at the same frame
                     var mFrame = FillAVFrame();
                     if (mFrame != null)
+                    {
+                        if (felCtx != null && mFrame.AVFrameFEL == null)
+                        {
+                            mFrame.Dispose();
+                            felCtx.Resync();
+                            return null; // Do not display BL-only in direct-seek mode.
+                        }
                         return mFrame;
+                    }
                 }
 
+                felCtx?.DropBLFrame(frame);
                 av_frame_unref(frame);
                 if (DecodeFrameNext() != 0)
                     break;
@@ -1108,7 +1178,15 @@ public unsafe class VideoDecoder : DecoderBase
         {
             var mFrame = FillAVFrame();
             if (mFrame != null)
+            {
+                if (felCtx != null && mFrame.AVFrameFEL == null)
+                {
+                    mFrame.Dispose();
+                    felCtx.Resync();
+                    return null;
+                }
                 return mFrame;
+            }
         }
 
         return null;
@@ -1158,6 +1236,7 @@ public unsafe class VideoDecoder : DecoderBase
                     return ret;
 
                 // Drain (TBR: probably only first drained working here)
+                felCtx?.SendPacket(demuxer.packet);
                 ret = avcodec_send_packet(codecCtx, demuxer.packet);
                 av_packet_unref(demuxer.packet);
 
@@ -1181,6 +1260,7 @@ public unsafe class VideoDecoder : DecoderBase
                 keyPacketRequired = false;
             }
 
+            felCtx?.SendPacket(demuxer.packet);
             ret = avcodec_send_packet(codecCtx, demuxer.packet);
 
             if (swFallback) // Should use 'global' packet to reset it in get_format (same packet should use also from DecoderContext)
@@ -1286,6 +1366,8 @@ public unsafe class VideoDecoder : DecoderBase
     protected override void DisposeInternal()
     {   // Called by Dispose (lockActions) | TBR: lock (lockCodecCtx)?
         DisposeFrames();
+        felCtx?.Dispose();
+        felCtx = null;
         StartTime       = AV_NOPTS_VALUE;
         swFallback      = false;
         curSpeedFrame   = 9999;
@@ -1308,5 +1390,271 @@ public unsafe class VideoDecoder : DecoderBase
         isRecording         = true;
     }
     internal void StopRecording() => isRecording = false;
+    #endregion
+
+    #region Dovi FEL Context
+    FELContext felCtx;
+
+    class FELContext
+    {   // TODO: Error handling and fallback to BL only | Don't fill invalid pictures to the EL decoder after seek
+        VideoDecoder    decoder;
+        AVBSFContext*   bsfCtx;
+        AVCodecContext* codecCtx;
+        AVCodecContext.GetFormat getHWformat;
+        
+        AVPacket*       bsfInput = av_packet_alloc();
+        AVPacket*       elPacket = av_packet_alloc();
+        AVFrame*        elFrame  = av_frame_alloc();
+        Queue<nint>     elFrames = new();
+        long pktId;     // Shared packet identity, only trustworthy for IDR/CRA anchor.
+        long anchorId;  // First decoded EL random-access picture after flush.
+
+        static AVBitStreamFilter* DOVISPLIT = av_bsf_get_by_name("dovi_split");
+
+        public FELContext(VideoDecoder decoder)
+        {
+            this.decoder = decoder;
+            av_bsf_alloc(DOVISPLIT, ref bsfCtx);
+            var stream = decoder.Stream.AVStream;
+            avcodec_parameters_copy(bsfCtx->par_in, stream->codecpar);
+            bsfCtx->time_base_in = stream->time_base;
+            av_opt_set(bsfCtx, "mode", "el", OptSearchFlags.Children);
+            av_bsf_init(bsfCtx);
+            codecCtx = avcodec_alloc_context3(decoder.CurCodecSpec.Codec);
+            avcodec_parameters_to_context(codecCtx, bsfCtx->par_out);
+
+            getHWformat = new(GetFormat);
+
+            codecCtx->pkt_timebase      = stream->time_base;
+            codecCtx->thread_count      = 1;
+            codecCtx->hwaccel_flags    |= HWAccelFlags.IgnoreLevel;
+            codecCtx->get_format        = getHWformat;
+            codecCtx->hw_device_ctx     = av_buffer_ref(decoder.Renderer.ffDevice);
+            codecCtx->extra_hw_frames   = decoder.Config.Decoder.MaxVideoFrames + 1 + 8; // 1 extra for Renderer's LastFrame
+            codecCtx->flags            |= CodecFlags.CopyOpaque;
+
+            avcodec_open2(codecCtx, null, null);
+        }
+
+        public bool Syncing { get; private set; } = true;
+
+        public void SendPacket(AVPacket* pkt)
+        {
+            bool draining = pkt->data == null && pkt->size == 0;
+            int ret;
+
+            if (draining)
+                ret = av_bsf_send_packet(bsfCtx, null);
+            else
+            {
+                pkt->opaque = (void*)++pktId;
+                ret = av_packet_ref(bsfInput, pkt);
+                if (ret >= 0)
+                {
+                    av_packet_free_side_data(bsfInput);
+                    ret = av_bsf_send_packet(bsfCtx, bsfInput);
+                }
+            }
+
+            if (ret < 0)
+            {
+                av_packet_unref(bsfInput); // On EAGAIN/error the BSF may not consume the input.
+                if (CanWarn)
+                    decoder.Log.Warn($"FEL: dovi_split input rejected ({ret}); resynchronizing");
+                Resync();
+                return;
+            }
+
+            while (av_bsf_receive_packet(bsfCtx, elPacket) == 0)
+            {
+                ret = avcodec_send_packet(codecCtx, elPacket);
+                if (ret == AVERROR_EAGAIN)
+                {
+                    ReceiveFrames();
+                    ret = avcodec_send_packet(codecCtx, elPacket);
+                }
+                av_packet_unref(elPacket);
+
+                if (ret < 0)
+                {
+                    if (CanWarn)
+                        decoder.Log.Warn($"FEL: EL decoder packet rejected ({ret}); resynchronizing");
+                    Resync();
+                    break;
+                }
+
+                ReceiveFrames();
+            }
+
+            if (draining)
+            {
+                avcodec_send_packet(codecCtx, null);
+                ReceiveFrames();
+            }
+        }
+
+        void ReceiveFrames()
+        {
+            while (avcodec_receive_frame(codecCtx, elFrame) == 0)
+            {
+                //decoder.Log.Debug($"EL: id={(nint)elFrame->opaque}, pts={elFrame->pts}, best={elFrame->best_effort_timestamp}");
+                AVFrame* received = elFrame;
+                elFrame = av_frame_alloc();
+
+                if (Syncing)
+                {
+                    // After a seek, the two decoders can start output at different pictures.
+                    // Wait for an EL IDR/CRA, then find that one BL via packet identity.
+                    // Packet opaque/PTS are NOT suitable for subsequent B-frame pairing.
+                    if (anchorId == 0)
+                    {
+                        if (!received->flags.HasFlag(FrameFlags.Key) || received->opaque == null)
+                        {
+                            av_frame_free(ref received);
+                            continue;
+                        }
+                        anchorId = (long)(nint)received->opaque;
+                    }
+
+                    if (elFrames.Count == 0 && decoder.Frames.MergeELAnchor(received))
+                    {
+                        Syncing = false;
+                        if (CanDebug)
+                            decoder.Log.Debug($"FEL: synchronized at EL random-access packet {anchorId}");
+                        anchorId = 0;
+                        DrainPairs();
+                        continue;
+                    }
+                }
+                else if (elFrames.Count == 0 && decoder.Frames.MergeNextELFrame(received))
+                    continue;
+
+                elFrames.Enqueue((nint)received);
+                DrainPairs();
+                int maxPending = Math.Max(8, decoder.Config.Decoder.MaxVideoFrames);
+                if (elFrames.Count > maxPending)
+                {
+                    if (CanWarn)
+                        decoder.Log.Warn("FEL: EL queue overflow; resynchronizing (no BL-only fallback)");
+                    Resync();
+                }
+            }
+        }
+
+        // Decode output order is reliable even when decoded EL PTS/opaque are not.
+        // Never discard individual BL/EL pictures while synchronized.
+        void DrainPairs()
+        {
+            while (!Syncing && elFrames.Count > 0 &&
+                   decoder.Frames.MergeNextELFrame((AVFrame*)elFrames.Peek()))
+                elFrames.Dequeue();
+        }
+
+        public AVFrame* MergeBLFrame(AVFrame* frame)
+        {
+            if (Syncing)
+            {
+                if (anchorId == 0 || (long)(nint)frame->opaque != anchorId || elFrames.Count == 0)
+                    return null;
+
+                // EL anchor and BL anchor are the same original access unit.
+                // All preceding cached BL pictures are unusable post-seek preroll.
+                decoder.Frames.DiscardFELPreroll();
+                Syncing = false;
+                if (CanDebug)
+                    decoder.Log.Debug($"FEL: synchronized at EL random-access packet {anchorId}");
+                anchorId = 0;
+            }
+
+            // Starting at the anchor, BL and EL are both emitted in presentation order.
+            // If EL hasn't arrived yet, VideoCache holds this unready BL.
+            return elFrames.Count > 0 ? (AVFrame*)elFrames.Dequeue() : null;
+        }
+
+        // Used by direct seek/stepping and reverse decoding when a BL frame is
+        // deliberately discarded before it is wrapped into a VideoFrame.
+        public void DropBLFrame(AVFrame* frame)
+        {
+            bool aligned = !Syncing;
+            AVFrame* match = MergeBLFrame(frame);
+            if (match != null)
+                av_frame_free(ref match);
+            else if (aligned)
+                Resync(); // Cannot drop one side while keeping the other in ordinal pairing.
+        }
+
+        // If either decoder loses an output picture, ordinal pairing is no longer safe.
+        // Recover only at a new EL random-access picture.
+        public void Resync()
+        {
+            Syncing = true;
+            anchorId = 0;
+            DisposeFrames();
+            decoder.Frames.SkipUnmatchedFEL();
+        }
+
+        private AVPixelFormat GetFormat(AVCodecContext* avctx, AVPixelFormat* pix_fmts)
+        {
+            bool foundHWformat = false;
+
+            while (*pix_fmts != AVPixelFormat.None)
+            {
+                if ((*pix_fmts) == HW_PIX_FMT)
+                {
+                    foundHWformat = true;
+                    break;
+                }
+
+                pix_fmts++;
+            }
+
+            if (codecCtx->hw_frames_ctx != null)
+                av_buffer_unref(&codecCtx->hw_frames_ctx);
+
+            if (!foundHWformat)
+                throw new Exception("FEL SW Decoding not supported");
+
+            decoder.Renderer.ConfigFELHWFrames(codecCtx);
+            codecCtx->hw_frames_ctx = av_buffer_ref(decoder.Renderer.ffFramesFEL);
+
+            return HW_PIX_FMT;
+        }
+
+        public void Flush()
+        {
+            Syncing = true;
+            anchorId = 0;
+            pktId = 0;
+            avcodec_flush_buffers(codecCtx);
+            av_bsf_flush(bsfCtx);
+            DisposeFrames();
+        }
+
+        public void DisposeFrames()
+        {
+            while (elFrames.Count > 0)
+            {
+                var frame = (AVFrame*)elFrames.Dequeue();
+                av_frame_free(ref frame);
+            }
+        }
+
+        public void Dispose()
+        {
+            DisposeFrames();
+
+            if (codecCtx != null)
+                avcodec_free_context(ref codecCtx);
+
+            if (bsfCtx != null)
+                av_bsf_free (ref bsfCtx);
+
+            av_packet_free  (ref bsfInput);
+            av_packet_free  (ref elPacket);
+            av_frame_free   (ref elFrame);
+
+            getHWformat = null;
+        }
+    }
     #endregion
 }

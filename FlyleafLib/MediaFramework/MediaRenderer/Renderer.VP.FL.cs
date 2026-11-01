@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Numerics;
 
 using Vortice.Direct3D;
@@ -467,6 +467,23 @@ public unsafe partial class Renderer
                 FLSetPano360();
         }
     }
+    void FLBindVideoFrame(VideoFrame frame, bool resetHDRDetect)
+    {
+        context.PSSetShaderResources(0, frame.SRV);
+        bool felReady = felShaderEnabled && FLBindFEL(frame);
+
+        if (!isPQSpline)
+            return;
+
+        if (resetHDRDetect)
+            FLHDRDetectReset();
+
+        if (isDovi)
+            FLDoviApply(frame, felReady);
+        else
+            FLHDRDetect();
+    }
+
     void FLRender(VideoFrame frame)
     {
         if (frame.SRV == null)
@@ -474,16 +491,7 @@ public unsafe partial class Renderer
 
         context.OMSetRenderTargets(SwapChain.BackBufferRtv);
         context.ClearRenderTargetView(SwapChain.BackBufferRtv, ucfg.flBackColor);
-        context.PSSetShaderResources(0, frame.SRV);
-
-        if (isPQSpline)
-        {
-            if (isDovi)
-                FLDoviApply(frame);
-            else
-                FLHDRDetect();
-        }
-        
+        FLBindVideoFrame(frame, false);
         context.Draw(6, 0);
 
         if (context2d != null)
@@ -491,20 +499,10 @@ public unsafe partial class Renderer
 
         FLSubsRender();
     }
+
     void FLRender(VideoFrame frame, ID3D11RenderTargetView rtv, Viewport view)
     {
-        context.PSSetShaderResources(0, frame.SRV);
-
-        if (isPQSpline)
-        {
-            FLHDRDetectReset();
-
-            if (isDovi)
-                FLDoviApply(frame);
-            else
-                FLHDRDetect();
-        }
-        
+        FLBindVideoFrame(frame, true);
         context.OMSetRenderTargets(rtv);
         context.RSSetViewport(view);
         context.Draw(6, 0);

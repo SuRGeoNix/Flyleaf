@@ -16,6 +16,7 @@ public class VideoCache
     long                curId;
     bool                isCurrentNext;
     bool                disposeRenderFrame;
+    readonly HashSet<long> skippedFEL = []; // Never render BL without its EL.
 
     internal VideoCache(DecoderConfig dcfg)
         => this.dcfg = dcfg;
@@ -68,31 +69,26 @@ public class VideoCache
     {
         lock (this)
         {
-            if (Current == null)
+            while (Current != null)
             {
-                frame = null;
-                return false;
-            }
+                var next = isCurrentNext ? Current : Current.Next;
+                if (next == null || (!next.isReady && !skippedFEL.Contains(next.Id)))
+                    break;
 
-            if (isCurrentNext)
-            {
-                //Log($"D: [{First.Id} {Last.Id}] {(Current != null ? Current.Id : "-")} *");
+                if (isCurrentNext)
+                    isCurrentNext = false;
+                else
+                {
+                    var id = Current.Id;
+                    Current = next;
 
-                frame = Current;
-                isCurrentNext = false;
-                return true;
-            }
+                    while (id - First.Id > dcfg.MaxVideoFramesPrev - 1)
+                        { Shrink(); if (First == null) break; }
+                }
 
-            var id  = Current.Id;   // we might dispose/null it during shrink
-            Current = Current.Next;
+                if (skippedFEL.Contains(Current.Id))
+                    continue; // A failed EL match must never reach the renderer.
 
-            while (id - First.Id > dcfg.MaxVideoFramesPrev - 1)
-                { Shrink(); if (First == null) break; }
-
-            //if (First != null) Log($"D: [{First.Id} {Last.Id}] {(Current != null ? Current.Id : "-")}");
-
-            if (Current != null)
-            {
                 frame = Current;
                 return true;
             }
@@ -105,6 +101,7 @@ public class VideoCache
     void Shrink()
     {
         var first   = First;
+        skippedFEL.Remove(first.Id);
         First       = First.Next;
 
         if (First == null)
@@ -130,12 +127,110 @@ public class VideoCache
         }
     }
 
+    // During seek recovery, keep recent BL frames without blocking the decoder.
+    internal bool DropOldestFELPreroll()
+    {
+        lock (this)
+        {
+            if (First == null || First.isReady)
+                return false;
+
+            DropFirstFEL();
+            return true;
+        }
+    }
+
+    // A matching EL has established the first usable post-seek picture.
+    internal void DiscardFELPreroll()
+    {
+        lock (this)
+            while (First != null && !First.isReady)
+                DropFirstFEL();
+    }
+
+    void DropFirstFEL()
+    {
+        if (Current == First)
+        {
+            Current = First.Next;
+            isCurrentNext = true;
+        }
+
+        Shrink();
+    }
+
+    // While aligned, any unready BL at the playback cursor signals a stalled pair.
+    // It is not safe to skip a single frame and continue ordinal pairing.
+    internal bool HasBlockedFEL()
+    {
+        lock (this)
+        {
+            var next = isCurrentNext ? Current : Current?.Next;
+            return next != null && !next.isReady && !skippedFEL.Contains(next.Id);
+        }
+    }
+
+    // Only for EOF or loss of synchronization: these BL frames must never render.
+    internal void SkipUnmatchedFEL()
+    {
+        lock (this)
+            for (var cur = First; cur != null; cur = cur.Next)
+                if (!cur.isReady)
+                    skippedFEL.Add(cur.Id);
+    }
+
+    // Pair the next decoded EL with the oldest waiting BL in presentation order.
+    unsafe internal bool MergeNextELFrame(AVFrame* elFrame)
+    {
+        lock (this)
+        {
+            for (var cur = First; cur != null; cur = cur.Next)
+            {
+                if (cur.isReady || skippedFEL.Contains(cur.Id))
+                    continue;
+
+                cur.AVFrameFEL = elFrame;
+                cur.isReady = true;
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    // The first post-flush EL random-access picture anchors both output sequences.
+    // Only this anchor uses packet identity; B-frame output must use FIFO thereafter.
+    unsafe internal bool MergeELAnchor(AVFrame* elFrame)
+    {
+        lock (this)
+        {
+            for (var cur = First; cur != null; cur = cur.Next)
+            {
+                if (cur.isReady || skippedFEL.Contains(cur.Id) || cur.AVFrame->opaque != elFrame->opaque)
+                    continue;
+
+                // Preserve any already completed frames during a midstream resync.
+                // Unmatched preroll must be skipped, never rendered as BL-only.
+                for (var prev = First; prev != cur; prev = prev.Next)
+                    if (!prev.isReady)
+                        skippedFEL.Add(prev.Id);
+
+                cur.AVFrameFEL = elFrame;
+                cur.isReady = true;
+                return true;
+            }
+
+            return false;
+        }
+    }
+
     public void Reset()
     {
         lock (this)
         {
             var cur = First;
             First = Current = Last = null;
+            skippedFEL.Clear();
 
             while (cur != null)
             {
@@ -155,6 +250,7 @@ public class VideoCache
         {
             var cur = First;
             First = Current = Last = null;
+            skippedFEL.Clear();
 
             while (cur != null)
             {
