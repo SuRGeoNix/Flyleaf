@@ -392,13 +392,14 @@ public unsafe partial class Renderer
         hdrData.BT1886InvRange = 1.0f / (1.0f - hdrData.BT1886BlackRoot);
 
         if (hdrData.NativeOutput == 0)
-            FLGamutUpdateTarget();
+            FLGamutUpdateTarget(isDovi && doviAppliedData?.IsCM4 == true
+                ? doviAppliedData.SourceGamut : DoviTargetGamut.Unknown);
 
         hdrData.HLGGamma = hdrData.TargetPeakNits >= 400.0f && hdrData.TargetPeakNits <= 2000.0f ?
             1.2f + 0.42f * MathF.Log10(hdrData.TargetPeakNits / 1000.0f) :          // BT.2100-3
             1.2f * MathF.Pow(1.111f, MathF.Log2(hdrData.TargetPeakNits / 1000.0f)); // BT.2100-3 extended range
 
-        if (hdrHasStats)
+        if (hdrHasStats && (!isDovi || DoviUseHDRDetect || doviL1Nits == null))
         {
             FLHDRApply();
             vpRequestsIn &= ~VPRequestType.UpdateHDR;
