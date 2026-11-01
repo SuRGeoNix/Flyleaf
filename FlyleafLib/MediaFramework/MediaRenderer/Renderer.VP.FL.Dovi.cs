@@ -21,10 +21,12 @@ public unsafe partial class Renderer
     bool doviNeedsHDRDetect;
     bool? doviIsCM4;
 
-    const int doviVectors             = 190; // 187 reconstruction + 3 L2 trim vectors
+    const int doviVectors             = 194; // 187 reconstruction + 3 L2 + 4 FEL NLQ vectors
     const int doviTrimInfo            = 187;
     const int doviTrimPrimary         = 188;
     const int doviTrimSecondary       = 189;
+    const int doviFelInfo             = 190;
+    const int doviFelNLQ              = 191;
     const int doviComponentVectors    = 59;
     const int doviComponentBase       = 10;
     const int doviMmrVectors          = 48;
@@ -38,6 +40,8 @@ public unsafe partial class Renderer
     // Dovi[187]    : L2 present (0/2), authored reference peak, 0, 0
     // Dovi[188]    : slope, offset, power, chroma weight
     // Dovi[189]    : saturation gain, tone detail factor, 0, 0
+    // Dovi[190]    : FEL active, EL code scale, EL UV scale X, EL UV scale Y (render-time)
+    // Dovi[191..193]: per-YUV-channel NLQ offset, slope, threshold, hdr_in_max
     static BufferDescription doviDesc = new()
     {
         Usage          = ResourceUsage.Default,
@@ -61,6 +65,8 @@ public unsafe partial class Renderer
     {
         public DoviBufferType Buffer;
         internal DoviTrimSnapshot Trim;
+        internal bool HasFEL;
+        internal byte ELBitDepth;
     }
 
     DoviFrameData doviPreparedData; // Prepare-side cache for repeated RPUs.
@@ -68,11 +74,16 @@ public unsafe partial class Renderer
 
     DoviFrameData doviAppliedData;  // Render-side cache
     bool doviAppliedEmpty;
+    Vector4 doviAppliedFELInfo;
+    Vector4 felInfo;
 
     // FFmpeg reattaches fresh side data every frame; compare actual metadata.
     bool                    doviSourceCached;
     byte                    doviCachedBlBitDepth;
     byte                    doviCachedCoefLog2Denom;
+    byte                    doviCachedElBitDepth;
+    bool                    doviCachedFEL;
+    AVDOVINLQParams         doviCachedNLQ0, doviCachedNLQ1, doviCachedNLQ2;
     AVDOVIReshapingCurve    doviCachedCurve0, doviCachedCurve1, doviCachedCurve2;
     AVDOVIColorMetadata     doviCachedColor;
 
@@ -130,11 +141,16 @@ public unsafe partial class Renderer
         doviPreparedData    = null;
         doviAppliedData     = null;
         doviAppliedEmpty    = false;
+        doviAppliedFELInfo  = default;
         doviSourceCached    = false;
         doviCachedColor     = default;
         doviCachedCurve0    = default;
         doviCachedCurve1    = default;
         doviCachedCurve2    = default;
+        doviCachedNLQ0      = default;
+        doviCachedNLQ1      = default;
+        doviCachedNLQ2      = default;
+        doviCachedFEL       = false;
         doviIsCM4           = FLDoviIsCM4(frame);
         doviNeedsHDRDetect  = DoviUseHDRDetect || doviIsCM4 != false;
     }
@@ -160,6 +176,27 @@ public unsafe partial class Renderer
         return false;
     }
 
+    internal static bool FLIsDoviFEL(AVDOVIRpuDataHeader* header, AVDOVIDataMapping* mapping)
+    {
+        if (header == null || mapping == null || header->disable_residual_flag != 0 || mapping->nlq_method_idc != AVDOVINLQMethod.LinearDz || header->coef_log2_denom >= 64)
+            return false;
+
+        ulong one = 1UL << header->coef_log2_denom;
+
+        for (int c = 0; c < 3; c++)
+        {
+            AVDOVINLQParams nlq = mapping->nlq[c];
+
+            if (nlq.nlq_offset != 0 ||
+                nlq.vdr_in_max != one ||
+                nlq.linear_deadzone_slope != 0 ||
+                nlq.linear_deadzone_threshold != 0)
+                return true;
+        }
+
+        return false;
+    }
+    
     (DoviFrameData, (float Min, float Avg, float Max)?) FLDoviPrepare(AVFrame* frame)
     {
         var side = av_frame_side_data_get(frame->side_data, frame->nb_side_data, AVFrameSideDataType.DOVIMetadata);
@@ -176,18 +213,24 @@ public unsafe partial class Renderer
         if (header->coef_log2_denom < 13 || header->coef_log2_denom > 32)
             return (null, null);
 
-        // Apply L2 only for CM 2.9; CM 4.x uses HDRDetect until L8 is supported.
+        // Classify once per RPU; NLQ itself can change between frames.
+        bool hasFEL = scfg.DoviProfile == 7 && header->el_bit_depth is >= 8 and <= 16 &&
+                      FLIsDoviFEL(header, mapping);
         var trim = doviIsCM4 == false ? FLDoviSelectTrim(dovi) : default;
-
-        // Reuse cached reconstruction state when only per-frame trim values change.
-        if (doviPreparedData != null && DoviSourceEquals(header, mapping, color))
+        
+        if (doviPreparedData != null && DoviSourceEquals(header, mapping, color, hasFEL))
         {
             if (doviPreparedData.Trim != trim)
             {
                 // Keep queued frames immutable when only trims change.
                 DoviBufferType nextBuffer = doviPreparedData.Buffer;
                 DoviWriteTrim(ref nextBuffer, trim);
-                doviPreparedData = new() { Buffer = nextBuffer, Trim = trim };
+                doviPreparedData = new()
+                {
+                    Buffer = nextBuffer, Trim = trim,
+                    HasFEL = doviPreparedData.HasFEL,
+                    ELBitDepth = doviPreparedData.ELBitDepth
+                };
             }
             return (doviPreparedData, FLDoviL1Nits(dovi));
         }
@@ -285,7 +328,7 @@ public unsafe partial class Renderer
             for (int i = 1; i < numPivots; i++)
             {
                 ushort current = curve.pivots[i];
-                if (current <= previous || current > blMax)
+                if (current < previous || current > blMax)
                     return (null, null);
                 previous = current;
             }
@@ -393,8 +436,26 @@ public unsafe partial class Renderer
         DoviSet(ref buffer, 0, new(sampleScale, identityReshape ? 1.0f : 0.0f, 0, 0));
         DoviWriteTrim(ref buffer, trim);
 
-        DoviCacheSource(header, mapping, color);
-        doviPreparedData = new() { Buffer = buffer, Trim = trim };
+        // NLQ coefficients stay with the RPU; EL surface binding is render-time.
+        if (hasFEL)
+        {
+            for (int c = 0; c < 3; c++)
+            {
+                var nlq = mapping->nlq[c];
+                DoviSet(ref buffer, doviFelNLQ + c, new(
+                    nlq.nlq_offset,
+                    (float)(nlq.linear_deadzone_slope * coefScale),
+                    (float)(nlq.linear_deadzone_threshold * coefScale),
+                    (float)(nlq.vdr_in_max * coefScale)));
+            }
+        }
+
+        DoviCacheSource(header, mapping, color, hasFEL);
+        doviPreparedData = new()
+        {
+            Buffer = buffer, Trim = trim,
+            HasFEL = hasFEL, ELBitDepth = header->el_bit_depth
+        };
         return (doviPreparedData, FLDoviL1Nits(dovi));
     }
 
@@ -519,12 +580,26 @@ public unsafe partial class Renderer
             new(trim.SaturationGain, trim.MsWeight, 0, 0));
     }
 
-    void FLDoviApply(VideoFrame frame)
+    void FLDoviApply(VideoFrame frame, bool felReady)
     {
         var data = frame.Dovi;
 
         if (data != null)
         {
+            // Update before HDRDetect so analysis and display use the same pixels.
+            Vector4 activeFEL = felReady ? felInfo : default;
+            if (!ReferenceEquals(data, doviAppliedData) || doviAppliedFELInfo != activeFEL)
+            {
+                DoviBufferType buffer = data.Buffer;
+                if (felReady)
+                    DoviSet(ref buffer, doviFelInfo, activeFEL);
+
+                context.UpdateSubresource(buffer, doviBuffer);
+                doviAppliedData    = data;
+                doviAppliedFELInfo = activeFEL;
+                doviAppliedEmpty   = false;
+            }
+
             if (doviNeedsHDRDetect)
                 FLHDRDetect();
             else if (frame.DoviL1Nits is { } l1 && doviL1Nits != l1)
@@ -545,29 +620,22 @@ public unsafe partial class Renderer
                 context.UpdateSubresource(hdrData, hdrBuffer);
             }
             else if (doviL1Nits == null)
-            {   // RPU without L1 (HDR Detect fallback)
+            {
                 doviNeedsHDRDetect = true;
                 FLHDRDetect();
             }
 
-            if (ReferenceEquals(data, doviAppliedData))
-                return;
-
-            context.UpdateSubresource(data.Buffer, doviBuffer);
-            doviAppliedData  = data;
-            doviAppliedEmpty = false;
             return;
         }
 
-        // A DOVI shader should normally always have RPU metadata. Clear once when
-        // metadata is missing/invalid so an older frame's RPU is never reused.
         if (doviAppliedEmpty)
             return;
 
-        DoviBufferType empty = default;
+        DoviBufferType empty= default;
         context.UpdateSubresource(empty, doviBuffer);
-        doviAppliedData  = null;
-        doviAppliedEmpty = true;
+        doviAppliedData     = null;
+        doviAppliedFELInfo  = default;
+        doviAppliedEmpty    = true;
     }
 
     static bool DoviTryFloat(AVRational value, out float result)
@@ -592,11 +660,20 @@ public unsafe partial class Renderer
             ((Vector4*)p)[index] = value;
     }
 
-    bool DoviSourceEquals(AVDOVIRpuDataHeader* header, AVDOVIDataMapping* mapping, AVDOVIColorMetadata* color)
+    bool DoviSourceEquals(AVDOVIRpuDataHeader* header, AVDOVIDataMapping* mapping,
+                          AVDOVIColorMetadata* color, bool hasFEL)
     {
         if (!doviSourceCached ||
-            header->bl_bit_depth    != doviCachedBlBitDepth ||
-            header->coef_log2_denom != doviCachedCoefLog2Denom)
+            header->bl_bit_depth    != doviCachedBlBitDepth     ||
+            header->coef_log2_denom != doviCachedCoefLog2Denom  ||
+            hasFEL                  != doviCachedFEL            ||
+            (hasFEL && header->el_bit_depth != doviCachedElBitDepth))
+            return false;
+
+        if (hasFEL &&
+            (!DoviNLQEquals(mapping->nlq[0], doviCachedNLQ0) ||
+             !DoviNLQEquals(mapping->nlq[1], doviCachedNLQ1) ||
+             !DoviNLQEquals(mapping->nlq[2], doviCachedNLQ2)))
             return false;
 
         ref var curve0 = ref mapping->curves[0];
@@ -620,7 +697,8 @@ public unsafe partial class Renderer
         return true;
     }
 
-    void DoviCacheSource(AVDOVIRpuDataHeader* header, AVDOVIDataMapping* mapping, AVDOVIColorMetadata* color)
+    void DoviCacheSource(AVDOVIRpuDataHeader* header, AVDOVIDataMapping* mapping,
+                         AVDOVIColorMetadata* color, bool hasFEL)
     {
         doviCachedBlBitDepth     = header->bl_bit_depth;
         doviCachedCoefLog2Denom  = header->coef_log2_denom;
@@ -628,8 +706,22 @@ public unsafe partial class Renderer
         doviCachedCurve1         = mapping->curves[1];
         doviCachedCurve2         = mapping->curves[2];
         doviCachedColor          = *color;
+        doviCachedFEL            = hasFEL;
+        doviCachedElBitDepth     = header->el_bit_depth;
+        if (doviCachedFEL)
+        {
+            doviCachedNLQ0       = mapping->nlq[0];
+            doviCachedNLQ1       = mapping->nlq[1];
+            doviCachedNLQ2       = mapping->nlq[2];
+        }
         doviSourceCached         = true;
     }
+
+    static bool DoviNLQEquals(AVDOVINLQParams a, AVDOVINLQParams b)
+        => a.nlq_offset == b.nlq_offset &&
+           a.vdr_in_max == b.vdr_in_max &&
+           a.linear_deadzone_slope == b.linear_deadzone_slope &&
+           a.linear_deadzone_threshold == b.linear_deadzone_threshold;
 
     static bool DoviCurveEquals(ref AVDOVIReshapingCurve a, ref AVDOVIReshapingCurve b)
     {

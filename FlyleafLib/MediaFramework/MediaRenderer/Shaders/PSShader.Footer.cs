@@ -6,7 +6,7 @@ internal static partial class ShaderCompiler
     float3 c = color.rgb;
 
 #if defined(dDovi)
-    c = DoviDecodeYCC(c);
+    c = DoviDecodeYCC(c, input.Texture);
 #elif defined(dYUVLimited)
     #if defined(dFilters) && !defined(dHDRDetect)
         c.x = Contrast(c.x, Config.contrast);
