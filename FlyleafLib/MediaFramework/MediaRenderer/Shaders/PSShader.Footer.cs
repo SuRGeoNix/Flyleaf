@@ -3,6 +3,10 @@
 internal static partial class ShaderCompiler
 {
     static ReadOnlySpan<byte> PS_FOOTER => @"
+#if defined(dHDRDetect) && defined(dDovi)
+    if (!DoviL5Active(input.Texture))
+        return float4(0.0, 0.0, 0.0, 1.0);
+#endif
     float3 c = color.rgb;
 
 #if defined(dDovi)
@@ -72,10 +76,15 @@ internal static partial class ShaderCompiler
     }
 
     #if defined(dDovi)
-        c = DoviApplyL2(doviSource2020Nits, c);
-        #if defined(dDoviMSDetail)
-            c = DoviToneDetail(doviSource2020Nits, c, input.Texture);
-        #endif
+        if (DoviL5Active(input.Texture))
+        {
+            c = DoviApplyL2(doviSource2020Nits, c);
+            c = DoviApplyL8(doviSource2020Nits, c);
+            #if defined(dDoviMSDetail)
+                c = DoviToneDetail(doviSource2020Nits, c, input.Texture);
+            #endif
+            c = DoviApplyL8Secondary(c);
+        }
     #endif
 #endif
 
