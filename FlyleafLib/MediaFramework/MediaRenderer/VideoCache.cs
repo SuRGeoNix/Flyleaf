@@ -160,7 +160,7 @@ public class VideoCache
     }
 
     // While aligned, any unready BL at the playback cursor signals a stalled pair.
-    // It is not safe to skip a single frame and continue ordinal pairing.
+    // Do not discard a pending BL while waiting for its EL.
     internal bool HasBlockedFEL()
     {
         lock (this)
@@ -168,6 +168,16 @@ public class VideoCache
             var next = isCurrentNext ? Current : Current?.Next;
             return next != null && !next.isReady && !skippedFEL.Contains(next.Id);
         }
+    }
+
+    // Direct stepping must not consume ELs owned by queued playback BLs.
+    internal bool HasAnyUnreadyFEL()
+    {
+        lock (this)
+            for (var cur = First; cur != null; cur = cur.Next)
+                if (!cur.isReady && !skippedFEL.Contains(cur.Id))
+                    return true;
+        return false;
     }
 
     // Only for EOF or loss of synchronization: these BL frames must never render.
@@ -179,15 +189,39 @@ public class VideoCache
                     skippedFEL.Add(cur.Id);
     }
 
-    // Pair the next decoded EL with the oldest waiting BL in presentation order.
+    internal static unsafe long FELPts(AVFrame* frame)
+        => frame->best_effort_timestamp != AV_NOPTS_VALUE
+            ? frame->best_effort_timestamp : frame->pts;
+
+    // Never associate different presentation pictures, even if EL drops a frame.
     unsafe internal bool MergeNextELFrame(AVFrame* elFrame)
     {
+        long elPts = FELPts(elFrame);
+        if (elPts == AV_NOPTS_VALUE)
+            return false;
+
         lock (this)
         {
             for (var cur = First; cur != null; cur = cur.Next)
             {
                 if (cur.isReady || skippedFEL.Contains(cur.Id))
                     continue;
+
+                long blPts = FELPts(cur.AVFrame);
+                if (blPts == AV_NOPTS_VALUE)
+                    return false;
+
+                if (blPts < elPts)
+                {
+                    skippedFEL.Add(cur.Id);
+                    continue;
+                }
+
+                if (blPts > elPts)
+                {
+                    av_frame_free(ref elFrame);
+                    return true;
+                }
 
                 cur.AVFrameFEL = elFrame;
                 cur.isReady = true;
@@ -198,8 +232,8 @@ public class VideoCache
         }
     }
 
-    // The first post-flush EL random-access picture anchors both output sequences.
-    // Only this anchor uses packet identity; B-frame output must use FIFO thereafter.
+    // The first decoded EL anchors BL/EL using packet identity.
+    // Subsequent pictures are matched by presentation timestamps.
     unsafe internal bool MergeELAnchor(AVFrame* elFrame)
     {
         lock (this)
@@ -207,6 +241,10 @@ public class VideoCache
             for (var cur = First; cur != null; cur = cur.Next)
             {
                 if (cur.isReady || skippedFEL.Contains(cur.Id) || cur.AVFrame->opaque != elFrame->opaque)
+                    continue;
+
+                long blPts = FELPts(cur.AVFrame), elPts = FELPts(elFrame);
+                if (blPts != AV_NOPTS_VALUE && elPts != AV_NOPTS_VALUE && blPts != elPts)
                     continue;
 
                 // Preserve any already completed frames during a midstream resync.
