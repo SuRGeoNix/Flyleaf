@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.14</Version>
+	<Version>3.11.15</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,10 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer.HDR: Improve tone mapping with LMS cone-channel processing
-		- Renderer.HDR: Replaces polynomial PQSpline with hyperbolic segments to prevent overshoot and highlight clipping
-		- Renderer.HDR: Extends HDRDetect with maxRGB scene average for more accurate tone-mapping adaptation
-		- Renderer.HDR.Dovi: Adds L2 (CM 2.9) trims support (slope, offset, power, saturation, chroma weight, MS weight)
-		- Controls.WPF.PlayerDebug: Fixes an issue with Video Processor was not visible
-
-		[Breaking Changes]
-		- Config.Demuxer: Increases default timeouts for read, seek, and close operations
+		- Renderer.HDR.Dovi: Adds Dolby Vision Profile 7 FEL reconstruction
+		- Renderer.HDR.Dovi: Adds Dolby Vision CM 4.x support with L1/L3 luminance metadata and L8 primary/secondary trims (lift, gamma, gain, saturation, chroma, mid-contrast, highlight clipping, hue and tone detail)
+		- Renderer.HDR.Dovi: Fixes RPU reconstruction with duplicate reshaping pivots
+		- Renderer.HDR: Fixes tone mapping input clamping to source metadata luminance
 	</PackageReleaseNotes>
   </PropertyGroup>
 
