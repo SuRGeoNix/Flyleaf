@@ -85,7 +85,8 @@ public unsafe partial class Renderer
         float Slope, float Offset, float Power,
         float ChromaWeight, float SaturationGain,
         ushort MsWeight, ushort MidContrast, ushort ClipTrim,
-        DoviL8Vector Saturation, DoviL8Vector Hue);
+        DoviL8Vector Saturation, DoviL8Vector Hue,
+        bool HasMidContrast, bool HasClipTrim, bool HasSaturation, bool HasHue);
 
     internal sealed class DoviFrameData
     {
@@ -809,21 +810,34 @@ public unsafe partial class Renderer
                 target.PeakNits <= 0)
                 continue;
 
+            DoviL8Vector saturation = new(
+                l8.saturation_vector_field[0], l8.saturation_vector_field[1],
+                l8.saturation_vector_field[2], l8.saturation_vector_field[3],
+                l8.saturation_vector_field[4], l8.saturation_vector_field[5]);
+            DoviL8Vector hue = new(
+                l8.hue_vector_field[0], l8.hue_vector_field[1],
+                l8.hue_vector_field[2], l8.hue_vector_field[3],
+                l8.hue_vector_field[4], l8.hue_vector_field[5]);
+
+            // FFmpeg drops L8 block lengths; later fields imply earlier ones exist.
+            bool hasHue  = DoviL8VectorHasValues(hue);
+            bool hasSat  = hasHue || DoviL8VectorHasValues(saturation);
+            bool hasClip = hasSat || l8.clip_trim != 0;
+            bool hasMid  = hasClip || l8.target_mid_contrast != 0;
+
             result.Add(new DoviL8Snapshot(
                 8, target,
                 DoviTrimUnit(l8.trim_slope), DoviTrimSigned(l8.trim_offset),
                 DoviTrimUnit(l8.trim_power), DoviTrimSigned(l8.trim_chroma_weight),
                 DoviTrimSigned(l8.trim_saturation_gain),
                 (ushort)l8.ms_weight, l8.target_mid_contrast, l8.clip_trim,
-                new(l8.saturation_vector_field[0], l8.saturation_vector_field[1],
-                    l8.saturation_vector_field[2], l8.saturation_vector_field[3],
-                    l8.saturation_vector_field[4], l8.saturation_vector_field[5]),
-                new(l8.hue_vector_field[0], l8.hue_vector_field[1],
-                    l8.hue_vector_field[2], l8.hue_vector_field[3],
-                    l8.hue_vector_field[4], l8.hue_vector_field[5])));
+                saturation, hue, hasMid, hasClip, hasSat, hasHue));
         }
         return [.. result];
     }
+
+    static bool DoviL8VectorHasValues(DoviL8Vector v)
+        => (v.V0 | v.V1 | v.V2 | v.V3 | v.V4 | v.V5) != 0;
 
     DoviL8Snapshot FLDoviSelectL8(ReadOnlySpan<DoviL8Snapshot> candidates)
     {
@@ -840,16 +854,12 @@ public unsafe partial class Renderer
         foreach (var l8 in candidates)
         {
             var target = l8.Target;
+            if (target.IsPQ != native || (native
+                ? target.Gamut is not (DoviTargetGamut.P3 or DoviTargetGamut.BT2020)
+                : target.Gamut != DoviTargetGamut.BT709))
+                continue;
+
             float score = MathF.Abs(targetPQ - NitsToPQ(target.PeakNits));
-            if (target.IsPQ != native)
-                score += 0.08f;
-            score += target.Gamut switch
-            {
-                DoviTargetGamut.BT709  => native ? 0.06f : 0f,
-                DoviTargetGamut.P3     => native ? 0f : 0.025f,
-                DoviTargetGamut.BT2020 => native ? 0.01f : 0.035f,
-                _ => 0.012f
-            };
             if (target.MinNits > 0)
                 score += 0.05f * MathF.Abs(blackPQ - NitsToPQ(target.MinNits));
             if (score < bestScore)
@@ -871,27 +881,28 @@ public unsafe partial class Renderer
             new(trim.SaturationGain, trim.MsWeight, 0, 0));
     }
 
-    static float DoviL8OptionalTrim(ushort code) => code == 0 ? 0f : DoviTrimSigned(code);
-    static float DoviL8VectorTrim(byte code) => unchecked((sbyte)code) / 128f;
+    static float DoviL8OptionalTrim(ushort code, bool present) => present ? DoviTrimSigned(code) : 0f;
+    static float DoviL8VectorTrim(byte code, bool present) => present ? (code - 128f) / 128f : 0f;
 
     static void DoviWriteL8(ref DoviBufferType buffer, DoviL8Snapshot l8)
     {
         DoviSet(ref buffer, doviL8Info,
             new(l8.Level, l8.Target.PeakNits,
-                DoviL8OptionalTrim(l8.MidContrast), DoviL8OptionalTrim(l8.ClipTrim)));
+                DoviL8OptionalTrim(l8.MidContrast, l8.HasMidContrast),
+                DoviL8OptionalTrim(l8.ClipTrim, l8.HasClipTrim)));
         DoviSet(ref buffer, doviL8Primary,
             new(l8.Slope, l8.Offset, l8.Power, l8.ChromaWeight));
         DoviSet(ref buffer, doviL8Secondary,
             new(l8.SaturationGain, l8.Level == 8 ? (l8.MsWeight - 2048f) / 2048f : 0f, 0, 0));
         DoviSet(ref buffer, doviL8Saturation0,
-            new(DoviL8VectorTrim(l8.Saturation.V0), DoviL8VectorTrim(l8.Saturation.V1),
-                DoviL8VectorTrim(l8.Saturation.V2), DoviL8VectorTrim(l8.Saturation.V3)));
+            new(DoviL8VectorTrim(l8.Saturation.V0, l8.HasSaturation), DoviL8VectorTrim(l8.Saturation.V1, l8.HasSaturation),
+                DoviL8VectorTrim(l8.Saturation.V2, l8.HasSaturation), DoviL8VectorTrim(l8.Saturation.V3, l8.HasSaturation)));
         DoviSet(ref buffer, doviL8Saturation1Hue0,
-            new(DoviL8VectorTrim(l8.Saturation.V4), DoviL8VectorTrim(l8.Saturation.V5),
-                DoviL8VectorTrim(l8.Hue.V0), DoviL8VectorTrim(l8.Hue.V1)));
+            new(DoviL8VectorTrim(l8.Saturation.V4, l8.HasSaturation), DoviL8VectorTrim(l8.Saturation.V5, l8.HasSaturation),
+                DoviL8VectorTrim(l8.Hue.V0, l8.HasHue), DoviL8VectorTrim(l8.Hue.V1, l8.HasHue)));
         DoviSet(ref buffer, doviL8Hue1,
-            new(DoviL8VectorTrim(l8.Hue.V2), DoviL8VectorTrim(l8.Hue.V3),
-                DoviL8VectorTrim(l8.Hue.V4), DoviL8VectorTrim(l8.Hue.V5)));
+            new(DoviL8VectorTrim(l8.Hue.V2, l8.HasHue), DoviL8VectorTrim(l8.Hue.V3, l8.HasHue),
+                DoviL8VectorTrim(l8.Hue.V4, l8.HasHue), DoviL8VectorTrim(l8.Hue.V5, l8.HasHue)));
     }
 
     void FLDoviApply(VideoFrame frame, bool felReady)
