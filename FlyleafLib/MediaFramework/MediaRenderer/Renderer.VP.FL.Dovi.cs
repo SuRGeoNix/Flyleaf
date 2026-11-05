@@ -603,6 +603,9 @@ public unsafe partial class Renderer
         if (l1.min_pq > 4095 || l1.avg_pq > 4095 || l1.max_pq > 4095)
             return null;
 
+        if (doviIsCM4 == true && (l1.min_pq > l1.avg_pq || l1.avg_pq > l1.max_pq))
+            return null;
+
         if (doviIsCM4 != true || level3 == null)
             return (PQToNitsDovi(l1.min_pq), PQToNitsDovi(l1.avg_pq), PQToNitsDovi(l1.max_pq));
 
@@ -610,14 +613,14 @@ public unsafe partial class Renderer
         if (l3.min_pq_offset > 4095 || l3.avg_pq_offset > 4095 || l3.max_pq_offset > 4095)
             return null;
 
-        float minPQ = Math.Clamp(l1.min_pq / 4095f + (l3.min_pq_offset - 2048) / 2048f, 0f, 1f);
-        float avgPQ = Math.Clamp(l1.avg_pq / 4095f + (l3.avg_pq_offset - 2048) / 2048f, 0f, 1f);
-        float maxPQ = Math.Clamp(l1.max_pq / 4095f + (l3.max_pq_offset - 2048) / 2048f, 0f, 1f);
+        float minPQ = l1.min_pq / 4095f + (l3.min_pq_offset - 2048) / 2048f;
+        float avgPQ = l1.avg_pq / 4095f + (l3.avg_pq_offset - 2048) / 2048f;
+        float maxPQ = l1.max_pq / 4095f + (l3.max_pq_offset - 2048) / 2048f;
 
-        if (minPQ > maxPQ)
+        if (minPQ < 0f || minPQ > avgPQ || avgPQ > maxPQ || maxPQ > 1f)
             return null;
 
-        return (PQToNits(minPQ), PQToNits(Math.Clamp(avgPQ, minPQ, maxPQ)), PQToNits(maxPQ));
+        return (PQToNits(minPQ), PQToNits(avgPQ), PQToNits(maxPQ));
     }
 
     static float DoviTrimSigned(ushort code) => code / 4096f - 0.5f;

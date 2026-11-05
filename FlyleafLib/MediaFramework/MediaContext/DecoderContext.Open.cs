@@ -959,31 +959,44 @@ public partial class DecoderContext
 
         try
         {
-            // Set HTTP Config
             if (Playlist.InputType == InputType.Web)
-            {
+            {   // Set HTTP Config
                 formatOpt = Config.Demuxer.GetFormatOptPtr(demuxer.Type);
-                copied = new Dictionary<string, string>();
+                copied = [];
 
                 foreach (var opt in formatOpt)
                     copied.Add(opt.Key, opt.Value);
 
-                if (demuxerInput.UserAgent != null)
-                    formatOpt["user_agent"] = demuxerInput.UserAgent;
+                if (demuxerInput.Cookies != null)
+                    SetCookies(formatOpt, demuxerInput.Cookies);
 
                 if (demuxerInput.Referrer != null)
                     formatOpt["referer"] = demuxerInput.Referrer;
 
-                // this can cause issues
-                //else if (!formatOpt.ContainsKey("referer") && Playlist.Url != null)
-                //    formatOpt["referer"] = Playlist.Url;
+                var headers = new StringBuilder();
+
+                // User-Agent anti-bot (make sure last in ffmpeg headers) | when using user_agent option ffmpeg will put it first so pass in headers instead
+                string userAgent = null;
 
                 if (demuxerInput.HTTPHeaders != null)
                 {
-                    formatOpt["headers"] = "";
-                    foreach(var header in demuxerInput.HTTPHeaders)
-                        formatOpt["headers"] += header.Key + ": " + header.Value + "\r\n";
+                    foreach (var header in demuxerInput.HTTPHeaders)
+                    {
+                        if (header.Key.Equals("User-Agent", StringComparison.OrdinalIgnoreCase))
+                            userAgent = header.Value;
+                        else
+                            headers.Append(header.Key).Append(": ").Append(header.Value).Append("\r\n");
+                    }
                 }
+
+                if (string.IsNullOrEmpty(userAgent))
+                    formatOpt.TryGetValue("user_agent", out userAgent);
+
+                if (!string.IsNullOrEmpty(userAgent))
+                    headers.Append("User-Agent: ").Append(userAgent).Append("\r\n");
+
+                if (headers.Length > 0)
+                    formatOpt["headers"] = headers.ToString();
             }
 
             // Open Demuxer Input
@@ -994,6 +1007,10 @@ public partial class DecoderContext
                 if (error != null && !string.IsNullOrEmpty(demuxerInput.UrlFallback))
                 {
                     Log.Warn($"Fallback to {demuxerInput.UrlFallback}");
+
+                    if (demuxerInput.CookiesFallback != null)
+                        SetCookies(formatOpt, demuxerInput.CookiesFallback);
+
                     error = demuxer.Open(demuxerInput.UrlFallback);
                 }
             }
@@ -1004,16 +1021,23 @@ public partial class DecoderContext
         }
         finally
         {
-            // Restore HTTP Config
             if (Playlist.InputType == InputType.Web)
-            {
+            {   // Restore HTTP Config
                 formatOpt.Clear();
-                foreach(var opt in copied)
+                foreach (var opt in copied)
                     formatOpt.Add(opt.Key, opt.Value);
             }
 
             OpenedPlugin?.OnBufferingCompleted();
         }
+    }
+
+    static void SetCookies(Dictionary<string, string> options, string cookies)
+    {
+        options.Remove("cookies");
+
+        if (!string.IsNullOrEmpty(cookies))
+            options["cookies"] = cookies;
     }
     #endregion
 

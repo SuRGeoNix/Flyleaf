@@ -63,7 +63,6 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
                         Title       = mitem.Title,
                         Url         = mitem.Url,
                         DirectUrl   = mitem.Url,
-                        UserAgent   = mitem.UserAgent,
                         Referrer    = mitem.Referrer
                     });
                 }

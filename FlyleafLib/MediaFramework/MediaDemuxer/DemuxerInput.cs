@@ -22,7 +22,8 @@ public class DemuxerInput : NotifyPropertyChanged
     public Dictionary<string, string>
                     HTTPHeaders     { get; set; }
 
-    public string   UserAgent       { get; set; }
-
     public string   Referrer        { get; set; }
+
+    public string   Cookies         { get; set; }
+    public string   CookiesFallback { get; set; }
 }
