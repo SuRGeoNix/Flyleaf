@@ -4,7 +4,8 @@
                     xmlns:collections="clr-namespace:System.Collections;assembly=mscorlib"
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
                     xmlns:devices="clr-namespace:FlyleafLib.MediaFramework.MediaDevice;assembly=FlyleafLib"
-                    xmlns:flyleafLib="clr-namespace:FlyleafLib;assembly=FlyleafLib">
+                    xmlns:flyleafLib="clr-namespace:FlyleafLib;assembly=FlyleafLib"
+                    xmlns:flwpf="clr-namespace:FlyleafLib.Controls.WPF">
 
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/FlyleafLib.Controls.WPF;component/Resources/MaterialDesign.xaml"/>
@@ -175,6 +176,7 @@
                             x:Name="PART_Popup"
                             AllowsTransparency="True"
                             Focusable="False"
+                            flwpf:PopupAutoSize.RefreshOnOpen="True"
                             IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
                             PopupAnimation="Slide"
                             Placement="Bottom"

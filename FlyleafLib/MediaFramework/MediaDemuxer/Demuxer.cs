@@ -434,7 +434,7 @@ public unsafe class Demuxer : RunThreadBase
                 }
             }
 
-            if (Config.FormatOptToUnderlying && url != null && (url.StartsWith("http://") || url.StartsWith("https://")))
+            if ((Config.DefaultHTTPQueryToUnderlying || Config.ExtraHTTPQueryParamsToUnderlying.Count > 0) && url != null && (url.StartsWith("http://") || url.StartsWith("https://")))
             {
                 queryParams = [];
                 if (Config.DefaultHTTPQueryToUnderlying)
@@ -457,7 +457,7 @@ public unsafe class Demuxer : RunThreadBase
                     foreach (var kv in queryParams)
                         queryCachedStr += kv.Value == null ? $"{kv.Key}&" : $"{kv.Key}={kv.Value}&";
 
-                    queryCachedStr = queryCachedStr[..^1];
+                    queryCachedStr = queryCachedStr.TrimEnd('&');
                     queryCachedBytes = Encoding.UTF8.GetBytes(queryCachedStr);
                 }
                 else
@@ -602,6 +602,8 @@ public unsafe class Demuxer : RunThreadBase
                 urlLength++;
             }
 
+            // NOTE: CDNs might have signatures of the exact url (just adding an extra & at the end might return 403)
+
             // urlNoQuery + ? + queryCachedBytes
             if (queryPos == -1)
             {
@@ -629,6 +631,9 @@ public unsafe class Demuxer : RunThreadBase
                 string newQuery = "?";
                 foreach (var kv in qps)
                     newQuery += kv.Value == null ? $"{kv.Key}&" : $"{kv.Key}={kv.Value}&";
+
+                if (qps.Count > 0)
+                    newQuery = newQuery.TrimEnd('&');
 
                 int         newLength   = urlNoQuery.Length + newQuery.Length + 1;
                 Span<byte>  urlSpan     = newLength < 1024 ? stackalloc byte[newLength] : new byte[newLength];// new(urlPtr, newLength);

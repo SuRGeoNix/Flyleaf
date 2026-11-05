@@ -20,6 +20,8 @@ namespace FlyleafLib;
 /// </summary>
 public class Config : NotifyPropertyChanged
 {
+    public const string USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";
+
     public static JsonSerializerOptions jsonOpts = new() { WriteIndented = true };
 
     public Config()
@@ -450,7 +452,7 @@ public class Config : NotifyPropertyChanged
         /// Passes original's Url HTTP Query String parameters to underlying
         /// </summary>
         public bool             DefaultHTTPQueryToUnderlying
-                                                    { get; set; } = true;
+                                                    { get; set; }
 
         /// <summary>
         /// HTTP Query String parameters to pass to underlying
@@ -473,7 +475,7 @@ public class Config : NotifyPropertyChanged
         public static Dictionary<string, string> DefaultFormatOpt() => new()
         {
             // HTTP
-            ["user_agent"]      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36",
+            ["user_agent"]      = USER_AGENT,
 
             // HLS
             ["http_persistent"] = "0", // TBR: Currently hls.c bug with AVERROR_EXIT (from our interrupts)
