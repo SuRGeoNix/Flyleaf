@@ -5,7 +5,7 @@
 ---
 
 >Notes<br/>
->1. FlyleafLib's releases will be on [NuGet](https://www.nuget.org/packages?q=flyleaf)
+>1. FlyleafLib's releases will be on [NuGet](https://www.nuget.org/packages?q=flyleaflib)
 >2. Compiled samples will be on [GitHub releases](https://github.com/SuRGeoNix/Flyleaf/releases)
 >3. Documentation will be on [Wiki](https://github.com/SuRGeoNix/Flyleaf/wiki) and [Samples](https://github.com/SuRGeoNix/Flyleaf/tree/master/Samples) within the solution
 
@@ -45,19 +45,19 @@
 - *Enable / Disable*
 - *Device Preference*
 - *Aspect Ratio <sub>(Keep / Fill / Custom)</sub>*
-- *Deinterlace <sub>(Supports double rate, D3D11VP only)</sub>*
-- *HDR10 / HDR10+ / HLG / Dolby Vision <sub>(FlyleafVP only)</sub>*
-- *Embedded ICC Profiles*
-- *Pan Move / Zoom / Rotate / HFlip-VFlip / Cropping <sub>~~(Replica Renderer/Interactive Zoom)~~</sub>*
+- *Deinterlace <sub>(D3D11VP only - Supports double rate)</sub>*
+- *Advanced HDR10 / HDR10+ / HLG / Dolby Vision <sub>(FlyleafVP only - All Dovi Profiles including L1/L3, L2/L8 trims, 7 FEL)</sub>*
+- *Embedded ICC Profiles <sub>(FlyleafVP only)</sub>*
+- *Pan Move / Zoom / Rotate / HFlip-VFlip / Cropping*
 - *Record / Snapshot*
-- *Super Resolution <sub>(Nvidia / Intel - D3D11VP only)</sub>*
-- *360° Panoramic*
+- *Super Resolution <sub>(D3D11VP only - Nvidia / Intel)</sub>*
+- *360° Panoramic <sub>(FlyleafVP only)</sub>*
 - *Video Acceleration*
 - *Video Filters <sub>(Brightness / Contrast / Hue / Saturation)</sub>*
 - *Video Processors <sub>(FlyleafVP / D3D11VP / SwsScale)</sub>*
 - *VSync*
 - *Zero-Copy <sub>(Crops with vertex shader)</sub>*
-- *Split-Frame / Alpha Packing <sub>(Special technique to support alpha with hardware acceleration)</sub>*
+- *Split-Frame / Alpha Packing <sub>(FlyleafVP only - Special technique to support alpha with hardware acceleration)</sub>*
 
 ### **Audio**
 - *Enable / Disable*
@@ -95,7 +95,7 @@
 - *OpenSubtitlesOrg <sub>Search & Download for online Subtitles</sub>*
 - *SubtitlesConverter <sub>Detect & Convert the input's charset to UTF-8</sub>*
 - *TorrentBitSwarm <sub>Play a media from torrent without the need to download it completely</sub>*
-- *YoutubeDL <sub>Play web media that are not accessible directly with HTTP(s)</sub>*
+- *YTDLP <sub>Play web media that are not accessible directly with HTTP(s)</sub>*
 
 ### Misc.
 - *Mouse & Key Bindings <sub>All the implementation supports customizable mouse & key bindings which can be assigned to an embedded or a custom actions (find defaults [here](https://github.com/SuRGeoNix/Flyleaf/wiki/Player-(Key-&-Mouse-Bindings)))</sub>*
@@ -109,8 +109,8 @@
 
 * *For the Core*
   * ***[FFmpeg](http://ffmpeg.org/)*** / ***[Flyleaf.FFmpeg.ABI](https://github.com/SuRGeoNix/Flyleaf.FFmpeg.ABI)***
-  * ***[Vortice](https://github.com/amerkoleci/Vortice.Windows)***
-  * *Major open source media players* ***[VLC](https://github.com/videolan/vlc)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[MPC-BE](https://github.com/Aleksoid1978/MPC-BE)***, ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***
+  * DirectX / ***[Vortice](https://github.com/amerkoleci/Vortice.Windows)***
+  * *Major open source media players* ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[Libplacebo](https://github.com/haasn/libplacebo)***, ***[MPCVR](https://github.com/Aleksoid1978/VideoRenderer/)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[VLC](https://github.com/videolan/vlc)***
 
 * *For the UI*
   * ***[Dragablz](https://github.com/ButchersBoy/Dragablz)***
@@ -119,4 +119,4 @@
 * *For the Plugins*
   * ***[BitSwarm](https://github.com/SuRGeoNix/BitSwarm)***
   * ***[OpenSubtitles.org](https://www.opensubtitles.org/)***
-  * ***[YT-DLP](https://github.com/yt-dlp/yt-dlp)***
+  * ***[YT-DLP](https://github.com/yt-dlp/yt-dlp)*** / ***[Flyleaf.Plugins.YTDLP](https://github.com/SuRGeoNix/Flyleaf.Plugins.YTDLP)***
