@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.15</Version>
+	<Version>3.11.16</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,10 +17,12 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer.HDR.Dovi: Adds Dolby Vision Profile 7 FEL reconstruction
-		- Renderer.HDR.Dovi: Adds Dolby Vision CM 4.x support with L1/L3 luminance metadata and L8 primary/secondary trims (lift, gamma, gain, saturation, chroma, mid-contrast, highlight clipping, hue and tone detail)
-		- Renderer.HDR.Dovi: Fixes RPU reconstruction with duplicate reshaping pivots
-		- Renderer.HDR: Fixes tone mapping input clamping to source metadata luminance
+		- Renderer.HDR.Dovi: Misc validations for L1/L3
+		- Demuxer: Seperates underlying options with query params
+		- DecoderContext: Improves HTTP Options handling
+		
+		[Breaking Changes]
+		- Config.DefaultHTTPQueryToUnderlying defaults to false and now its not affected by FormatOptToUnderlying
 	</PackageReleaseNotes>
   </PropertyGroup>
 
