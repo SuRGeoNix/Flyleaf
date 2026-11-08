@@ -138,17 +138,17 @@ public unsafe partial class DecoderContext : PluginHandler
 
     #region Seek
     public int Seek(long ms = -1, bool forward = false, bool seekInQueue = true)
-    {
+    {   // Requires decoders paused before seeking
         int ret = 0;
 
         if (ms == -1) ms = GetCurTimeMs();
 
-        // Review decoder locks (lockAction should be added to avoid dead locks with flush mainly before lockCodecCtx)
         AudioDecoder.resyncWithVideoRequired = false; // Temporary to avoid dead lock on AudioDecoder.lockCodecCtx
-        lock (VideoDecoder.lockCodecCtx)
-        lock (AudioDecoder.lockCodecCtx)
-        lock (SubtitlesDecoder.lockCodecCtx)
-        lock (DataDecoder.lockCodecCtx)
+
+        lock (VideoDecoder.lockActions)
+        lock (AudioDecoder.lockActions)
+        lock (SubtitlesDecoder.lockActions)
+        lock (DataDecoder.lockActions)
         {
             long seekTimestamp = CalcSeekTimestamp(VideoDemuxer, ms, ref forward);
 
@@ -165,22 +165,28 @@ public unsafe partial class DecoderContext : PluginHandler
                 }
             }
 
-            VideoDecoder.Flush();
-            if (ms == 0)
-                VideoDecoder.keyFrameRequired = VideoDecoder.keyPacketRequired = false; // TBR
-
-            if (AudioStream != null && AudioDecoder.OnVideoDemuxer)
+            lock (VideoDecoder.lockCodecCtx)
+            lock (AudioDecoder.lockCodecCtx)
+            lock (SubtitlesDecoder.lockCodecCtx)
+            lock (DataDecoder.lockCodecCtx)
             {
-                AudioDecoder.Flush();
+                VideoDecoder.Flush();
                 if (ms == 0)
-                    AudioDecoder.expectingPts = AudioDecoder.Stream.StartTimePts;
+                    VideoDecoder.keyFrameRequired = VideoDecoder.keyPacketRequired = false; // TBR
+
+                if (AudioStream != null && AudioDecoder.OnVideoDemuxer)
+                {
+                    AudioDecoder.Flush();
+                    if (ms == 0)
+                        AudioDecoder.expectingPts = AudioDecoder.Stream.StartTimePts;
+                }
+
+                if (SubtitlesStream != null && SubtitlesDecoder.OnVideoDemuxer)
+                    SubtitlesDecoder.Flush();
+
+                if (DataStream != null && DataDecoder.OnVideoDemuxer)
+                    DataDecoder.Flush();
             }
-
-            if (SubtitlesStream != null && SubtitlesDecoder.OnVideoDemuxer)
-                SubtitlesDecoder.Flush();
-
-            if (DataStream != null && DataDecoder.OnVideoDemuxer)
-                DataDecoder.Flush();
         }
 
         if (AudioStream != null && !AudioDecoder.OnVideoDemuxer)
@@ -213,22 +219,27 @@ public unsafe partial class DecoderContext : PluginHandler
     {
         int ret = 0;
 
-        if (AudioDemuxer.Disposed || AudioDecoder.OnVideoDemuxer || !Config.Audio.Enabled) return -1;
+        if (AudioDemuxer.Disposed || AudioDecoder.OnVideoDemuxer || !Config.Audio.Enabled)
+            return -1;
 
-        if (ms == -1) ms = GetCurTimeMs();
+        if (ms == -1)
+            ms = GetCurTimeMs();
 
         long seekTimestamp = CalcSeekTimestamp(AudioDemuxer, ms, ref forward);
 
         AudioDecoder.resyncWithVideoRequired = false; // Temporary to avoid dead lock on AudioDecoder.lockCodecCtx
+
         lock (AudioDecoder.lockActions)
-        lock (AudioDecoder.lockCodecCtx)
         {
+            AudioDecoder.Pause();
+
             lock (AudioDemuxer.lockActions)
                 if (AudioDemuxer.SeekInQueue(seekTimestamp, forward) != 0)
                     ret = AudioDemuxer.Seek(seekTimestamp, forward);
 
             AudioDecoder.Flush();
-            if (VideoDecoder.IsRunning)
+
+            if (!Interrupt && VideoDecoder.IsRunning)
             {
                 AudioDemuxer.Start();
                 AudioDecoder.Start();
@@ -241,22 +252,24 @@ public unsafe partial class DecoderContext : PluginHandler
     {
         int ret = 0;
 
-        if (SubtitlesDemuxer.Disposed || SubtitlesDecoder.OnVideoDemuxer || !Config.Subtitles.Enabled) return -1;
+        if (SubtitlesDemuxer.Disposed || SubtitlesDecoder.OnVideoDemuxer || !Config.Subtitles.Enabled)
+            return -1;
 
-        if (ms == -1) ms = GetCurTimeMs();
+        if (ms == -1)
+            ms = GetCurTimeMs();
 
         long seekTimestamp = CalcSeekTimestamp(SubtitlesDemuxer, ms, ref forward);
 
         lock (SubtitlesDecoder.lockActions)
-        lock (SubtitlesDecoder.lockCodecCtx)
         {
             // Currently disabled as it will fail to seek within the queue the most of the times
             //lock (SubtitlesDemuxer.lockActions)
                 //if (SubtitlesDemuxer.SeekInQueue(seekTimestamp, forward) != 0)
+            SubtitlesDecoder.Pause();
             ret = SubtitlesDemuxer.Seek(seekTimestamp, forward);
-
             SubtitlesDecoder.Flush();
-            if (VideoDecoder.IsRunning)
+
+            if (!Interrupt && VideoDecoder.IsRunning)
             {
                 SubtitlesDemuxer.Start();
                 SubtitlesDecoder.Start();
@@ -265,7 +278,6 @@ public unsafe partial class DecoderContext : PluginHandler
 
         return ret;
     }
-
     public int SeekData(long ms = -1, bool forward = false)
     {
         int ret = 0;
@@ -279,17 +291,17 @@ public unsafe partial class DecoderContext : PluginHandler
         long seekTimestamp = CalcSeekTimestamp(DataDemuxer, ms, ref forward);
 
         lock (DataDecoder.lockActions)
-            lock (DataDecoder.lockCodecCtx)
-            {
-                ret = DataDemuxer.Seek(seekTimestamp, forward);
+        {
+            DataDecoder.Pause();
+            ret = DataDemuxer.Seek(seekTimestamp, forward);
+            DataDecoder.Flush();
 
-                DataDecoder.Flush();
-                if (VideoDecoder.IsRunning)
-                {
-                    DataDemuxer.Start();
-                    DataDecoder.Start();
-                }
+            if (!Interrupt && VideoDecoder.IsRunning)
+            {
+                DataDemuxer.Start();
+                DataDecoder.Start();
             }
+        }
 
         return ret;
     }
