@@ -36,7 +36,7 @@ partial class Player
 
         lock (lockActions)
         {
-            if (!canPlay || status == Status.Playing || status == Status.Ended)
+            if (!canPlay || status == Status.Playing || status == Status.Ended || IsDisposed)
                 return;
 
             status = Status.Playing;
@@ -44,6 +44,11 @@ partial class Player
             UI(() => Status = status);
         }
 
+        _ = Task.Run(() => StartPlayWhenReady(requestId));
+    }
+
+    void StartPlayWhenReady(int requestId)
+    {
         while (true)
         {
             while (taskPlayRuns || taskSeekRuns)
@@ -54,38 +59,55 @@ partial class Player
                 Thread.Sleep(5);
             }
 
+            Exception startError = null;
+            bool startSeekTask = false;
             lock (lockActions)
             {
-                if (requestId != playRequestId || !canPlay || status != Status.Playing || IsDisposed)
+                if (requestId != playRequestId || !canPlay ||
+                    status != Status.Playing || IsDisposed)
                     return;
 
-                if (taskPlayRuns || taskSeekRuns)
-                    continue;
-
-                Thread t = new(PlayThread)
+                lock (seeks)
                 {
-                    #if DEBUG
-                    Name            = $"[#{PlayerId}] Playback",
-                    #endif
-                    Priority        = Config.Player.ThreadPriority,
-                    IsBackground    = true
-                };
+                    if (taskPlayRuns || taskSeekRuns)
+                        continue;
 
-                taskPlayRuns = true;
-                try
-                {
-                    t.Start();
+                    Thread t = new(PlayThread)
+                    {
+                        #if DEBUG
+                        Name            = $"[#{PlayerId}] Playback",
+                        #endif
+                        Priority        = Config.Player.ThreadPriority,
+                        IsBackground    = true
+                    };
+
+                    taskPlayRuns = true;
+                    try
+                    {
+                        t.Start();
+                    }
+                    catch (Exception ex)
+                    {
+                        taskPlayRuns = false;
+                        status = Status.Paused;
+                        startError = ex;
+                        startSeekTask = canPlay && !seeks.IsEmpty;
+                        if (startSeekTask)
+                            taskSeekRuns = true;
+                    }
                 }
-                catch
-                {
-                    taskPlayRuns = false;
-                    status = Status.Paused;
-                    UI(() => Status = status);
-                    throw;
-                }
-
-                return;
             }
+
+            if (startSeekTask)
+                StartPausedSeekTask();
+
+            if (startError != null)
+            {
+                UI(() => Status = status);
+                Log.Error($"Playback thread failed to start ({startError.Message})");
+            }
+
+            return;
         }
     }
 
@@ -187,7 +209,17 @@ partial class Player
             }
             finally
             {
-                taskPlayRuns = false;
+                bool startSeekTask;
+                lock (seeks)
+                {
+                    taskPlayRuns = false;
+                    startSeekTask = canPlay && !seeks.IsEmpty && !taskSeekRuns;
+                    if (startSeekTask)
+                        taskSeekRuns = true;
+                }
+
+                if (startSeekTask)
+                    StartPausedSeekTask();
             }
         }
     }
@@ -243,138 +275,167 @@ partial class Player
 
     private void Seek(int ms, bool forward, bool accurate)
     {
-        if (!canPlay)
-            return;
-
+        bool startSeekTask;
         lock (seeks)
         {
+            if (!canPlay)
+                return;
+
             _CurTime = curTime = ms * (long)10000;
             seeks.Push(new SeekData(ms, forward, accurate));
+
+            startSeekTask = !taskPlayRuns && !taskSeekRuns;
+            if (startSeekTask)
+                taskSeekRuns = true;
         }
+
+        if (startSeekTask)
+            StartPausedSeekTask();
 
         // TBR: We consider UI here? (_CurTime loses sync)
         // BufferedDuration = 0; Can't se this as it reads the demuxer's (which we didn't seek yet..)
         Raise(nameof(CurTime));
+    }
 
-        if (status == Status.Playing)
-            return;
-
-        lock (seeks)
+    void StartPausedSeekTask()
+    {
+        try
         {
-            if (taskSeekRuns)
-                return;
-
-            taskSeekRuns = true;
+            _ = Task.Run(PausedSeekTask);
         }
-
-        Task.Run(() =>
+        catch (Exception ex)
         {
-            int ret;
-            bool wasEnded = false;
-            SeekData seekData = null;
+            lock (seeks) taskSeekRuns = false;
+            Log.Error($"Failed to start seek task ({ex.Message})");
+        }
+    }
 
-            try
+    void PausedSeekTask()
+    {
+        int ret;
+        bool wasEnded = false;
+        SeekData seekData = null;
+
+        try
+        {
+            Engine.TimeBeginPeriod1();
+
+            while (true)
             {
-                Engine.TimeBeginPeriod1();
-
-                while (true)
+                lock (seeks)
                 {
-                    lock (seeks)
+                    if (!canPlay || !seeks.TryPop(out seekData))
+                        break;
+
+                    seeks.Clear();
+                }
+
+                if (status == Status.Ended)
+                {
+                    wasEnded = true;
+                    status = Status.Paused;
+                    UI(() => Status = status);
+                }
+
+                if (sFramePrev != null)
+                {
+                    sFramePrev = null;
+                    Renderer.SubsDispose();
+                    Subtitles.ClearSubsText();
+                }
+
+                if (!Video.IsOpened)
+                {
+                    if (AudioDecoder.OnVideoDemuxer)
                     {
-                        if (!(seeks.TryPop(out seekData) && canPlay && status != Status.Playing))
-                        {
-                            taskSeekRuns = false;
-                            break;
-                        }
+                        ret = decoder.Seek(seekData.ms, seekData.forward);
+                        if (CanWarn && ret < 0)
+                            Log.Warn("Seek failed 2");
 
-                        seeks.Clear();
-                    }
-
-                    if (status == Status.Ended)
-                    {
-                        wasEnded = true;
-                        status = Status.Paused;
-                        UI(() => Status = status);
-                    }
-
-                    if (sFramePrev != null)
-                    {
-                        sFramePrev = null;
-                        Renderer.SubsDispose();
-                        Subtitles.ClearSubsText();
-                    }
-
-                    if (!Video.IsOpened)
-                    {
-                        if (AudioDecoder.OnVideoDemuxer)
-                        {
-                            ret = decoder.Seek(seekData.ms, seekData.forward);
-                            if (CanWarn && ret < 0)
-                                Log.Warn("Seek failed 2");
-
-                            VideoDemuxer.Start();
-                            SeekCompleted?.Invoke(this, -1);
-                        }
-                        else
-                        {
-                            ret = decoder.SeekAudio(seekData.ms, seekData.forward);
-                            if (CanWarn && ret < 0)
-                                Log.Warn("Seek failed 3");
-
-                            AudioDemuxer.Start();
-                            SeekCompleted?.Invoke(this, -1);
-                        }
-
-                        decoder.PauseOnQueueFull();
-                        SeekCompleted?.Invoke(this, seekData.ms);
+                        VideoDemuxer.Start();
+                        SeekCompleted?.Invoke(this, -1);
                     }
                     else
                     {
-                        int? seekCompletedMs = null;
+                        ret = decoder.SeekAudio(seekData.ms, seekData.forward);
+                        if (CanWarn && ret < 0)
+                            Log.Warn("Seek failed 3");
 
-                        lock (stepSeekLock)
-                        {
-                            decoder.PauseDecoders();
-                            ret = decoder.Seek(seekData.accurate ? Math.Max(0, seekData.ms - 3000) : seekData.ms, seekData.forward, !seekData.accurate); // 3sec ffmpeg bug for seek accurate when fails to seek backwards (see videodecoder getframe)
-                            if (ret < 0)
-                            {
-                                if (CanWarn) Log.Warn("Seek failed");
-                                seekCompletedMs = -1;
-                            }
-                            else if (!ReversePlayback && CanPlay)
-                            {
-                                decoder.GetVideoFrame(seekData.accurate ? seekData.ms * (long)10000 : -1);
-                                ResetFrameStats();
-                                ShowOneFrame();
-                                VideoDemuxer.Start();
-                                AudioDemuxer.Start();
-                                SubtitlesDemuxer.Start();
-                                DataDemuxer.Start();
-                                decoder.PauseOnQueueFull();
-                                seekCompletedMs = seekData.ms;
-                            }
-                        }
-
-                        if (seekCompletedMs is int seekCompletedMsValue)
-                            SeekCompleted?.Invoke(this, seekCompletedMsValue);
+                        AudioDemuxer.Start();
+                        SeekCompleted?.Invoke(this, -1);
                     }
 
-                    Thread.Sleep(20);
+                    decoder.PauseOnQueueFull();
+                    SeekCompleted?.Invoke(this, seekData.ms);
                 }
+                else
+                {
+                    int? seekCompletedMs = null;
+
+                    lock (stepSeekLock)
+                    {
+                        decoder.PauseDecoders();
+                        ret = decoder.Seek(seekData.accurate ? Math.Max(0, seekData.ms - 3000) : seekData.ms, seekData.forward, !seekData.accurate); // 3sec ffmpeg bug for seek accurate when fails to seek backwards (see videodecoder getframe)
+                        if (ret < 0)
+                        {
+                            if (CanWarn) Log.Warn("Seek failed");
+                            seekCompletedMs = -1;
+                        }
+                        else if (!ReversePlayback && CanPlay)
+                        {
+                            decoder.GetVideoFrame(seekData.accurate ? seekData.ms * (long)10000 : -1);
+                            ResetFrameStats();
+                            ShowOneFrame();
+                            VideoDemuxer.Start();
+                            AudioDemuxer.Start();
+                            SubtitlesDemuxer.Start();
+                            DataDemuxer.Start();
+                            decoder.PauseOnQueueFull();
+                            seekCompletedMs = seekData.ms;
+                        }
+                    }
+
+                    if (seekCompletedMs is int seekCompletedMsValue)
+                        SeekCompleted?.Invoke(this, seekCompletedMsValue);
+                }
+
+                Thread.Sleep(20);
             }
-            catch (Exception e)
+        }
+        catch (Exception e)
+        {
+            Log.Error($"Seek failed ({e.Message})");
+        }
+        finally
+        {
+            try
             {
-                lock (seeks) taskSeekRuns = false;
-                Log.Error($"Seek failed ({e.Message})");
+                decoder.OpenedPlugin?.OnBufferingCompleted();
             }
             finally
             {
-                decoder.OpenedPlugin?.OnBufferingCompleted();
-                Engine.TimeEndPeriod1();
-                if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError != null) // TBR: Possible race condition with if (Status == Status.Playing)
-                    Play();
+                try
+                {
+                    Engine.TimeEndPeriod1();
+                }
+                finally
+                {
+                    bool restartSeek;
+                    lock (seeks)
+                    {
+                        restartSeek = canPlay && !seeks.IsEmpty && !taskPlayRuns;
+                        if (!restartSeek)
+                            taskSeekRuns = false;
+                    }
+
+                    if (restartSeek)
+                        StartPausedSeekTask();
+
+                    if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError != null) // TBR: Possible race condition with if (Status == Status.Playing)
+                        Play();
+                }
             }
-        });
+        }
     }
 
     /// <summary>

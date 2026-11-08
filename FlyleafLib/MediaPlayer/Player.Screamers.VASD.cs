@@ -204,15 +204,21 @@ unsafe partial class Player
         int vDistanceMs, sDistanceMs, dDistanceMs;
         long elapsedTicks;
         bool refreshed = false;
-        
+        SeekData seekData;
+
         while (status == Status.Playing)
         {
             // Seeks and then requiresBuffering | TBR: missing SeekCompleted callback?
-            if (seeks.TryPop(out var seekData))
+            lock (seeks)
+            {
+                seeks.TryPop(out seekData);
+                if (seekData != null)
+                    seeks.Clear();
+            }
+
+            if (seekData != null)
             {
                 Renderer.RenderIdleStart();
-
-                seeks.Clear();
                 requiresBuffering = true;
                 ResetFrameStats();
 
