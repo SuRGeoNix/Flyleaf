@@ -57,10 +57,17 @@ public abstract class RunThreadBase : NotifyPropertyChanged
             {
                 PauseOnQueueFull = false;
 
-                if (Disposed || thread == null || !thread.IsAlive || Status == Status.Stopping || Status == Status.Stopped || Status == Status.Ended || Status == Status.Pausing || Status == Status.Paused) return;
-                Status = Status.Pausing;
+                if (Disposed || thread == null || !thread.IsAlive ||
+                    Status == Status.Stopping   || Status == Status.Stopped ||
+                    Status == Status.Ended      || Status == Status.Paused)
+                    return;
+
+                if (Status != Status.Pausing)
+                    Status = Status.Pausing;
             }
-            while (Status == Status.Pausing) Thread.Sleep(5);
+
+            while (Status == Status.Pausing)
+                Thread.Sleep(5);
         }
     }
     public void Start()
@@ -85,16 +92,16 @@ public abstract class RunThreadBase : NotifyPropertyChanged
 
                 PauseOnQueueFull = false;
 
-                while (Status == Status.Draining) Thread.Sleep(3);
-                while (Status == Status.Stopping) Thread.Sleep(3);
-                while (Status == Status.Pausing)  Thread.Sleep(3);
+                while (Status == Status.Draining) Monitor.Wait(lockStatus, 3);
+                while (Status == Status.Stopping) Monitor.Wait(lockStatus, 3);
+                while (Status == Status.Pausing)  Monitor.Wait(lockStatus, 3);
 
                 if (Status == Status.Ended) return;
 
                 if (Status == Status.Paused)
                 {
                     threadARE.Set();
-                    while (Status == Status.Paused) Thread.Sleep(3);
+                    while (Status == Status.Paused) Monitor.Wait(lockStatus, 3);
                     return;
                 }
 

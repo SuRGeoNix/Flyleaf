@@ -223,13 +223,16 @@ unsafe partial class Player
                     Subtitles.ClearSubsText();
                 }
 
-                decoder.PauseDecoders(); // TBR: Required to avoid gettings packets between Seek and ShowFrame which causes resync issues
-                StopScreamerVASDAudio();
+                lock (stepSeekLock)
+                {
+                    decoder.PauseDecoders(); // TBR: Required to avoid gettings packets between Seek and ShowFrame which causes resync issues
+                    StopScreamerVASDAudio();
 
-                if (decoder.Seek(seekData.accurate ? Math.Max(0, seekData.ms - 3000) : seekData.ms, seekData.forward, !seekData.accurate) < 0) // Consider using GetVideoFrame with no timestamp (any) to ensure keyframe packet for faster seek in HEVC
-                    Log.Warn("[V] Seek Failed");
-                else if (seekData.accurate)
-                    decoder.GetVideoFrame(seekData.ms * (long)10000);
+                    if (decoder.Seek(seekData.accurate ? Math.Max(0, seekData.ms - 3000) : seekData.ms, seekData.forward, !seekData.accurate) < 0) // Consider using GetVideoFrame with no timestamp (any) to ensure keyframe packet for faster seek in HEVC
+                        Log.Warn("[V] Seek Failed");
+                    else if (seekData.accurate)
+                        decoder.GetVideoFrame(seekData.ms * (long)10000);
+                }
             }
 
             // Ensures we have rendered vFrame ready for present (startTicks/sw)
