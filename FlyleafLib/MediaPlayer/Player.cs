@@ -404,9 +404,10 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     readonly object lockActions  = new();
     readonly object lockSubtitles= new();
 
-    bool taskSeekRuns;
-    bool taskPlayRuns;
+    volatile bool taskSeekRuns;
+    volatile bool taskPlayRuns;
     bool taskOpenAsyncRuns;
+    int playRequestId;
 
     readonly ConcurrentStack<SeekData>   seeks      = new();
     readonly ConcurrentQueue<Action>     UIActions  = new();
@@ -584,6 +585,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
 
                 this.status = status;
                 canPlay = false;
+                playRequestId++;
                 isVideoSwitch = false;
                 seeks.Clear();
 

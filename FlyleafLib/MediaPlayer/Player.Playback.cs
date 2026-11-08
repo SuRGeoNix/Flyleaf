@@ -32,28 +32,61 @@ partial class Player
     /// </summary>
     public void Play()
     {
+        int requestId;
+
         lock (lockActions)
         {
             if (!canPlay || status == Status.Playing || status == Status.Ended)
                 return;
 
             status = Status.Playing;
+            requestId = ++playRequestId;
             UI(() => Status = status);
         }
 
-        while (taskPlayRuns || taskSeekRuns) Thread.Sleep(5);
-        taskPlayRuns = true;
-
-        Thread t = new(PlayThread)
+        while (true)
         {
-            #if DEBUG
-            Name            = $"[#{PlayerId}] Playback",
-            #endif
-            Priority        = Config.Player.ThreadPriority,
-            IsBackground    = true
-        };
+            while (taskPlayRuns || taskSeekRuns)
+            {
+                if (Volatile.Read(ref playRequestId) != requestId)
+                    return;
 
-        t.Start();
+                Thread.Sleep(5);
+            }
+
+            lock (lockActions)
+            {
+                if (requestId != playRequestId || !canPlay || status != Status.Playing || IsDisposed)
+                    return;
+
+                if (taskPlayRuns || taskSeekRuns)
+                    continue;
+
+                Thread t = new(PlayThread)
+                {
+                    #if DEBUG
+                    Name            = $"[#{PlayerId}] Playback",
+                    #endif
+                    Priority        = Config.Player.ThreadPriority,
+                    IsBackground    = true
+                };
+
+                taskPlayRuns = true;
+                try
+                {
+                    t.Start();
+                }
+                catch
+                {
+                    taskPlayRuns = false;
+                    status = Status.Paused;
+                    UI(() => Status = status);
+                    throw;
+                }
+
+                return;
+            }
+        }
     }
 
     void PlayThread()
@@ -100,59 +133,62 @@ partial class Player
         }
         finally
         {
-            sFrame = null;
-
-            if (status == Status.Stopped)
-                decoder?.Initialize();
-            else if (decoder != null)
+            try
             {
-                decoder.PauseOnQueueFull();
-                decoder.PauseDecoders();
-            }
+                sFrame = null;
 
-            Audio.ClearBuffer();
-            Engine.TimeEndPeriod1();
-            Engine.ThreadExecutionStateEnd();
-            stoppedWithError = null;
-
-            if (status == Status.Playing)
-            {
-                if (decoderHasEnded)
-                    status = Status.Ended;
-                else
+                if (status != Status.Stopped && decoder != null)
                 {
-                    if (Video.IsOpened && VideoDemuxer.Interrupter.Timedout)
-                        stoppedWithError = "Timeout";
-                    else if (onBufferingStarted - 1 == onBufferingCompleted)
-                    {
-                        stoppedWithError = "Playback stopped unexpectedly";
-                        OnBufferingCompleted("Buffering failed");
-                    }
+                    decoder.PauseOnQueueFull();
+                    decoder.PauseDecoders();
+                }
+
+                Audio.ClearBuffer();
+                Engine.TimeEndPeriod1();
+                Engine.ThreadExecutionStateEnd();
+                stoppedWithError = null;
+
+                if (status == Status.Playing)
+                {
+                    if (decoderHasEnded)
+                        status = Status.Ended;
                     else
                     {
-                        if (!ReversePlayback)
+                        if (Video.IsOpened && VideoDemuxer.Interrupter.Timedout)
+                            stoppedWithError = "Timeout";
+                        else if (onBufferingStarted - 1 == onBufferingCompleted)
                         {
-                            if (isLive || Math.Abs(duration - curTime) > 3 * 1000 * 10000)
+                            stoppedWithError = "Playback stopped unexpectedly";
+                            OnBufferingCompleted("Buffering failed");
+                        }
+                        else
+                        {
+                            if (!ReversePlayback)
+                            {
+                                if (isLive || Math.Abs(duration - curTime) > 3 * 1000 * 10000)
+                                    stoppedWithError = "Playback stopped unexpectedly";
+                            }
+                            else if (curTime > 3 * 1000 * 10000)
                                 stoppedWithError = "Playback stopped unexpectedly";
                         }
-                        else if (curTime > 3 * 1000 * 10000)
-                            stoppedWithError = "Playback stopped unexpectedly";
+
+                        status = Status.Paused;
                     }
-
-                    status = Status.Paused;
                 }
+
+                OnPlaybackStopped(stoppedWithError);
+                if (CanDebug) Log.Debug($"[SCREAMER] Finished (Status: {status}, Error: {stoppedWithError})");
+
+                UI(() =>
+                {
+                    Status = status;
+                    SetCurTime();
+                });
             }
-
-            OnPlaybackStopped(stoppedWithError);
-            if (CanDebug) Log.Debug($"[SCREAMER] Finished (Status: {status}, Error: {stoppedWithError})");
-
-            UI(() =>
+            finally
             {
-                Status = status;
-                SetCurTime();
-            });
-
-            taskPlayRuns = false;
+                taskPlayRuns = false;
+            }
         }
     }
 
@@ -166,6 +202,7 @@ partial class Player
             if (!canPlay || status == Status.Ended)
                 return;
 
+            playRequestId++;
             status = Status.Paused;
             UI(() => Status = status);
 
