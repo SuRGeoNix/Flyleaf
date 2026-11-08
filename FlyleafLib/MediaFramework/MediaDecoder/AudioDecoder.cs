@@ -230,16 +230,15 @@ public unsafe partial class AudioDecoder : DecoderBase
                 }
             }
 
-            Monitor.Enter(lockCodecCtx); // restore the old lock / add interrupters similar to the demuxer
+            Monitor.Enter(lockCodecCtx);
             try
             {
                 if (Status == Status.Stopped)
-                    { Monitor.Exit(lockCodecCtx); continue; }
+                    continue;
 
                 packet = demuxer.AudioPackets.Dequeue();
-
                 if (packet == null)
-                    { Monitor.Exit(lockCodecCtx); continue; }
+                    continue;
 
                 if (isRecording)
                 {
@@ -267,7 +266,7 @@ public unsafe partial class AudioDecoder : DecoderBase
 
                         if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
-                        Monitor.Exit(lockCodecCtx); continue;
+                        continue;
                     }
                 }
 
@@ -337,10 +336,12 @@ public unsafe partial class AudioDecoder : DecoderBase
 
                     if (resyncWithVideoRequired)
                     {
+                        Monitor.Exit(lockCodecCtx);
                         // TODO: in case of long distance will spin (CPU issue), possible reseek?
                         while (VideoDecoder.StartTime == AV_NOPTS_VALUE && VideoDecoder.IsRunning && resyncWithVideoRequired)
                             Thread.Sleep(10);
-
+                        Monitor.Enter(lockCodecCtx);
+                        
                         long ts = (long)((frame->pts + frame->duration) * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay;
 
                         if (ts < VideoDecoder.StartTime)
@@ -358,10 +359,13 @@ public unsafe partial class AudioDecoder : DecoderBase
 
                     av_frame_unref(frame);
                 }
-            } catch { }
-
-            Monitor.Exit(lockCodecCtx);
-
+            } catch (Exception ex)
+            {
+                Log.Debug(ex.ToString());
+            } finally
+            {
+                Monitor.Exit(lockCodecCtx);
+            }
         } while (Status == Status.Running);
 
         if (isRecording) { StopRecording(); recCompleted(MediaType.Audio); }
