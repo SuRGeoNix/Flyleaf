@@ -91,6 +91,9 @@ public unsafe class DataDecoder : DecoderBase
                         lock (demuxer.lockStatus)
                             lock (lockStatus)
                             {
+                                if (demuxer.IsRunning)
+                                    continue;
+
                                 if (demuxer.Status == Status.Pausing || demuxer.Status == Status.Paused)
                                     Status = Status.Pausing;
                                 else if (demuxer.Status == Status.QueueFull)
