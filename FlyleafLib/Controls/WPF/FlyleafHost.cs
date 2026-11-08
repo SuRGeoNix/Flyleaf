@@ -1564,7 +1564,7 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
          */
         
         GetWindowRect(SurfaceHandle, ref curRect);
-        SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, (int)Math.Round((curRect.Right - curRect.Left) * DpiX), (int)Math.Round((curRect.Bottom - curRect.Top) * DpiY),
+        SetWindowPos(OverlayHandle, IntPtr.Zero, 0, 0, curRect.Right - curRect.Left, curRect.Bottom - curRect.Top,
             (uint)(SetWindowPosFlags.SWP_NOZORDER | SetWindowPosFlags.SWP_NOACTIVATE));
     }
     private void Surface_DpiChanged(object sender, DpiChangedEventArgs e)
