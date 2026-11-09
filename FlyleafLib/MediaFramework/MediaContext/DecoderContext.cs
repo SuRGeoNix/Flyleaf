@@ -529,7 +529,10 @@ public unsafe partial class DecoderContext : PluginHandler
         
         lock (VideoDemuxer.lockFmtCtx)
         lock (VideoDecoder.lockCodecCtx)
-        while (VideoDemuxer.VideoStream != null && !Interrupt)
+        while (VideoDemuxer.VideoStream != null &&
+               VideoDecoder.Stream == VideoDemuxer.VideoStream &&
+               !VideoDemuxer.Disposed && !VideoDecoder.Disposed &&
+               VideoDemuxer.FormatContext != null && VideoDecoder.CodecCtx != null && !Interrupt)
         {
             if (VideoDemuxer.VideoPackets.IsEmpty)
             {

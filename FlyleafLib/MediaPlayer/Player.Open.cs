@@ -599,6 +599,16 @@ unsafe partial class Player
     /// <returns></returns>
     public StreamOpenedArgs Open(StreamBase stream, bool resync = true, bool defaultAudio = true)
     {
+        if (stream is VideoStream)
+        {
+            lock (stepSeekLock)
+                return OpenStreamInternal(stream, resync, defaultAudio);
+        }
+
+        return OpenStreamInternal(stream, resync, defaultAudio);
+    }
+    public StreamOpenedArgs OpenStreamInternal(StreamBase stream, bool resync = true, bool defaultAudio = true)
+    {
         // TBR: There is no logic of Initiliaze (at least as a switch?*) or close of the current stream
 
         StreamOpenedArgs args = new();
