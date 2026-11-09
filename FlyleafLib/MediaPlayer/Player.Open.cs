@@ -533,6 +533,7 @@ unsafe partial class Player
                 if (!args.Success || !CanPlay)
                     return args;
 
+                decoder.PauseDecoders();
                 decoder.Seek(syncMs, false, false);
                 decoder.GetVideoFrame(syncMs * (long)10000);
                 VideoDemuxer.Start();
@@ -768,9 +769,9 @@ unsafe partial class Player
             isDataSwitch        = true;
             requiresBuffering   = true;
 
+            decoder.PauseDecoders();
             if (accurate && Video.IsOpened)
             {
-                decoder.PauseDecoders();
                 decoder.Seek(syncMs, false, false);
                 decoder.GetVideoFrame(syncMs * (long)10000); // TBR: syncMs should not be -1 here
             }

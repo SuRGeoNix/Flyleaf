@@ -559,7 +559,7 @@ public unsafe partial class DecoderContext : PluginHandler
                             }
 
                             ret = VideoDecoder.FillEnqueueAVFrame();
-                            if (ret == 0 || ret == -1234)
+                            if (ret == 0 || ret == -1234 || VideoDecoder.Status == Status.Stopping)
                                 return;
                         }
                     }
@@ -643,7 +643,7 @@ public unsafe partial class DecoderContext : PluginHandler
                         }
 
                         ret = VideoDecoder.FillEnqueueAVFrame();
-                        if (ret == 0 || ret == -1234)
+                        if (ret == 0 || ret == -1234 || VideoDecoder.Status == Status.Stopping)
                             return;
                     }
 

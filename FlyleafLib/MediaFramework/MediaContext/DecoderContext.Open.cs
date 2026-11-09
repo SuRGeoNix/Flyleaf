@@ -630,104 +630,107 @@ public partial class DecoderContext
 
         try
         {
-            lock (stream.Demuxer.lockActions)
-                lock (stream.Demuxer.lockFmtCtx)
+            // Decoder actions precede demuxer locks, as in Seek().
+            lock (GetDecoderPtr(stream.Type).lockActions)
+            {
+                if (stream.Type == MediaType.Video && VideoStream != null)
+                    VideoDecoder.Renderer?.ClearScreen();
+
+                var oldStream = stream.Type == MediaType.Video ? VideoStream : (stream.Type == MediaType.Audio ? AudioStream : (stream.Type == MediaType.Subs ? SubtitlesStream : (StreamBase)DataStream));
+
+                // Close external demuxers when opening embedded
+                if (stream.Demuxer.Type == MediaType.Video)
                 {
-                    if (stream.Type == MediaType.Video && VideoStream != null)
-                        VideoDecoder.Renderer?.ClearScreen();
-
-                    var oldStream = stream.Type == MediaType.Video ? VideoStream : (stream.Type == MediaType.Audio ? AudioStream : (stream.Type == MediaType.Subs ? SubtitlesStream : (StreamBase)DataStream));
-
-                    // Close external demuxers when opening embedded
-                    if (stream.Demuxer.Type == MediaType.Video)
+                    // TBR: if (stream.Type == MediaType.Video) | We consider that we can't have Embedded and External Video Streams at the same time
+                    if (stream.Type == MediaType.Audio) // TBR: && VideoStream != null)
                     {
-                        // TBR: if (stream.Type == MediaType.Video) | We consider that we can't have Embedded and External Video Streams at the same time
-                        if (stream.Type == MediaType.Audio) // TBR: && VideoStream != null)
+                        if (!EnableDecoding) AudioDemuxer.Dispose();
+                        if (Playlist.Selected.ExternalAudioStream != null)
                         {
-                            if (!EnableDecoding) AudioDemuxer.Dispose();
-                            if (Playlist.Selected.ExternalAudioStream != null)
-                            {
-                                Playlist.Selected.ExternalAudioStream.Enabled = false;
-                                Playlist.Selected.ExternalAudioStream = null;
-                            }
-                        }
-                        else if (stream.Type == MediaType.Subs)
-                        {
-                            if (!EnableDecoding) SubtitlesDemuxer.Dispose();
-                            if (Playlist.Selected.ExternalSubtitlesStream != null)
-                            {
-                                Playlist.Selected.ExternalSubtitlesStream.Enabled = false;
-                                Playlist.Selected.ExternalSubtitlesStream = null;
-                            }
-                        }
-                        else if (stream.Type == MediaType.Data)
-                        {
-                            if (!EnableDecoding) DataDemuxer.Dispose();
+                            Playlist.Selected.ExternalAudioStream.Enabled = false;
+                            Playlist.Selected.ExternalAudioStream = null;
                         }
                     }
-                    else if (!EnableDecoding)
+                    else if (stream.Type == MediaType.Subs)
                     {
-                        // Disable embeded audio when enabling external audio (TBR)
-                        if (stream.Demuxer.Type == MediaType.Audio && stream.Type == MediaType.Audio && AudioStream != null && AudioStream.Demuxer.Type == MediaType.Video)
+                        if (!EnableDecoding) SubtitlesDemuxer.Dispose();
+                        if (Playlist.Selected.ExternalSubtitlesStream != null)
                         {
-                            foreach (var aStream in VideoDemuxer.AudioStreams)
-                                VideoDemuxer.DisableStream(aStream);
+                            Playlist.Selected.ExternalSubtitlesStream.Enabled = false;
+                            Playlist.Selected.ExternalSubtitlesStream = null;
                         }
                     }
-
-                    // Open Codec / Enable on demuxer
-                    if (!EnableDecoding)
-                        stream.Demuxer.EnableStream(stream);
-                    else if (!GetDecoderPtr(stream.Type).Open(stream))
+                    else if (stream.Type == MediaType.Data)
                     {
-                        return stream.Type == MediaType.Video
-                        ? (args = new OpenVideoStreamCompletedArgs((VideoStream)stream, (VideoStream)oldStream,             $"Failed to open video stream #{stream.StreamIndex}"))
-                        : stream.Type == MediaType.Audio
-                        ? (args = new OpenAudioStreamCompletedArgs((AudioStream)stream, (AudioStream)oldStream,             $"Failed to open audio stream #{stream.StreamIndex}"))
-                        : stream.Type == MediaType.Subs
-                        ? (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream, $"Failed to open subtitles stream #{stream.StreamIndex}"))
-                        : (args = new OpenDataStreamCompletedArgs((DataStream)stream, (DataStream)oldStream,                $"Failed to open data stream #{stream.StreamIndex}"));
+                        if (!EnableDecoding) DataDemuxer.Dispose();
                     }
-
-                    // Open Audio based on new Video Stream (if not the same suggestion)
-                    if (defaultAudio && stream.Type == MediaType.Video && Config.Audio.Enabled)
-                    {
-                        bool requiresChange = true;
-                        SuggestAudio(out var aStream, out var aExtStream, VideoDemuxer.AudioStreams);
-
-                        if (AudioStream != null)
-                        {
-                            // External audio streams comparison
-                            if (Playlist.Selected.ExternalAudioStream != null && aExtStream != null && aExtStream.Index == Playlist.Selected.ExternalAudioStream.Index)
-                                requiresChange = false;
-                            // Embedded audio streams comparison
-                            else if (Playlist.Selected.ExternalAudioStream == null && aStream != null && aStream.StreamIndex == AudioStream.StreamIndex)
-                                requiresChange = false;
-                        }
-
-                        if (!requiresChange)
-                        {
-                            if (CanDebug) Log.Debug($"Audio no need to follow video");
-                        }
-                        else
-                        {
-                             if (aStream != null)
-                                Open(aStream);
-                            else if (aExtStream != null)
-                                Open(aExtStream);
-
-                             //RequiresResync = true;
-                        }
-                    }
-
-                    return stream.Type == MediaType.Video
-                        ? (args = new OpenVideoStreamCompletedArgs((VideoStream)stream, (VideoStream)oldStream))
-                        : stream.Type == MediaType.Audio
-                        ? (args = new OpenAudioStreamCompletedArgs((AudioStream)stream, (AudioStream)oldStream))
-                        : stream.Type == MediaType.Subs
-                        ? (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream))
-                        : (args = new OpenDataStreamCompletedArgs((DataStream)stream, (DataStream)oldStream));
                 }
+                else if (!EnableDecoding)
+                {
+                    // Disable embeded audio when enabling external audio (TBR)
+                    if (stream.Demuxer.Type == MediaType.Audio && stream.Type == MediaType.Audio && AudioStream != null && AudioStream.Demuxer.Type == MediaType.Video)
+                    {
+                        foreach (var aStream in VideoDemuxer.AudioStreams)
+                            VideoDemuxer.DisableStream(aStream);
+                    }
+                }
+
+                // Open Codec / Enable on demuxer
+                if (!EnableDecoding)
+                {
+                    lock (stream.Demuxer.lockActions)
+                        stream.Demuxer.EnableStream(stream);
+                }
+                else if (!GetDecoderPtr(stream.Type).Open(stream))
+                {
+                    return stream.Type == MediaType.Video
+                    ? (args = new OpenVideoStreamCompletedArgs((VideoStream)stream, (VideoStream)oldStream,             $"Failed to open video stream #{stream.StreamIndex}"))
+                    : stream.Type == MediaType.Audio
+                    ? (args = new OpenAudioStreamCompletedArgs((AudioStream)stream, (AudioStream)oldStream,             $"Failed to open audio stream #{stream.StreamIndex}"))
+                    : stream.Type == MediaType.Subs
+                    ? (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream, $"Failed to open subtitles stream #{stream.StreamIndex}"))
+                    : (args = new OpenDataStreamCompletedArgs((DataStream)stream, (DataStream)oldStream,                $"Failed to open data stream #{stream.StreamIndex}"));
+                }
+
+                // Open Audio based on new Video Stream (if not the same suggestion)
+                if (defaultAudio && stream.Type == MediaType.Video && Config.Audio.Enabled)
+                {
+                    bool requiresChange = true;
+                    SuggestAudio(out var aStream, out var aExtStream, VideoDemuxer.AudioStreams);
+
+                    if (AudioStream != null)
+                    {
+                        // External audio streams comparison
+                        if (Playlist.Selected.ExternalAudioStream != null && aExtStream != null && aExtStream.Index == Playlist.Selected.ExternalAudioStream.Index)
+                            requiresChange = false;
+                        // Embedded audio streams comparison
+                        else if (Playlist.Selected.ExternalAudioStream == null && aStream != null && aStream.StreamIndex == AudioStream.StreamIndex)
+                            requiresChange = false;
+                    }
+
+                    if (!requiresChange)
+                    {
+                        if (CanDebug) Log.Debug($"Audio no need to follow video");
+                    }
+                    else
+                    {
+                         if (aStream != null)
+                            Open(aStream);
+                        else if (aExtStream != null)
+                            Open(aExtStream);
+
+                         //RequiresResync = true;
+                    }
+                }
+
+                return stream.Type == MediaType.Video
+                    ? (args = new OpenVideoStreamCompletedArgs((VideoStream)stream, (VideoStream)oldStream))
+                    : stream.Type == MediaType.Audio
+                    ? (args = new OpenAudioStreamCompletedArgs((AudioStream)stream, (AudioStream)oldStream))
+                    : stream.Type == MediaType.Subs
+                    ? (args = new OpenSubtitlesStreamCompletedArgs((SubtitlesStream)stream, (SubtitlesStream)oldStream))
+                    : (args = new OpenDataStreamCompletedArgs((DataStream)stream, (DataStream)oldStream));
+            }
         }
         catch(Exception e)
         {

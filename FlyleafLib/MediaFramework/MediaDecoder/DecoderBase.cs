@@ -54,9 +54,21 @@ public abstract unsafe class DecoderBase : RunThreadBase
     }
     protected bool Open2(StreamBase stream, StreamBase prevStream, bool openStream = true)
     {
+        if (stream == null)
+            return false;
+
+        if (!openStream)
+        {
+            // Codec-only reopen: the caller holds lockCodecCtx; avoid demuxer action locks.
+            if (stream.Demuxer.Disposed || stream.Demuxer.Interrupter.ForceInterrupt == 1)
+                return false;
+
+            return Setup(); // Do not Dispose() from inside a decoding operation on failure.
+        }
+
         lock (stream.Demuxer.lockActions)
         {
-            if (stream == null || stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed)
+            if (stream.Demuxer.Interrupter.ForceInterrupt == 1 || stream.Demuxer.Disposed)
             {
                 Log.Debug("Cancelled");
                 return false;
@@ -66,13 +78,16 @@ public abstract unsafe class DecoderBase : RunThreadBase
             Stream  = stream;
             demuxer = stream.Demuxer;
 
-            if (!Setup())
+            bool setupOk;
+            lock (stream.Demuxer.lockFmtCtx)
+                setupOk = Setup();
+
+            if (!setupOk)
             {
                 Dispose(true);
                 return false;
             }
 
-            if (openStream)
             {
                 if (prevStream != null)
                 {
