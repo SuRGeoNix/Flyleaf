@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.16</Version>
+	<Version>3.11.17</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,12 +17,8 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Renderer.HDR.Dovi: Misc validations for L1/L3
-		- Demuxer: Seperates underlying options with query params
-		- DecoderContext: Improves HTTP Options handling
-		
-		[Breaking Changes]
-		- Config.DefaultHTTPQueryToUnderlying defaults to false and now its not affected by FormatOptToUnderlying
+		- Core: Fix playback deadlocks, race conditions and decoder lifecycle synchronization
+		- FlyleafHost.Wpf: Fixes a DPI issue
 	</PackageReleaseNotes>
   </PropertyGroup>
 
