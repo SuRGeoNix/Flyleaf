@@ -125,8 +125,8 @@ public abstract unsafe class DecoderBase : RunThreadBase
                 return;
 
             Stop();
-            DisposeInternal();
 
+            // GetVideoFrame locks format before codec; don't acquire a demuxer format lock while holding the codec lock.
             if (closeStream && Stream != null && !Stream.Demuxer.Disposed)
             {
                 if (Stream.Demuxer.Type == MediaType.Video)
@@ -135,23 +135,27 @@ public abstract unsafe class DecoderBase : RunThreadBase
                     Stream.Demuxer.Dispose();
             }
 
-            if (frame != null)
+            lock (lockCodecCtx)
             {
-                fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
-                frame = null;
-            }
-                
+                DisposeInternal();
 
-            if (codecCtx != null)
-            {
-                fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
-                codecCtx = null;
+                if (frame != null)
+                {
+                    fixed (AVFrame** ptr = &frame) av_frame_free(ptr);
+                    frame = null;
+                }
+
+                if (codecCtx != null)
+                {
+                    fixed (AVCodecContext** ptr = &codecCtx) avcodec_free_context(ptr);
+                    codecCtx = null;
+                }
+
+                demuxer         = null;
+                Stream          = null;
+                Status          = Status.Stopped;
+                Disposed        = true;
             }
-            
-            demuxer         = null;
-            Stream          = null;
-            Status          = Status.Stopped;
-            Disposed        = true;
 
             if (CanDebug) Log.Debug("Disposed");
         }

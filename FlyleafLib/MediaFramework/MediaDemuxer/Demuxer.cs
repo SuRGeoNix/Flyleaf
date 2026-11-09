@@ -274,50 +274,53 @@ public unsafe class Demuxer : RunThreadBase
 
             Stop();
 
-            Url                 = null;
-            hlsCtx              = null;
-            analyzed            = false;
-            IsReversePlayback   = false;
-            curReverseStopPts   = NoTs;
-            curReverseStartPts  = NoTs;
-            hlsPrevSeqNo        = NoTs;
-            lastSeekTime        = 0;
-
-            // Free Streams
-            lock (lockStreams)
+            lock (lockFmtCtx)
             {
-                AudioStreams.Clear();
-                VideoStreams.Clear();
-                SubtitlesStreams.Clear();
-                DataStreams.Clear();
-                Programs.Clear();
+                Url                 = null;
+                hlsCtx              = null;
+                analyzed            = false;
+                IsReversePlayback   = false;
+                curReverseStopPts   = NoTs;
+                curReverseStartPts  = NoTs;
+                hlsPrevSeqNo        = NoTs;
+                lastSeekTime        = 0;
 
-                Chapters.Clear();
+                // Free Streams
+                lock (lockStreams)
+                {
+                    AudioStreams.Clear();
+                    VideoStreams.Clear();
+                    SubtitlesStreams.Clear();
+                    DataStreams.Clear();
+                    Programs.Clear();
+
+                    Chapters.Clear();
+                }
+                EnabledStreams.Clear();
+                AudioStream         = null;
+                VideoStream         = null;
+                SubtitlesStream     = null;
+                DataStream          = null;
+                queryParams         = null;
+                queryCachedBytes    = null;
+
+                DisposePackets();
+
+                if (fmtCtx != null)
+                {
+                    Interrupter.CloseRequest();
+                    fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
+                }
+
+                if (avoptCopy != null) fixed (AVDictionary** ptr = &avoptCopy) av_dict_free(ptr);
+                if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
+
+                CustomIOContext.Dispose();
+
+                TotalBytes = 0;
+                Status = Status.Stopped;
+                Disposed = true;
             }
-            EnabledStreams.Clear();
-            AudioStream         = null;
-            VideoStream         = null;
-            SubtitlesStream     = null;
-            DataStream          = null;
-            queryParams         = null;
-            queryCachedBytes    = null;
-
-            DisposePackets();
-
-            if (fmtCtx != null)
-            {
-                Interrupter.CloseRequest();
-                fixed (AVFormatContext** ptr = &fmtCtx) { avformat_close_input(ptr); fmtCtx = null; }
-            }
-
-            if (avoptCopy != null) fixed (AVDictionary** ptr = &avoptCopy) av_dict_free(ptr);
-            if (packet != null) fixed (AVPacket** ptr = &packet) av_packet_free(ptr);
-
-            CustomIOContext.Dispose();
-
-            TotalBytes = 0;
-            Status = Status.Stopped;
-            Disposed = true;
 
             Log.Info("Disposed");
         }
