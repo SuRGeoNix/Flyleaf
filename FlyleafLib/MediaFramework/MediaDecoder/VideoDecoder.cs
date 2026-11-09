@@ -589,7 +589,12 @@ public unsafe class VideoDecoder : DecoderBase
 
         if (swFallback)
         {   // Could happen during (VA) GetFormat (called by avcodec_send_packet)
-            SWFallback();
+            if (!SWFallback() || codecCtx == null)
+            {
+                av_packet_free(&packet);
+                return -1234;
+            }
+
             ret = avcodec_send_packet(codecCtx, packet);
         }
 
@@ -784,7 +789,9 @@ public unsafe class VideoDecoder : DecoderBase
             codecCtx = null;
         }
         Renderer.Reset(pausePlayer: false, fromDecoder: true);
-        Open2(Stream, null, false);
+        if (!Open2(Stream, null, false))
+            Status = Status.Stopping;
+
         keyPacketRequired   = !isIntraOnly;
         keyFrameRequired    = false;
     }
@@ -845,7 +852,10 @@ public unsafe class VideoDecoder : DecoderBase
         codecCtx            = null;
         swFallback          = true;
         bool keyRequiredOld = keyPacketRequired;
-        ret = Open2(Stream, null, false); // TBR:  Dispose() on failure could cause a deadlock
+        ret = Open2(Stream, null, false);
+        if (!ret)
+            Status = Status.Stopping;
+
         keyPacketRequired   = keyRequiredOld;
         keyFrameRequired    = false;
         swFallback          = false;
@@ -1365,7 +1375,12 @@ public unsafe class VideoDecoder : DecoderBase
 
             if (swFallback) // Should use 'global' packet to reset it in get_format (same packet should use also from DecoderContext)
             {
-                SWFallback();
+                if (!SWFallback() || codecCtx == null)
+                {
+                    av_packet_unref(demuxer.packet);
+                    return -1234;
+                }
+
                 ret = avcodec_send_packet(codecCtx, demuxer.packet);
             }
 

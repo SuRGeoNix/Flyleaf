@@ -118,6 +118,7 @@ unsafe partial class Player
 
                 if (AudioDecoder.OnVideoDemuxer)
                 {
+                    decoder.PauseDecoders();
                     if (decoder.Seek(seekData.ms, seekData.forward) < 0)
                         Log.Warn("Seek failed 1");
                 }
@@ -198,6 +199,7 @@ unsafe partial class Player
                 Renderer.RenderIdleStart();
 
                 seeks.Clear();
+                decoder.PauseDecoders();
                 if (decoder.Seek(seekData.ms, seekData.forward) < 0)
                     Log.Warn("Seek failed");
             }

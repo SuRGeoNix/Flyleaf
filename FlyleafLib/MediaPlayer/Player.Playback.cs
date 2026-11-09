@@ -348,6 +348,7 @@ partial class Player
                 {
                     if (AudioDecoder.OnVideoDemuxer)
                     {
+                        decoder.PauseDecoders();
                         ret = decoder.Seek(seekData.ms, seekData.forward);
                         if (CanWarn && ret < 0)
                             Log.Warn("Seek failed 2");
