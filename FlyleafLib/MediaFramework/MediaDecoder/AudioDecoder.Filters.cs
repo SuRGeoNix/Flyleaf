@@ -160,9 +160,8 @@ public unsafe partial class AudioDecoder
 
             SampleBytes = av_get_bytes_per_sample(SampleFormat) * channelLayout.nb_channels;
 
-            // TBR: DONT CHANGE values will affect Screamer | Ensures we have at least 20-70ms samples to avoid audio crackling and av sync issues
-            ((FilterLink*)input0)->min_samples = SampleRate * 20 / 1000;
-            ((FilterLink*)input0)->max_samples = SampleRate * 70 / 1000;
+            // Fixed 20ms audio frames for Screamer
+            av_buffersink_set_frame_size(abufferSinkCtx, (uint)(SampleRate / 50));
 
             if (changed)
                 FormatChanged?.Invoke(this);

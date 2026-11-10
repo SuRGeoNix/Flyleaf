@@ -377,7 +377,7 @@ public unsafe partial class DecoderContext : PluginHandler
         VideoDemuxer.PauseOnQueueFull = true;
         AudioDemuxer.PauseOnQueueFull = true;
         SubtitlesDemuxer.PauseOnQueueFull = true;
-        DataDecoder.PauseOnQueueFull = true;
+        DataDemuxer.PauseOnQueueFull = true;
     }
     public void Start()
     {
