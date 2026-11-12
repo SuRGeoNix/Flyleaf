@@ -33,6 +33,7 @@
       <PackageReference Include="FlyleafLib.Plugins.BitSwarm" Version="1.3.0" />
       <PackageReference Include="FlyleafLib.Plugins.OpenSubtitlesOrg" Version="1.3.0" />
       <PackageReference Include="FlyleafLib.Plugins.SubtitlesConverter" Version="1.0.0" />
+      <PackageReference Include="FlyleafLib.Plugins.YTDLP" Version="2.0.1" />
     </ItemGroup>
 
 </Project>

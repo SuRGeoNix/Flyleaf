@@ -16,4 +16,8 @@
     <Folder Include="Properties\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FlyleafLib.Plugins.YTDLP" Version="2.0.1" />
+  </ItemGroup>
+
 </Project>
