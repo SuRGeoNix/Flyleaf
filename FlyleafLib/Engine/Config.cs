@@ -476,9 +476,7 @@ public class Config : NotifyPropertyChanged
         {
             // HTTP
             ["user_agent"]      = USER_AGENT,
-
-            // HLS
-            ["http_persistent"] = "0", // TBR: Currently hls.c bug with AVERROR_EXIT (from our interrupts)
+            ["reconnect"]       = "1"           // Recover premature disconnections (YT external audio)
         };
 
         public Dictionary<string, string> GetFormatOptPtr(MediaType type)
