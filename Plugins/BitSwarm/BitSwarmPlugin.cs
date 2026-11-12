@@ -15,7 +15,7 @@ using static FlyleafLib.Utils;
 
 namespace FlyleafLib.Plugins;
 
-public class TorrentBitSwarm : PluginBase, IOpen
+public class BitSwarmPlugin : PluginBase, IOpen
 {
     public new int          Priority            { get; set; } = 2000;
 

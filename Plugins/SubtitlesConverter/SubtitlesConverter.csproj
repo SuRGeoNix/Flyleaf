@@ -1,19 +1,19 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFrameworks>net10.0-windows</TargetFrameworks>
-    <RootNamespace>FlyleafLib.Plugins</RootNamespace>
+    <Version>1.0.0</Version>
+    <Description>Detect and convert subtitle text encodings to UTF-8 for playback in FlyleafLib.</Description>
+    <PackageTags>flyleaf flyleaflib plugin media subtitles charset encoding utf8 converter</PackageTags>
+    <PackageReleaseNotes>first nuget release</PackageReleaseNotes>
   </PropertyGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="set plugindir=Plugins.NET10&#xD;&#xA;set pluginname=SubtitlesConverter&#xD;&#xA;if not exist &quot;$(SolutionDir)\Plugins\bin\%25plugindir%25\%25pluginname%25&quot; mkdir &quot;$(SolutionDir)\Plugins\bin\%25plugindir%25\%25pluginname%25&quot;&#xD;&#xA;move &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)\Plugins\bin\%25plugindir%25\%25pluginname%25\&quot;" />
-  </Target>
-
-  <ItemGroup>
-	  <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj">
-		  <Private>false</Private>
-		  <ExcludeAssets>All</ExcludeAssets>
-	  </ProjectReference>
+  <ItemGroup Condition="'$(UseLocalFlyleaf)' == 'true'">
+    <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>All</ExcludeAssets>
+    </ProjectReference>
   </ItemGroup>
 
+  <ItemGroup Condition="'$(UseLocalFlyleaf)' != 'true'">
+    <PackageReference Include="FlyleafLib" Version="[3.11.17,4.0.0)" />
+  </ItemGroup>
 </Project>

@@ -1,0 +1,26 @@
+<Project>
+  <PropertyGroup>
+	<TargetFramework>net10.0-windows</TargetFramework>
+    <BaseOutputPath>$(MSBuildThisFileDirectory)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)bin\</PackageOutputPath>
+    <UseLocalFlyleaf Condition="'$(UseLocalFlyleaf)' == ''">true</UseLocalFlyleaf>
+	<AssemblyName>FlyleafLib.Plugins.$(MSBuildProjectName)</AssemblyName>
+	<RootNamespace>FlyleafLib.Plugins</RootNamespace>
+	<PackageId>$(AssemblyName)</PackageId>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <BuildOutputTargetFolder>tools</BuildOutputTargetFolder>
+    <Authors>SuRGeoNix</Authors>
+    <Copyright>SuRGeoNix © 2026</Copyright>
+    <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageIcon>Flyleaf.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <DebugType>portable</DebugType>
+    <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/SuRGeoNix/Flyleaf</RepositoryUrl>
+  </PropertyGroup>
+</Project>

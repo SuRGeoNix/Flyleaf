@@ -1,0 +1,15 @@
+<Project>
+  <ItemGroup>
+    <!-- MSBuildThisFileName is scoped to this imported package target. -->
+    <Content Include="$(MSBuildThisFileDirectory)..\tools\net10.0-windows7.0\$(MSBuildThisFileName).dll"
+             Link="Plugins\$(MSBuildThisFileName.Replace('FlyleafLib.Plugins.', ''))\$(MSBuildThisFileName).dll"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+			 ExcludeFromSingleFile="true"
+             Visible="false" />
+  </ItemGroup>
+
+  <!-- Package-specific runtime dependencies, when the package provides them. -->
+  <Import Project="$(MSBuildThisFileDirectory)_flyleaf\$(MSBuildThisFileName).dependencies.targets"
+          Condition="Exists('$(MSBuildThisFileDirectory)_flyleaf\$(MSBuildThisFileName).dependencies.targets')" />
+</Project>
