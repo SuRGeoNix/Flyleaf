@@ -1,0 +1,51 @@
+<Project>
+  <!-- Route NuGet runtime assets to the plugin folder without duplicating them in the app root. -->
+  <Target Name="_FlyleafBitSwarmRedirectDependencies"
+          AfterTargets="ResolveLockFileCopyLocalFiles"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <ReferenceCopyLocalPaths Update="@(ReferenceCopyLocalPaths)"
+          Condition="'%(ReferenceCopyLocalPaths.NuGetPackageId)' == 'BitSwarm' Or
+                     '%(ReferenceCopyLocalPaths.NuGetPackageId)' == 'APF' Or
+                     '%(ReferenceCopyLocalPaths.NuGetPackageId)' == 'BencodeNET'">
+        <DestinationSubDirectory>Plugins\BitSwarm\</DestinationSubDirectory>
+      </ReferenceCopyLocalPaths>
+
+      <_ResolvedCopyLocalBuildAssets Update="@(_ResolvedCopyLocalBuildAssets)"
+          Condition="'%(_ResolvedCopyLocalBuildAssets.NuGetPackageId)' == 'BitSwarm' Or
+                     '%(_ResolvedCopyLocalBuildAssets.NuGetPackageId)' == 'APF' Or
+                     '%(_ResolvedCopyLocalBuildAssets.NuGetPackageId)' == 'BencodeNET'">
+        <DestinationSubDirectory>Plugins\BitSwarm\</DestinationSubDirectory>
+      </_ResolvedCopyLocalBuildAssets>
+    </ItemGroup>
+  </Target>
+
+  <!-- Covers SDK publish paths that resolve a separate set of runtime assets. -->
+  <Target Name="_FlyleafBitSwarmRedirectPublishDependencies"
+          AfterTargets="_ResolveCopyLocalAssetsForPublish">
+    <ItemGroup>
+      <_ResolvedCopyLocalPublishAssets Update="@(_ResolvedCopyLocalPublishAssets)"
+          Condition="'%(_ResolvedCopyLocalPublishAssets.NuGetPackageId)' == 'BitSwarm' Or
+                     '%(_ResolvedCopyLocalPublishAssets.NuGetPackageId)' == 'APF' Or
+                     '%(_ResolvedCopyLocalPublishAssets.NuGetPackageId)' == 'BencodeNET'">
+        <DestinationSubDirectory>Plugins\BitSwarm\</DestinationSubDirectory>
+      </_ResolvedCopyLocalPublishAssets>
+    </ItemGroup>
+  </Target>
+
+    <!-- Keep BitSwarm dependencies outside the single-file executable. -->
+    <Target Name="_FlyleafBitSwarmExcludeFromSingleFile"
+		    BeforeTargets="_ComputeFilesToBundle"
+		    Condition="'$(PublishSingleFile)' == 'true'">
+	    <ItemGroup>
+		    <ResolvedFileToPublish Update="@(ResolvedFileToPublish)"
+			    Condition="'%(ResolvedFileToPublish.NuGetPackageId)' == 'BitSwarm' Or
+                    '%(ResolvedFileToPublish.NuGetPackageId)' == 'APF' Or
+                    '%(ResolvedFileToPublish.NuGetPackageId)' == 'BencodeNET'">
+			    <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+		    </ResolvedFileToPublish>
+	    </ItemGroup>
+    </Target>
+
+
+</Project>

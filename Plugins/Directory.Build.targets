@@ -1,0 +1,19 @@
+<Project>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\Images\Flyleaf.png"
+          Pack="true" PackagePath="Flyleaf.png" Visible="false" />
+    <None Update="README.md" Pack="true" PackagePath="README.md" />
+    <None Include="$(MSBuildThisFileDirectory)Packaging\Plugin.targets"
+      Pack="true"
+      PackagePath="buildTransitive\$(PackageId).targets"
+      Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)Packaging\BitSwarm.Dependencies.targets"
+          Condition="'$(MSBuildProjectName)' == 'BitSwarm'"
+          Pack="true"
+          PackagePath="buildTransitive\_flyleaf\$(PackageId).dependencies.targets"
+          Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)Packaging\_._"
+          Pack="true" PackagePath="lib\net10.0-windows7.0\_._" Visible="false" />
+  </ItemGroup>
+
+</Project>
