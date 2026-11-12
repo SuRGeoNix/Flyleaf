@@ -361,16 +361,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         opts["extension_picky"]     = "0";
         opts["rtsp_transport"]      = "tcp";
 
-        // HTTP | Bounded requests (YT throttling) | Update: This seems to be resolved properly with deno.exe
-        //opts["multiple_requests"]   = "1";
-        //opts["request_size"]        = "2097152";
-        //opts["request_size"]        = "8388608";
-
-        // HTTP | Recover premature disconnections (YT external audio)
-        opts["reconnect"]           = "1";
-        //opts["reconnect_on_network_error"] = "1";
-        //opts["reconnect_on_http_error"]    = "500,502,503,504";
-        //opts["reconnect_delay_max"]        = "5";
+        // HLS
+        opts["http_persistent"]     = "0"; // Temp fix for FFmpeg bug crash https://code.ffmpeg.org/FFmpeg/FFmpeg/issues/23798
 
         return opts;
     }

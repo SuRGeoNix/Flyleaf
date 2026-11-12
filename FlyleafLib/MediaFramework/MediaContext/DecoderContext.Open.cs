@@ -970,6 +970,10 @@ public partial class DecoderContext
                 foreach (var opt in formatOpt)
                     copied.Add(opt.Key, opt.Value);
 
+                if (demuxerInput.FormatOpt != null)
+                    foreach (var opt in demuxerInput.FormatOpt)
+                        formatOpt[opt.Key] = opt.Value;
+
                 if (demuxerInput.Cookies != null)
                     SetCookies(formatOpt, demuxerInput.Cookies);
 
