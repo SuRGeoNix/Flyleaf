@@ -964,7 +964,7 @@ public partial class DecoderContext
         {
             if (Playlist.InputType == InputType.Web)
             {   // Set HTTP Config
-                formatOpt = Config.Demuxer.GetFormatOptPtr(demuxer.Type);
+                formatOpt = demuxer.Config.GetFormatOptPtr(demuxer.Type); // NOTE: Downloader clones main config to demuxer.Config
                 copied = [];
 
                 foreach (var opt in formatOpt)

@@ -90,6 +90,7 @@ public unsafe class Downloader : RunThreadBase
 
             Disposed= false;
             Status  = Status.Opening;
+            DecCtx.shouldDispose = false; // TBR (We shouldn't re-use the same DecCtx?)
             var ret = DecCtx.Open(url, defaultPlaylistItem, defaultVideo, defaultAudio, false);
             if (ret != null && ret.Error != null) return ret.Error;
 
@@ -161,6 +162,8 @@ public unsafe class Downloader : RunThreadBase
         }
     }
 
+    public long AudioBufferDurationWithVideo = TimeSpan.FromSeconds(2).Ticks;
+
     protected override void RunInternal()
     {
         if (!Remuxer.HasStreams) { OnDownloadCompleted(false); return; }
@@ -171,9 +174,10 @@ public unsafe class Downloader : RunThreadBase
         if (hasAVDemuxers)
         {
             resetBufferDuration = DecCtx.AudioDemuxer.Config.BufferDuration;
-            DecCtx.AudioDemuxer.Config.BufferDuration = 100 * 10000;
+            DecCtx.AudioDemuxer.Config.BufferDuration = AudioBufferDurationWithVideo;
         }
 
+        Engine.TimeBeginPeriod1();
         DecCtx.Start();
 
         var Demuxer = !DecCtx.VideoDemuxer.Disposed ? DecCtx.VideoDemuxer : DecCtx.AudioDemuxer;
@@ -225,13 +229,13 @@ public unsafe class Downloader : RunThreadBase
                         break;
                     }
 
-                    Thread.Sleep(20);
+                    Thread.Sleep(10);
                 }
 
                 if (hasAVDemuxers && Status == Status.QueueEmpty && AudioDemuxer.Packets.Count == 0)
                 {
                     while (AudioDemuxer.Packets.Count == 0 && Status == Status.QueueEmpty && AudioDemuxer.IsRunning)
-                        Thread.Sleep(20);
+                        Thread.Sleep(10);
                 }
 
                 lock (lockStatus)
@@ -296,6 +300,8 @@ public unsafe class Downloader : RunThreadBase
             Remuxer.Write(packet, isAudioDemuxer);
 
         } while (Status == Status.Running);
+
+        Engine.TimeEndPeriod1();
 
         if (resetBufferDuration != -1) DecCtx.AudioDemuxer.Config.BufferDuration = resetBufferDuration;
 

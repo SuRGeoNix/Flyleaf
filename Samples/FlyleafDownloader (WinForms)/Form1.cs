@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using FlyleafLib;
@@ -36,6 +37,8 @@ namespace FlyleafDownloader
             Config.Demuxer.BufferDuration = 60 * 1000 * 10000;  // 60 seconds should be enough to allow max download speed
             Config.Demuxer.ReadTimeout    = 60 * 1000 * 10000;  // 60 seconds to retry or fail
             Config.Video.MaxVerticalResolutionCustom = 1080;    // Default Plugins Suggest based on this
+
+            //Config.Plugins["YTDLP"]["BrowserCookies"] = "true";
 
             // Initializes the Downloader
             Downloader = new Downloader(Config);
@@ -225,7 +228,7 @@ namespace FlyleafDownloader
             lstAudioStreams2.Columns[0].Width = -1;
         }
 
-        private void btnInputs_Click(object sender, EventArgs e)
+        private async void btnInputs_Click(object sender, EventArgs e)
         {
             if (!splitContainer1.Panel2Collapsed)
             {
@@ -250,7 +253,9 @@ namespace FlyleafDownloader
                 return;
             }
 
-            string error = Downloader.Open(txtUrl.Text);
+            string url = txtUrl.Text;
+            string error = await Task.Run(() => Downloader.Open(url));
+
             if (error != null)
             {
                 MessageBox.Show($"{error}", "Open Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -315,7 +320,7 @@ namespace FlyleafDownloader
             RefreshAudioStreams2(true);
         }
 
-        private void btnDownload_Click(object sender, EventArgs e)
+        private async void btnDownload_Click(object sender, EventArgs e)
         {
             if (!isOpened)
             {
@@ -412,7 +417,8 @@ namespace FlyleafDownloader
             string ext = !Downloader.DecCtx.VideoDemuxer.Disposed ? Downloader.DecCtx.VideoDemuxer.Extension : Downloader.DecCtx.AudioDemuxer.Extension;
 
             filename = Utils.FindNextAvailableFile(Path.Combine(txtSavePath.Text, filename + "." + ext));
-            Downloader.Download(ref filename, false);
+
+            await Task.Run(() => Downloader.Download(ref filename, false));
         }
 
         // We prevent to add audio from both embedded and external input

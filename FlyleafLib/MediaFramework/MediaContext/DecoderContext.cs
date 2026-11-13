@@ -88,7 +88,7 @@ public unsafe partial class DecoderContext : PluginHandler
 
     #region Initialize
     LogHandler Log;
-    bool shouldDispose;
+    internal bool shouldDispose; // never gets false after dispose (TBR: if we can re-use it)
     public DecoderContext(Config config = null, int uniqueId = -1, bool enableDecoding = true, Player player = null) : base(config, uniqueId)
     {
         Log                 = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [DecoderContext] ");
