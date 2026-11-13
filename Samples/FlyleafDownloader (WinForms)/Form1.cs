@@ -327,7 +327,8 @@ namespace FlyleafDownloader
                 lblStatus.Text = "";
                 progressBar1.Visible = false; lblPercent.Visible = false;
 
-                string error = Downloader.Open(txtUrl.Text);
+                string url = txtUrl.Text;
+                string error = await Task.Run(() => Downloader.Open(url));
                 if (error != null)
                 {
                     MessageBox.Show($"{error}", "Open Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
