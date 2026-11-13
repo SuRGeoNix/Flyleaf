@@ -229,6 +229,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         userClearScreen = playerConfig.Video.ClearScreen; // slide show disable this
 
         #if DEBUG
+        // Testing Post Process Filters
+        //var postTest = new TestPostProcessorFactory();
+        //postTest.Mode = TestPostProcessMode.Invert;
+        //playerConfig.Video.PostProcessorFactory = postTest;
+
         // Testing audio filters
         //playerConfig.Audio.Filters = new()
         //{
@@ -282,7 +287,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 if (playerConfig.Decoder.MaxVideoFrames < 80)
                     playerConfig.Decoder.MaxVideoFrames = 80;
-
+                
                 GetWindowFromPlayer(Player).ReversePlaybackChecked = true;
             }
             else if (e.PropertyName == nameof(Player.Speed))

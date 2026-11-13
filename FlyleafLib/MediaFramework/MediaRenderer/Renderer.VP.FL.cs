@@ -488,12 +488,36 @@ public unsafe partial class Renderer
     void FLRender(VideoFrame frame)
     {
         if (frame.SRV == null)
-            return; // TODO: when we dispose on switch
+            return;
 
-        context.OMSetRenderTargets(SwapChain.BackBufferRtv);
-        context.ClearRenderTargetView(SwapChain.BackBufferRtv, ucfg.flBackColor);
+        PostProcessSurface surface = null;
+        if (postProcessor != null && SwapChain.BackBuffer is { } backBuffer)
+            surface = GetPostProcessSurface(false, backBuffer.Description.Width, backBuffer.Description.Height);
+
+        var target = surface?.RTV ?? SwapChain.BackBufferRtv;
+
+        context.OMSetRenderTargets(target);
+        context.ClearRenderTargetView(target, ucfg.flBackColor);
         FLBindVideoFrame(frame, false);
+
+        // HDRDetect may have restored the swapchain RTV.
+        if (surface != null)
+            context.OMSetRenderTargets(target);
+
         context.Draw(6, 0);
+
+        if (surface != null)
+        {
+            if (!RunPostProcessor(surface, SwapChain.BackBufferRtv,
+                surface.Width, surface.Height, Viewport, false))
+            {
+                context.OMSetRenderTargets(SwapChain.BackBufferRtv);
+                context.ClearRenderTargetView(SwapChain.BackBufferRtv, ucfg.flBackColor);
+                context.Draw(6, 0);
+            }
+            else
+                context.OMSetRenderTargets(SwapChain.BackBufferRtv);
+        }
 
         if (context2d != null)
             ucfg.OnD2DDraw(this, context2d);

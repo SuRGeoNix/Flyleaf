@@ -12,7 +12,6 @@ unsafe partial class Player
     public bool IsOpenFileDialogOpen    { get; private set; }
     readonly object stepSeekLock = new();
 
-
     public void SeekBackward()  => SeekBackward_(Config.Player.SeekOffset);
     public void SeekBackward2() => SeekBackward_(Config.Player.SeekOffset2);
     public void SeekBackward3() => SeekBackward_(Config.Player.SeekOffset3);
@@ -359,6 +358,9 @@ unsafe partial class Player
     /// <param name="height">Specify the height (0: will keep the ratio based on width)</param>
     /// <returns></returns>
     public System.Windows.Media.Imaging.BitmapSource TakeSnapshotToBitmapSource(uint width = 0, uint height = 0) => Renderer?.TakeSnapshotBitmapSource(width, height);
+
+    /// <summary>Re-renders the current frame (for example after changing post-processing parameters while paused).</summary>
+    public void RequestRender() => Renderer?.RenderRequest();
 
     public void ResetAll()
     {
