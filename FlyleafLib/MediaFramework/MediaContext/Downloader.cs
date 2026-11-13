@@ -177,7 +177,7 @@ public unsafe class Downloader : RunThreadBase
         DecCtx.Start();
 
         var Demuxer = !DecCtx.VideoDemuxer.Disposed ? DecCtx.VideoDemuxer : DecCtx.AudioDemuxer;
-        long startTime = Demuxer.hlsCtx == null ? Demuxer.StartTime : Demuxer.hlsCtx->first_timestamp * 10;
+        long startTime = Demuxer.hlsCtx == null ? Demuxer.StartTime : Demuxer.HLSFirstTimestamp;
         Duration = Demuxer.IsLive ? 0 : Demuxer.Duration;
         downPercentageFactor = Duration / 100.0;
 

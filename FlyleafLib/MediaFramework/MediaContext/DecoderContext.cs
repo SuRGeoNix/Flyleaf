@@ -313,7 +313,7 @@ public unsafe partial class DecoderContext : PluginHandler
     {
         long startTime;
         long ticks = (ms * 10000);
-
+        
         if (demuxer.hlsCtx == null)
         {
             startTime = demuxer.StartTime;
@@ -321,7 +321,7 @@ public unsafe partial class DecoderContext : PluginHandler
         }
         else
         {
-            startTime = demuxer.hlsCtx->first_timestamp * 10;
+            startTime = demuxer.HLSFirstTimestamp;
 
             // Live External Demuxers will use video timestamps directly*
             if (demuxer.Type == MediaType.Video || VideoDemuxer.Disposed)
