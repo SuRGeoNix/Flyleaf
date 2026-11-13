@@ -44,23 +44,46 @@ public unsafe partial class Renderer
                 if (rFrame == null)
                     return null;
 
+                var surface = postProcessor == null ? null : GetPostProcessSurface(true, snapshot.Width, snapshot.Height);
+
                 if (VideoProcessor == VideoProcessors.D3D11)
                 {
                     vc.VideoProcessorGetStreamDestRect  (vp, 0, out _, out var d3destOld);
                     vc.VideoProcessorGetOutputTargetRect(vp,    out _, out var d3outOld);
-                    D3Render(rFrame.VPIV, snapshot.d3rtv, snapshot.d3view);
-                    vc.VideoProcessorSetStreamDestRect  (vp, 0, true, d3destOld);
-                    vc.VideoProcessorSetOutputTargetRect(vp,    true, d3outOld);
+
+                    try
+                    {
+                        D3Render(rFrame.VPIV, surface?.VPOV ?? snapshot.d3rtv, snapshot.d3view);
+
+                        if (surface != null && !RunPostProcessor(surface, snapshot.rtv, snapshot.Width, snapshot.Height, snapshot.view, true))
+                            D3Render(rFrame.VPIV, snapshot.d3rtv, snapshot.d3view);
+                    }
+                    finally
+                    {
+                        vc.VideoProcessorSetStreamDestRect  (vp, 0, true, d3destOld);
+                        vc.VideoProcessorSetOutputTargetRect(vp,    true, d3outOld);
+                    }
                 }
                 else
                 {
-                    FLRender(rFrame, snapshot.rtv, snapshot.view);
-                    context.RSSetViewport(Viewport);
+                    try
+                    {
+                        FLRender(rFrame, surface?.RTV ?? snapshot.rtv, snapshot.view);
+
+                        if (surface != null && !RunPostProcessor(surface, snapshot.rtv, snapshot.Width, snapshot.Height, snapshot.view, true))
+                        {
+                            context.ClearRenderTargetView(snapshot.rtv, ucfg.flBackColor);
+                            FLRender(rFrame, snapshot.rtv, snapshot.view);
+                        }
+                    }
+                    finally
+                    {
+                        context.RSSetViewport(Viewport);
+                    }
                 }
             }
 
             context.CopyResource(snapshot.txtStage, snapshot.txt);
-
             return snapshot.txtStage;
         }
         catch { return null; }

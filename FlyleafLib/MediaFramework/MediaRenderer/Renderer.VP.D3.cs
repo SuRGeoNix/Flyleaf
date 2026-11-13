@@ -595,14 +595,27 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
             return; // TODO: when we dispose on switch
 
         /* [Undocumented Deinterlace]
-        * Currently we don't use Past/Future frames so we consider only Bob/Weave methods (we also consider that are supported by D3D11VP)
-        * For Bob -double rate- we set the second field (InputFrameOrField/OutputIndex)
-        * TODO: Bring secondField to renderer so Render refreshes can work also with it (maybe ShowFrameX too)
-        * TBR: Vortice bug with Past / Future surfaces (no support for now - only useful for deinterlace?*)
-        */
+         * Currently we don't use Past/Future frames so we consider only Bob/Weave methods (we also consider that are supported by D3D11VP)
+         * For Bob -double rate- we set the second field (InputFrameOrField/OutputIndex)
+         * TODO: Bring secondField to renderer so Render refreshes can work also with it (maybe ShowFrameX too)
+         * TBR: Vortice bug with Past / Future surfaces (no support for now - only useful for deinterlace?*)
+         */
         vpsa[0].InputSurface= frame.VPIV;
         vpsa[0].OutputIndex = vpsa[0].InputFrameOrField = secondField ? 1u : 0u;
-        vc.VideoProcessorBlt(vp, SwapChain.VPOV, 0, 1, vpsa);
+
+        PostProcessSurface surface = null;
+        if (postProcessor != null && SwapChain.BackBuffer is { } backBuffer)
+            surface = GetPostProcessSurface(false, backBuffer.Description.Width, backBuffer.Description.Height);
+
+        vc.VideoProcessorBlt(vp, surface?.VPOV ?? SwapChain.VPOV, 0, 1, vpsa);
+
+        if (surface != null)
+        {
+            if (!RunPostProcessor(surface, SwapChain.BackBufferRtv, surface.Width, surface.Height, Viewport, false))
+                vc.VideoProcessorBlt(vp, SwapChain.VPOV, 0, 1, vpsa);
+
+            context.OMSetRenderTargets(SwapChain.BackBufferRtv);
+        }
 
         if (context2d != null)
             ucfg.OnD2DDraw(this, context2d);

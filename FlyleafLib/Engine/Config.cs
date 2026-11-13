@@ -699,6 +699,14 @@ public class Config : NotifyPropertyChanged
         VideoProcessors _VideoProcessor = VideoProcessors.Auto;
 
         /// <summary>
+        /// Optional factory for a device-scoped renderer post-processor. The factory and its
+        /// processor are runtime-only and are not serialized with the video configuration.
+        /// </summary>
+        [JsonIgnore]
+        public IVideoPostProcessorFactory
+                                PostProcessorFactory        { get; set; }
+
+        /// <summary>
         /// Sets DeInterlace (D3D11VP only)
         /// </summary>
         public DeInterlace      DeInterlace                 { get => _DeInterlace;      set { if (Set(ref _DeInterlace, value))     player?.Renderer?.VPRequest(VPRequestType.Deinterlace); } }
