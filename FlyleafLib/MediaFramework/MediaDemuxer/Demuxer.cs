@@ -8,7 +8,7 @@ using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.MediaFramework.MediaDemuxer;
 
-public unsafe class Demuxer : RunThreadBase
+public unsafe partial class Demuxer : RunThreadBase
 {
     /* TODO
      * 1) Review lockFmtCtx on Enable/Disable Streams causes delay and is not fully required
@@ -74,8 +74,6 @@ public unsafe class Demuxer : RunThreadBase
     public SubtitlesStream          SubtitlesStream { get; private set; }
     public DataStream               DataStream      { get; private set; }
 
-    // Audio/Video Stream's HLSPlaylist
-    internal HLSPlaylist*           HLSPlaylist     { get; private set; }
 
     // Media Packets
     public PacketQueue              Packets         { get; private set; }
@@ -112,27 +110,6 @@ public unsafe class Demuxer : RunThreadBase
         public string   Title       { get; set; }
     }
 
-    // CurPackets Callbacks
-    internal void SetHLSDuration(long duration)
-    {
-        if (Duration != duration)
-        {
-            Duration = duration;
-            HLSDurationChanged?.Invoke(duration);
-        }
-    }
-    internal void SetHLSCurTime(long curTime)
-    {
-        if (curTime != _hlsCurTime)
-        {
-            _hlsCurTime = curTime;
-            HLSCurTimeChanged?.Invoke(curTime);
-        }
-    }
-    long _hlsCurTime; // only to check changes
-    public Action<long> HLSDurationChanged;
-    public Action<long> HLSCurTimeChanged; // Includes BufferedDurationChanged if possible?*
-
     public event EventHandler AudioLimit;
     bool audioBufferLimitFired;
     void OnAudioLimit()
@@ -146,12 +123,8 @@ public unsafe class Demuxer : RunThreadBase
     #region Constructor / Declaration
     public AVPacket*        packet;
     AVFormatContext*        fmtCtx;
-    internal HLSContext*    hlsCtx;
     bool                    analyzed;
     long                    lastVideoPacketPts      = NoTs; // Currently used to fix Data pts
-    long                    hlsPrevSeqNo            = NoTs; // Identifies the change of the m3u8 playlist (wraped)
-    internal long           hlsStartTime            = NoTs; // Calculation of first timestamp (lastPacketTs - hlsCurDuration)
-    long                    hlsCurDuration;                 // Duration until the start of the current segment
     long                    lastSeekTime;                   // To set CurTime while no packets are available
 
     public object           lockFmtCtx              = new();
@@ -277,14 +250,14 @@ public unsafe class Demuxer : RunThreadBase
             lock (lockFmtCtx)
             {
                 Url                 = null;
-                hlsCtx              = null;
                 analyzed            = false;
                 IsReversePlayback   = false;
                 curReverseStopPts   = NoTs;
                 curReverseStartPts  = NoTs;
-                hlsPrevSeqNo        = NoTs;
                 lastSeekTime        = 0;
 
+                ResetHLSLive();
+                
                 // Free Streams
                 lock (lockStreams)
                 {
@@ -819,11 +792,7 @@ public unsafe class Demuxer : RunThreadBase
 
         Duration = duration;
 
-        if (Engine.Config.FFmpegHLSLiveSeek && Duration == 0 && Name == "hls" && Environment.Is64BitProcess) // HLSContext cast is not safe
-        {
-            hlsCtx = (HLSContext*)fmtCtx->priv_data;
-            StartTime = 0;
-        }
+        InitializeHLSLive();
 
         IsLive = Duration == 0; // TODO: No true for single video stream / image (fix also total frames to 1 if not animated?*) | consider updating it on proper ended? (can we trust ended?)
 
@@ -938,7 +907,7 @@ public unsafe class Demuxer : RunThreadBase
 
             if (hlsCtx != null)
             {
-                ticks    += hlsStartTime - (hlsCtx->first_timestamp * 10);
+                ticks    += hlsStartTime - (hlsReader.GetFirstTimestamp(hlsCtx) * 10);
                 startTime = hlsStartTime;
             }
 
@@ -1685,35 +1654,6 @@ public unsafe class Demuxer : RunThreadBase
     #endregion
 
     #region Misc
-    internal void UpdateHLSTime()
-    {
-        // TBR: Access Violation
-        // [hls @ 00000269f9cdb400] Media sequence changed unexpectedly: 150070 -> 0
-
-        if (hlsPrevSeqNo != HLSPlaylist->cur_seq_no)
-        {
-            hlsPrevSeqNo = HLSPlaylist->cur_seq_no;
-            hlsStartTime = NoTs;
-
-            hlsCurDuration = 0;
-            for (long i = 0; i < HLSPlaylist->cur_seq_no - HLSPlaylist->start_seq_no; i++)
-                hlsCurDuration += HLSPlaylist->segments[i]->duration;
-
-            long duration = hlsCurDuration;
-            for (long i = HLSPlaylist->cur_seq_no - HLSPlaylist->start_seq_no; i < HLSPlaylist->n_segments; i++)
-                duration += HLSPlaylist->segments[i]->duration;
-
-            hlsCurDuration *= 10;
-            Duration        = duration * 10;
-        }
-
-        if (hlsStartTime == NoTs && CurPackets.LastTimestamp != NoTs)
-        {
-            hlsStartTime = CurPackets.LastTimestamp - hlsCurDuration;
-            CurPackets.UpdateCurTime();
-        }
-    }
-
     private string GetValidExtension()
     {
         // TODO
