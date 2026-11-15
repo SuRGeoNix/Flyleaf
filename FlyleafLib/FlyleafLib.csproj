@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.11.18</Version>
+	<Version>3.11.19</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,13 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- AudioDecoder: Replaces private FilterLink access with av_buffersink_set_frame_size
-		- DecoderContext: Fixes an issue with PauseOnQueueFull and Data streams
-		- DecoderContext: Extends DemuxerInput with FormatOpt to support per-input FFmpeg options (primarily for plugins)
-		- Config.Demuxer: Enables HTTP reconnect=1 by default to recover from prematurely disconnected streams
-
-		[Breaking Changes]
-		- Config.Demuxer: Removes the default HLS http_persistent=0 override, which was introduced as a workaround for an FFmpeg bug affecting interrupted HLS reads. Applications can still configure this option explicitly
+		- Demuxer: Improves HLS live seeking stability and FFmpeg version compatibility
+		- DecoderContext: Fixes plugin options not being passed to the audio demuxer
+		- Downloader: Fixes severe download throttling with separate audio streams
+		- Downloader: Exposes experimental AudioBufferDurationWithVideo setting (2s instead of 100ms)
+		- Renderer: Adds optional GPU post-processing support
 	</PackageReleaseNotes>
   </PropertyGroup>
 
