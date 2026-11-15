@@ -31,38 +31,28 @@ public unsafe partial class Renderer
 
         superResNvidiaAvailable = d3CacheEntry.SuperResNvidiaAvailable == 1;
 
-        if (!ucfg.d3FiltersFilled)
-        {
-            ucfg.d3FiltersFilled = true;
-
-            foreach (var filter in D3CacheEntry.AllFilters)
-                if (d3CacheEntry.Filters.TryGetValue(filter, out var filterSpec))
-                {
-                    if (ucfg.D3Filters.TryGetValue(filter, out var userFilter))
-                    {   // Initializes Existing Supported Filters in Config (1st time - probably none)
-                        userFilter.Initialize(this);
-                        if (userFilter.Value != userFilter.Default)
-                            { ucfg.hasD3Filters = true; vc.VideoProcessorSetStreamFilter(vp, 0, filter, true, userFilter.Value); }
-                    }
-                    else
-                    {   // Fills Supported FilterSpecs from Cached to Config (1st time only)
-                         lock (ucfg.lockD3Filters)
-                            ucfg.D3Filters.Add(filter, new(this, filter, filterSpec));
-                    }
-                }
-                else if (ucfg.D3Filters.TryGetValue(filter, out var userFilter))
-                    userFilter.Dispose(); // Not Supported
-        }
-        else
-        {   // Initializes Existing Supported Filters in Config and Sets non-default Values
-            ucfg.hasD3Filters = false;
-            foreach(var userFilter in ucfg.D3Filters.Values)
+        ucfg.d3FiltersFilled = true;
+        ucfg.hasD3Filters = false;
+        foreach (var filter in D3CacheEntry.AllFilters)
+            if (d3CacheEntry.Filters.TryGetValue(filter, out var filterSpec))
             {
-                userFilter.Initialize(this);
+                if (ucfg.D3Filters.TryGetValue(filter, out var userFilter))
+                    userFilter.Initialize(this, filterSpec);
+                else
+                {
+                    userFilter = new(this, filter, filterSpec);
+                    lock (ucfg.lockD3Filters)
+                        ucfg.D3Filters.Add(filter, userFilter);
+                }
                 if (userFilter.Value != userFilter.Default)
-                    { ucfg.hasD3Filters = true; vc.VideoProcessorSetStreamFilter(vp, 0, userFilter.Filter, true, userFilter.Value); }
+                {
+                    ucfg.hasD3Filters = true;
+                    vc.VideoProcessorSetStreamFilter(vp, 0, filter, true, userFilter.Value);
+                }
             }
-        }
+            else if (ucfg.D3Filters.TryGetValue(filter, out var unsupported))
+                unsupported.Dispose();
+
     }
     void D3FiltersSync()
     {
@@ -72,25 +62,26 @@ public unsafe partial class Renderer
         ucfg.hasD3Filters = false;
 
         foreach(var flFilter in ucfg.FLFilters.Values)
-            if (ucfg.D3Filters.TryGetValue(ToVideoProcessorFilter(flFilter.Filter), out var d3Filter))
+            if (ucfg.D3Filters.TryGetValue(ToVideoProcessorFilter(flFilter.Filter), out var d3Filter) && d3Filter.Available)
             {
-                d3Filter.Value = (int)Math.Round(Scale(flFilter.Value, flFilter.Minimum, flFilter.Maximum, d3Filter.Minimum, d3Filter.Maximum));
+                d3Filter.Value = flFilter.Minimum == flFilter.Maximum ? d3Filter.Default :
+                    Math.Clamp((int)Math.Round(Scale(flFilter.Value, flFilter.Minimum, flFilter.Maximum, d3Filter.Minimum, d3Filter.Maximum)), d3Filter.Minimum, d3Filter.Maximum);
                 if (d3Filter.Value != d3Filter.Default)
                     ucfg.hasD3Filters = true;
 
                 vc.VideoProcessorSetStreamFilter(vp, 0, d3Filter.Filter, true, d3Filter.Value);
             }
-            else if (d3Filter.Value != d3Filter.Default)
-                ucfg.hasD3Filters = true;
+        // Include device-specific filters that have no Flyleaf counterpart.
+        ucfg.hasD3Filters = ucfg.D3Filters.Values.Any(filter => filter.Available && filter.Value != filter.Default);
     }
     internal void D3SetFilter(D3Filter filter)
     {   // Direct Call from Config
         if (filter.Value != filter.Default)
             ucfg.hasD3Filters = true;
         else
-            ucfg.hasD3Filters = ucfg.D3Filters.Where(f => f.Value.Value != f.Value.Default).Any();
+            ucfg.hasD3Filters = ucfg.D3Filters.Values.Any(f => f.Available && f.Value != f.Default);
 
-        if (vc != null)
+        if (vc != null && vp != null)
         {
             vc.VideoProcessorSetStreamFilter(vp, 0, filter.Filter, true, filter.Value);
             RenderRequest();
@@ -139,16 +130,28 @@ public class D3Filter : NotifyPropertyChanged
         this.renderer = renderer;
     }
 
-    internal void Initialize(Renderer renderer)
+    internal void Initialize(Renderer renderer, VideoProcessorFilterRange range)
     {
+        bool wasAvailable = Available;
+        Minimum = range.Minimum;
+        Maximum = range.Maximum;
+        Default = range.Default;
+        Step = range.Multiplier; // Raw integer levels are multiplied for display, not slider increments.
+        _Value = Math.Clamp(_Value, Minimum, Maximum);
         this.renderer = renderer;
-        if (!Available) RaiseUI(nameof(Available));
+        if (!wasAvailable) RaiseUI(nameof(Available));
+        RaiseUI(nameof(Minimum));
+        RaiseUI(nameof(Maximum));
+        RaiseUI(nameof(Default));
+        RaiseUI(nameof(Step));
+        RaiseUI(nameof(Value));
     }
 
     internal void Dispose()
     {
+        bool wasAvailable = Available;
         renderer = null;
-        //RaiseUI(nameof(Available));
+        if (wasAvailable) RaiseUI(nameof(Available));
     }
 }
 

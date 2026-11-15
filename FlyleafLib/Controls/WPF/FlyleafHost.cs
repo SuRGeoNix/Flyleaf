@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -2173,12 +2173,19 @@ public class FlyleafHost : ContentControl, IHostPlayer, IDisposable
     #endregion
 
     #region Resize
+    /// <summary>Raised on the UI thread when the renderer reports a new display ratio.</summary>
+    public event EventHandler RatioChanged;
+
     public void Player_RatioChanged(double keepRatio)
     {
         if (keepRatio != curResizeRatio && keepRatio > 0)
         {
             curResizeRatio = keepRatio;
-            UI(() => ResizeRatio()); // Requires UI (comes from renderer)
+            UI(() =>
+            {
+                ResizeRatio();
+                RatioChanged?.Invoke(this, EventArgs.Empty);
+            }); // Requires UI (comes from renderer)
         }
     }
     public bool Player_HandlesRatioResize(int width, int height)

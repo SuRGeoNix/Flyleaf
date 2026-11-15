@@ -44,9 +44,10 @@ public unsafe partial class Renderer
         ucfg.hasFLFilters = false;
 
         foreach(var flFilter in ucfg.FLFilters.Values)
-            if (ucfg.D3Filters.TryGetValue(ToVideoProcessorFilter(flFilter.Filter), out var d3Filter))
+            if (ucfg.D3Filters.TryGetValue(ToVideoProcessorFilter(flFilter.Filter), out var d3Filter) && d3Filter.Available)
             {
-                flFilter.Value = (int)Math.Round(Scale(d3Filter.Value, d3Filter.Minimum, d3Filter.Maximum, flFilter.Minimum, flFilter.Maximum));
+                flFilter.Value = d3Filter.Minimum == d3Filter.Maximum ? flFilter.Default :
+                    Math.Clamp((int)Math.Round(Scale(d3Filter.Value, d3Filter.Minimum, d3Filter.Maximum, flFilter.Minimum, flFilter.Maximum)), flFilter.Minimum, flFilter.Maximum);
                 if (flFilter.Value != flFilter.Default)
                     ucfg.hasFLFilters = true;
 

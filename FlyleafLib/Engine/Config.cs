@@ -699,8 +699,7 @@ public class Config : NotifyPropertyChanged
         VideoProcessors _VideoProcessor = VideoProcessors.Auto;
 
         /// <summary>
-        /// Optional factory for a device-scoped renderer post-processor. The factory and its
-        /// processor are runtime-only and are not serialized with the video configuration.
+        /// GPU post-processing interfaces for custom shaders and effects
         /// </summary>
         [JsonIgnore]
         public IVideoPostProcessorFactory
@@ -742,9 +741,10 @@ public class Config : NotifyPropertyChanged
             => D2DDraw?.Invoke(renderer, context);
 
         /// <summary>
-        /// When you change a filter value from one VP will update also the other if exists (however might not exact same picture output)
+        /// Synchronizes common filters when switching processors and before saving (picture output can differ)
         /// </summary>
-        public bool             SyncVPFilters               { get; set; } = true;
+        public bool             SyncVPFilters               { get => _SyncVPFilters; set => Set(ref _SyncVPFilters, value); }
+        bool _SyncVPFilters = true;
         public ObservableDictionary<FLFilters, FLFilter>
                                 FLFilters                   { get ; set; } = [];
         public ObservableDictionary<VideoProcessorFilter, D3Filter>
