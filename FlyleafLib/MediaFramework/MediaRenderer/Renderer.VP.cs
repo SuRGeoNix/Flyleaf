@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json.Serialization;
 using System.Windows;
 
@@ -17,6 +18,24 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 public unsafe partial class Renderer
 {
     public event EventHandler ViewportChanged;
+
+    /// <summary>Raised on the UI dispatcher after filter setup or processor reconfiguration.</summary>
+    public event EventHandler FiltersChanged;
+
+    /// <summary>Captures the active processor and references to its existing configuration filters.</summary>
+    public (VideoProcessors Processor, FLFilter[] FlyleafFilters, D3Filter[] D3D11Filters) GetVideoFilters()
+    {
+        lock (lockDevice)
+        {
+            if (D3Disposed || scfg == null) return (VideoProcessors.Auto, [], []);
+            return (VideoProcessor, ucfg.FLFilters.Values.ToArray(), ucfg.D3Filters.Values.Where(f => f.Available).ToArray());
+        }
+    }
+
+    void NotifyFiltersChanged()
+    {
+        if (FiltersChanged != null) UI(() => FiltersChanged?.Invoke(this, EventArgs.Empty));
+    }
 
     public VideoProcessors  VideoProcessor  { get; private set; } = VideoProcessors.Auto; // Ensures we catch the 'change' initially
     public Viewport         Viewport        { get; private set; }
@@ -296,6 +315,7 @@ public unsafe partial class Renderer
                 FLProcessRequests();
         }
 
+        NotifyFiltersChanged();
         if (CanDebug) Log.Debug($"Prepared planes for {scfg.PixelFormatStr} with {VideoProcessor} [{psCase}]");
     }
 

@@ -115,10 +115,8 @@ public class Audio : NotifyPropertyChanged
         {
             lock (locker)
             {
-                if (sourceVoice == null)
-                    return;
-
-                sourceVoice.Volume = value ? 0 : _Volume / 100.0f;
+                if (sourceVoice != null)
+                    sourceVoice.Volume = value ? 0 : _Volume / 100.0f;
             }
 
             Set(ref mute, value, false);

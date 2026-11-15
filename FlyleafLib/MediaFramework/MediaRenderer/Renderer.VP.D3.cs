@@ -638,6 +638,8 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
             return;
 
         D3Disposed = true;
+        foreach (var filter in ucfg.D3Filters.Values) filter.Dispose();
+        NotifyFiltersChanged();
 
         FFmpegDispose();
 
