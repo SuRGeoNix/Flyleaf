@@ -72,7 +72,7 @@ public class VideoCache
             while (Current != null)
             {
                 var next = isCurrentNext ? Current : Current.Next;
-                if (next == null || (!next.isReady && !skippedFEL.Contains(next.Id)))
+                if (next != null && !next.isReady && !skippedFEL.Contains(next.Id))
                     break;
 
                 if (isCurrentNext)
@@ -85,6 +85,9 @@ public class VideoCache
                     while (id - First.Id > dcfg.MaxVideoFramesPrev - 1)
                         { Shrink(); if (First == null) break; }
                 }
+
+                if (Current == null)
+                    continue;
 
                 if (skippedFEL.Contains(Current.Id))
                     continue; // A failed EL match must never reach the renderer.
