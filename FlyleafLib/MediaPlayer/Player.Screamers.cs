@@ -29,7 +29,7 @@ unsafe partial class Player
 
     /// <summary>
     /// Fires on buffering completed (will fire also on failed buffering completed)
-    /// (BufferDration > Config.Player.MinBufferDuration)
+    /// (BufferDration > Config.Playback.MinBufferDuration)
     /// Warning: Uses Invoke and it comes from playback thread so you can't pause/stop etc. You need to use another thread if you have to.
     /// </summary>
     public event EventHandler<BufferingCompletedArgs> BufferingCompleted;
@@ -102,7 +102,7 @@ unsafe partial class Player
 
         UpdateCurTime(aFrame.Timestamp, false);
         
-        while(seeks.IsEmpty && decoder.AudioStream.Demuxer.BufferedDuration < Config.Player.MinBufferDuration && AudioDecoder.Frames.Count < Config.Decoder.MaxAudioFrames / 2 && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull)
+        while(seeks.IsEmpty && decoder.AudioStream.Demuxer.BufferedDuration < Config.Playback.MinBufferDuration && AudioDecoder.Frames.Count < Config.Audio.MaxFrames / 2 && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull)
             Thread.Sleep(20);
     }
     private void ScreamerAudioOnly()
@@ -114,19 +114,24 @@ unsafe partial class Player
             if (seeks.TryPop(out var seekData))
             {
                 seeks.Clear();
+                SeekStarted?.Invoke(this, seekData.ms);
                 requiresBuffering = true;
-
-                if (AudioDecoder.OnVideoDemuxer)
+                int seekResult = -1;
+                try
                 {
-                    decoder.PauseDecoders();
-                    if (decoder.Seek(seekData.ms, seekData.forward) < 0)
-                        Log.Warn("Seek failed 1");
+                    if (AudioDecoder.OnVideoDemuxer)
+                    {
+                        decoder.PauseDecoders();
+                        seekResult = decoder.Seek(seekData.ms, seekData.forward);
+                        if (seekResult < 0) Log.Warn("Seek failed 1");
+                    }
+                    else
+                    {
+                        seekResult = decoder.SeekAudio(seekData.ms, seekData.forward);
+                        if (seekResult < 0) Log.Warn("Seek failed 2");
+                    }
                 }
-                else
-                {
-                    if (decoder.SeekAudio(seekData.ms, seekData.forward) < 0)
-                        Log.Warn("Seek failed 2");
-                }
+                finally { SeekCompleted?.Invoke(this, seekResult < 0 ? -1 : seekData.ms); }
             }
 
             if (requiresBuffering)
@@ -199,9 +204,15 @@ unsafe partial class Player
                 Renderer.RenderIdleStart();
 
                 seeks.Clear();
-                decoder.PauseDecoders();
-                if (decoder.Seek(seekData.ms, seekData.forward) < 0)
-                    Log.Warn("Seek failed");
+                SeekStarted?.Invoke(this, seekData.ms);
+                int seekResult = -1;
+                try
+                {
+                    decoder.PauseDecoders();
+                    seekResult = decoder.Seek(seekData.ms, seekData.forward);
+                    if (seekResult < 0) Log.Warn("Seek failed");
+                }
+                finally { SeekCompleted?.Invoke(this, seekResult < 0 ? -1 : seekData.ms); }
             }
 
             if (vFrame == null)

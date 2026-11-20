@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 
 using FlyleafLib.MediaPlayer;
 
@@ -292,7 +292,7 @@ public static class Engine
                         /* Every Second */ 
                         if (curLoop == secondLoops) // Calculations here to be second accurate
                         {
-                            if (player.Config.Player.Stats)
+                            if (player.Stats)
                             {
                                 var curStats        = player.stats;
                                 long curTotalBytes  = player.VideoDemuxer.TotalBytes + player.AudioDemuxer.TotalBytes + player.SubtitlesDemuxer.TotalBytes;
@@ -310,9 +310,17 @@ public static class Engine
                                 // TBR: Let Fps enable even for Idle
                                 //if (player.status == Status.Playing)
                                 //{
-                                var presentCount = player.Renderer.SwapChain.GetFrameStatistics().PresentCount; // might cause a delay, keep it last
-                                player.Video.fpsCurrent  = (presentCount - curStats.FramesDisplayed) / curSecond;
-                                curStats.FramesDisplayed = presentCount;
+                                if (player.Renderer?.SwapChain is { Disposed: false } statsSwapChain)
+                                {
+                                    var presentCount = statsSwapChain.GetFrameStatistics().PresentCount; // might cause a delay, keep it last
+                                    player.Video.fpsCurrent  = (presentCount - curStats.FramesDisplayed) / curSecond;
+                                    curStats.FramesDisplayed = presentCount;
+                                }
+                                else
+                                {
+                                    player.Video.fpsCurrent = 0;
+                                    curStats.FramesDisplayed = 0;
+                                }
                                 //}
                             }
                         }
@@ -329,7 +337,7 @@ public static class Engine
                         {
                             var isPlaying = player.status == Status.Playing;
                             /* Every UIRefreshInterval */
-                            var config = player.Config.Player;
+                            var config = player.Config.Playback;
 
                             // Activity Mode Refresh & Hide Mouse Cursor (FullScreen only)
                             if (player.Activity.mode != player.Activity._Mode)
@@ -350,7 +358,7 @@ public static class Engine
                                     player.SetCurTime();
 
                                 // Stats Refresh (BitRates / FrameDisplayed / FramesDropped / FPS)
-                                if (config.Stats)
+                                if (player.Stats)
                                 {
                                     player.BitRate          = player.BitRate;
                                     player.Video.BitRate    = player.Video.BitRate;
@@ -362,7 +370,8 @@ public static class Engine
                                     {
                                         player.Audio.FramesDisplayed= player.Audio.FramesDisplayed;
                                         player.Audio.FramesDropped  = player.Audio.FramesDropped;
-                                        (player.Video.FramesDisplayed,player.Video.FramesDropped) = player.FramesDisplayedDropped(); // dynamic update to be closer to 'now'
+                                        if (player.Renderer?.SwapChain is { Disposed: false })
+                                            (player.Video.FramesDisplayed,player.Video.FramesDropped) = player.FramesDisplayedDropped(); // dynamic update to be closer to 'now'
                                     }
                                 }
                             }

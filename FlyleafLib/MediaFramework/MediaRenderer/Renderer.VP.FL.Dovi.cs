@@ -9,15 +9,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
-    /// <summary>
-    /// Whether to use Dolby Vision reconstruction or the compatible base layer
-    /// </summary>
-    public bool DoviPreferBaseLayer;
-
-    /// <summary>
-    /// Whether to use Dolby L1 metadata or Flyleaf's histogram for tone mapping
-    /// </summary>
-    public bool DoviUseHDRDetect;
     bool? doviIsCM4;
     float doviL1TargetMin, doviL1TargetPeak;
 

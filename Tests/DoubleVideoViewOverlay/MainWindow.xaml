@@ -24,7 +24,7 @@
                               />
 
                 <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0 0 0 30">
-                    <Slider Name="SliderSeek" Width="600" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Player.SeekOffset}" LargeChange="{Binding Player.Config.Player.SeekOffset2}" ValueChanged="Slider_ValueChanged" PreviewMouseDown="Slider_MouseDown" PreviewMouseUp="Slider_MouseUp"/>
+                    <Slider Name="SliderSeek" Width="600" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Playback.SeekOffset}" LargeChange="{Binding Player.Config.Playback.SeekOffset2}" ValueChanged="Slider_ValueChanged" PreviewMouseDown="Slider_MouseDown" PreviewMouseUp="Slider_MouseUp"/>
                 </StackPanel>
             </Grid>
         </fl:FlyleafHost>

@@ -104,8 +104,8 @@ public unsafe partial class Renderer
         if (reqSize != framesCtx->initial_pool_size)
         {
             codecCtx->extra_hw_frames = codecCtx->extra_hw_frames - Math.Abs(reqSize - framesCtx->initial_pool_size);
-            Log.Warn($"HW frames changed from {Config.Decoder.MaxVideoFrames} to {codecCtx->extra_hw_frames - 1}");
-            Config.Decoder.SetMaxVideoFrames(codecCtx->extra_hw_frames - 1);
+            Log.Warn($"HW frames changed from {Config.Video.MaxFrames} to {codecCtx->extra_hw_frames - 1}");
+            Config.Video.SetMaxFrames(codecCtx->extra_hw_frames - 1);
         }
 
         ffTexture = new((nint) hwCtx->texture);
@@ -188,7 +188,7 @@ public unsafe partial class Renderer
         else
             num_surfaces += 2;
 
-        if (num_surfaces + Config.Decoder.MaxVideoFrames + 1 != ffTextureDesc.ArraySize)
+        if (num_surfaces + Config.Video.MaxFrames + 1 != ffTextureDesc.ArraySize)
             return true;
 
         return false;

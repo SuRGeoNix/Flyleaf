@@ -1,0 +1,138 @@
+﻿using System.ComponentModel;
+using System.Windows;
+using FlyleafLib.MediaFramework.MediaStream;
+using FlyleafLib.MediaPlayer;
+using static FlyleafLib.MediaFramework.MediaContext.DecoderContext;
+
+namespace Flyleaf.Controls.WPF;
+
+public partial class FlyleafME
+{
+    readonly FlyleafPlaybackStatusOverlay playbackDisplay = new();
+    Status previousFeedbackStatus = Status.Stopped;
+    string lastFeedbackError = "";
+    long lastFeedbackErrorAt;
+
+    void ObservePlaybackFeedback(bool attach)
+    {
+        if (overlayPlayer is not { } p) return;
+        if (attach)
+        {
+            p.Activity.PropertyChanged += DisplayActivityChanged;
+            p.Opening += DisplayOpening; p.OpenCompleted += DisplayOpenCompleted;
+            p.OpenPlaylistItemCompleted += DisplayOpenCompleted; p.OpenSessionCompleted += DisplayOpenCompleted;
+            p.OpenAudioStreamCompleted += DisplayOpenCompleted; p.OpenVideoStreamCompleted += DisplayOpenCompleted; p.OpenSubtitlesStreamCompleted += DisplayOpenCompleted;
+            p.OpenExternalAudioStreamCompleted += DisplayOpenCompleted; p.OpenExternalVideoStreamCompleted += DisplayOpenCompleted; p.OpenExternalSubtitlesStreamCompleted += DisplayOpenCompleted;
+            p.BufferingStarted += DisplayBuffering; p.BufferingCompleted += DisplayBuffered; p.PlaybackStopped += DisplayStopped;
+            p.SeekStarted += DisplaySeekStarted; p.SeekCompleted += DisplaySeekCompleted;
+            p.SnapshotCompleted += DisplaySnapshot;
+            Queue.PropertyChanged += DisplayQueueChanged;
+            previousFeedbackStatus = p.Status; lastFeedbackError = "";
+        }
+        else
+        {
+            p.Activity.PropertyChanged -= DisplayActivityChanged;
+            p.Opening -= DisplayOpening; p.OpenCompleted -= DisplayOpenCompleted;
+            p.OpenPlaylistItemCompleted -= DisplayOpenCompleted; p.OpenSessionCompleted -= DisplayOpenCompleted;
+            p.OpenAudioStreamCompleted -= DisplayOpenCompleted; p.OpenVideoStreamCompleted -= DisplayOpenCompleted; p.OpenSubtitlesStreamCompleted -= DisplayOpenCompleted;
+            p.OpenExternalAudioStreamCompleted -= DisplayOpenCompleted; p.OpenExternalVideoStreamCompleted -= DisplayOpenCompleted; p.OpenExternalSubtitlesStreamCompleted -= DisplayOpenCompleted;
+            p.BufferingStarted -= DisplayBuffering; p.BufferingCompleted -= DisplayBuffered; p.PlaybackStopped -= DisplayStopped;
+            p.SeekStarted -= DisplaySeekStarted; p.SeekCompleted -= DisplaySeekCompleted;
+            p.SnapshotCompleted -= DisplaySnapshot;
+            Queue.PropertyChanged -= DisplayQueueChanged;
+        }
+    }
+    void PostPlaybackFeedback(object? sender, Action<Player> update)
+    {
+        if (Dispatcher.HasShutdownStarted) return;
+        var expected = overlayPlayer; int generation = Volatile.Read(ref textPlayerGeneration);
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (disposed || !IsLoaded || generation != Volatile.Read(ref textPlayerGeneration) || expected is not { IsDisposed: false } || expected != Player || !ReferenceEquals(sender, expected)) return;
+            update(expected);
+        }));
+    }
+    void UpdatePlaybackDisplay()
+    {
+        if (overlayPlayer is not { IsDisposed: false } p) { playbackDisplay.Reset(); return; }
+        bool bar = UIConfig.PlaybackBar.Visibility == FlyleafVisibilityPolicy.Always || UIConfig.PlaybackBar.Visibility == FlyleafVisibilityPolicy.Auto && (!p.CanPlay && p.Status != Status.Opening || p.Activity.Mode == ActivityMode.FullActive);
+        playbackDisplay.Update(new(p.Status, p.CanPlay, p.Activity.Mode, p.CurTime, p.Duration, p.IsLive && !FlyleafQueueProgression.IsImageFormat(p.MainDemuxer?.Name), p.IsRecording, bar));
+    }
+    void DisplayPlayerProperty(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(Player.CurTime) or nameof(Player.Duration) or nameof(Player.IsLive) or nameof(Player.CanPlay) or nameof(Player.Status) or nameof(Player.IsRecording))
+            PostPlaybackFeedback(sender, p =>
+            {
+                if (p.Status == Status.Opening && previousFeedbackStatus != Status.Opening)
+                { playbackDisplay.NewInput(); osd.Clear(); lastFeedbackError = ""; }
+                UpdatePlaybackDisplay();
+                if (p.Status != previousFeedbackStatus)
+                {
+                    previousFeedbackStatus = p.Status;
+                    if (p.Status == Status.Playing) osd.ClearStatusMessage();
+                    if (p.Status == Status.Paused) osd.ShowMessage("Paused", status: true);
+                    if (p.Status == Status.Ended && !FlyleafQueueProgression.IsImageFormat(p.MainDemuxer?.Name) && !(Queue.AutoAdvance && Queue.CanNext) && !p.LoopPlayback) osd.ShowMessage("Ended", status: true);
+                }
+            });
+        if (e.PropertyName == nameof(Player.LastError)) PostPlaybackFeedback(sender, p => ReportPlaybackError(p.LastError, p.Status == Status.Failed || !p.CanPlay));
+        if (e.PropertyName is nameof(Player.LoopPlayback) or nameof(Player.ReversePlayback))
+            PostPlaybackFeedback(sender, p => osd.ShowMessage(e.PropertyName == nameof(Player.LoopPlayback) ? p.LoopPlayback ? "Repeat item on" : "Repeat item off" : p.ReversePlayback ? "Reverse playback on" : "Reverse playback off"));
+    }
+    void DisplayActivityChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(Activity.Mode)) PostPlaybackFeedback(overlayPlayer, _ => UpdatePlaybackDisplay()); }
+    void DisplayOpening(object? sender, OpeningArgs e) => PostPlaybackFeedback(sender, _ => { if (!e.IsSubtitles) { playbackDisplay.NewInput(); osd.Clear(); lastFeedbackError = ""; } UpdatePlaybackDisplay(); });
+    void DisplayBuffering(object? sender, EventArgs e) => PostPlaybackFeedback(sender, _ => playbackDisplay.SetBuffering(true));
+    void DisplayBuffered(object? sender, BufferingCompletedArgs e) => PostPlaybackFeedback(sender, p => { playbackDisplay.SetBuffering(false); ReportPlaybackError(e.Error, !p.CanPlay || p.Status == Status.Failed); UpdatePlaybackDisplay(); });
+    void DisplayStopped(object? sender, PlaybackStoppedArgs e) => PostPlaybackFeedback(sender, _ => { playbackDisplay.CancelOperations(); ReportPlaybackError(e.Error, blocking: true); UpdatePlaybackDisplay(); });
+    void DisplaySeekStarted(object? sender, int ms) => PostPlaybackFeedback(sender, _ => playbackDisplay.Seek(true, ms));
+    void DisplaySeekCompleted(object? sender, int ms) => PostPlaybackFeedback(sender, p =>
+    {
+        UpdatePlaybackDisplay(); playbackDisplay.Seek(false, ms);
+        if (ms < 0) ReportPlaybackError("Seek failed.", false);
+        else if (p.Chapters?.LastOrDefault(c => c.StartTime <= ms * TimeSpan.TicksPerMillisecond && ms * TimeSpan.TicksPerMillisecond - c.StartTime < TimeSpan.TicksPerSecond / 2) is { } chapter)
+            osd.ShowMessage("Chapter · " + chapter.Title);
+    });
+    void DisplayOpenCompleted(object? sender, object e) => PostPlaybackFeedback(sender, p =>
+    {
+        string? error = e switch
+        {
+            FlyleafLib.MediaPlayer.OpenCompletedArgs r => r.Error, OpenPlaylistItemCompletedArgs r => r.Error, OpenSessionCompletedArgs r => r.Error,
+            StreamOpenedArgs r => r.Error, ExternalStreamOpenedArgs r => r.Error, _ => null
+        };
+        if (!string.IsNullOrWhiteSpace(error)) ReportPlaybackError(error, p.Status == Status.Failed || !p.CanPlay);
+        else if (p.Status != Status.Opening && e is OpenAudioStreamCompletedArgs or OpenExternalAudioStreamCompletedArgs)
+            osd.ShowMessage("Audio · " + StreamCaption(e));
+        else if (p.Status != Status.Opening && e is OpenSubtitlesStreamCompletedArgs or OpenExternalSubtitlesStreamCompletedArgs)
+            osd.ShowMessage("Subtitles · " + StreamCaption(e));
+        UpdatePlaybackDisplay();
+    });
+    static string StreamCaption(object result) => result switch
+    {
+        StreamOpenedArgs { Stream: { } stream } => string.Join(" · ", new[] { stream.Language?.ToString(), string.IsNullOrWhiteSpace(stream.Title) ? $"Track {stream.StreamIndex + 1}" : stream.Title }.Where(s => !string.IsNullOrWhiteSpace(s))),
+        OpenExternalAudioStreamCompletedArgs { ExtStream: { } stream } => $"External · {stream.Language}",
+        OpenExternalSubtitlesStreamCompletedArgs { ExtStream: { Title: { Length: > 0 } title } } => title,
+        ExternalStreamOpenedArgs => "External track",
+        _ => "Track selected"
+    };
+    void ReportPlaybackError(string? error, bool blocking)
+    {
+        if (string.IsNullOrWhiteSpace(error)) return;
+        long now = Environment.TickCount64;
+        if (lastFeedbackError == error && now - lastFeedbackErrorAt < 500) { if (blocking) playbackDisplay.Error(error); return; }
+        lastFeedbackError = error; lastFeedbackErrorAt = now;
+        Information.ReportOperationError(error);
+        if (blocking) playbackDisplay.Error(error); else osd.ShowMessage(error.Length > 220 ? error[..220] + "…" : error, error: true);
+    }
+    void DisplaySnapshot(object? sender, SnapshotCompletedArgs e) => PostPlaybackFeedback(sender, _ =>
+    {
+        if (!e.Success) ReportPlaybackError(e.Error, false);
+        else { Information.ReportCapture(e.Filename); osd.ShowMessage("Snapshot saved · " + System.IO.Path.GetFileName(e.Filename)); }
+    });
+    void DisplayQueueChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(FlyleafQueue.IsAutoAdvancing)) UpdatePlaybackDisplay();
+        if (e.PropertyName == nameof(FlyleafQueue.Repeat))
+            ShowOSD(Queue.Repeat ? "Repeat queue on" : "Repeat queue off");
+        else if (e.PropertyName == nameof(FlyleafQueue.AutoAdvance))
+            ShowOSD(Queue.AutoAdvance ? "Auto-next on" : "Auto-next off");
+    }
+}

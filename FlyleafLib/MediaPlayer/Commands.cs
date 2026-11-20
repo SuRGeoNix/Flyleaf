@@ -85,9 +85,8 @@ public class Commands
     public Commands(Player player)
     {
         this.player = player;
-        var vcfg = player.Config.Video;
-        var acfg = player.Config.Audio;
-        var scfg = player.Config.Subtitles;
+        var acfg = player.Audio;
+        var scfg = player.Subtitles;
 
         Open                    = new RelayCommand(OpenAction);
         OpenFromClipboard       = new RelayCommandSimple(player.OpenFromClipboard);
@@ -121,11 +120,11 @@ public class Commands
         ToggleRecording         = new RelayCommandSimple(player.ToggleRecording);
 
         TakeSnapshot            = new RelayCommandSimple(TakeSnapshotAction);
-        ZoomIn                  = new RelayCommandSimple(vcfg.ZoomIn);
-        ZoomOut                 = new RelayCommandSimple(vcfg.ZoomOut);
+        ZoomIn                  = new RelayCommandSimple(() => player.Renderer?.ZoomIn());
+        ZoomOut                 = new RelayCommandSimple(() => player.Renderer?.ZoomOut());
         RotationSet             = new RelayCommand(RotationSetAction);
-        RotateLeft              = new RelayCommandSimple(vcfg.RotateLeft);
-        RotateRight             = new RelayCommandSimple(vcfg.RotateRight);
+        RotateLeft              = new RelayCommandSimple(() => player.Renderer?.RotateLeft());
+        RotateRight             = new RelayCommandSimple(() => player.Renderer?.RotateRight());
         ResetAll                = new RelayCommandSimple(player.ResetAll);
 
         SpeedSet                = new RelayCommand(SpeedSetAction);
@@ -162,12 +161,16 @@ public class Commands
     }
 
     private void RotationSetAction(object obj)
-        => player.Config.Video.Rotation = uint.Parse(obj.ToString());
+    {
+        if (player.Renderer != null)
+            player.Renderer.Rotation = uint.Parse(obj.ToString());
+    }
 
     private void ResetFiltersAction(object filter)
     {
+        if (player.Renderer == null) return;
         var cfg = player.Config.Video;
-        var vp = cfg.VideoProcessor == VideoProcessors.Auto ? player.Renderer.VideoProcessor : cfg.VideoProcessor;
+        var vp = player.Renderer.VideoProcessor;
 
         if (vp == VideoProcessors.D3D11)
             foreach (var kv in cfg.D3Filters)
@@ -187,13 +190,13 @@ public class Commands
     }
 
     public void AudioDelaySetAction     (object delay)
-        => player.Config.Audio.Delay        = int.Parse(delay.ToString()) * (long)10000;
+        => player.Audio.Delay        = int.Parse(delay.ToString()) * (long)10000;
     public void AudioDelaySetAction2    (object delay)
-        => player.Config.Audio.Delay       += int.Parse(delay.ToString()) * (long)10000;
+        => player.Audio.Delay       += int.Parse(delay.ToString()) * (long)10000;
     public void SubtitlesDelaySetAction (object delay)
-        => player.Config.Subtitles.Delay    = int.Parse(delay.ToString()) * (long)10000;
+        => player.Subtitles.Delay    = int.Parse(delay.ToString()) * (long)10000;
     public void SubtitlesDelaySetAction2(object delay)
-        => player.Config.Subtitles.Delay   += int.Parse(delay.ToString()) * (long)10000;
+        => player.Subtitles.Delay   += int.Parse(delay.ToString()) * (long)10000;
 
     public void TakeSnapshotAction()
         => Task.Run(() => { try { player.TakeSnapshotToFile(); } catch { } });

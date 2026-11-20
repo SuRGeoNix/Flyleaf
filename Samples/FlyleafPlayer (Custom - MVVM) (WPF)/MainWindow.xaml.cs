@@ -51,9 +51,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Config = new Config();
 
         // Inform the lib to refresh stats
-        Config.Player.Stats = true;
-
-        Player = new Player(Config);
+        Player = new Player(Config) { Stats = true };
 
         DataContext = this;
 
@@ -64,32 +62,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void TT_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        var crop = Player.Config.Video.Crop;
+        var crop = Player.Renderer.Crop;
         crop.Top = (uint)e.NewValue;
-        Player.Config.Video.Crop = crop;
+        Player.Renderer.Crop = crop;
     }
     private void TB_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        var crop = Player.Config.Video.Crop;
+        var crop = Player.Renderer.Crop;
         crop.Bottom = (uint)e.NewValue;
-        Player.Config.Video.Crop = crop;
+        Player.Renderer.Crop = crop;
     }
     private void TL_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        var crop = Player.Config.Video.Crop;
+        var crop = Player.Renderer.Crop;
         crop.Left = (uint)e.NewValue;
-        Player.Config.Video.Crop = crop;
+        Player.Renderer.Crop = crop;
     }
     private void TR_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        var crop = Player.Config.Video.Crop;
+        var crop = Player.Renderer.Crop;
         crop.Right = (uint)e.NewValue;
-        Player.Config.Video.Crop = crop;
+        Player.Renderer.Crop = crop;
     }
 
     private void Pano360Reset_Click(object sender, RoutedEventArgs e)
     {
-        Player?.Config.Video.Pano360.Reset();
+        Player?.Renderer.Pano360.Reset();
     }
 
     public event PropertyChangedEventHandler PropertyChanged;

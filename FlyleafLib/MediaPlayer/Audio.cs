@@ -11,7 +11,18 @@ namespace FlyleafLib.MediaPlayer;
 
 public class Audio : NotifyPropertyChanged
 {
-    // TODO: Add Volume/Mute to Config.Audio (consider allowing saving and separate config field (flags) whether to load those?)
+    /// <summary>Whether audio processing is enabled for this player.</summary>
+    public bool Enabled
+    {
+        get => decoder.audioEnabled;
+        set
+        {
+            if (!Set(ref decoder.audioEnabled, value)) return;
+            if (value) Enable(); else Disable();
+        }
+    }
+    internal void SetEnabled(bool enabled) => Set(ref decoder.audioEnabled, enabled, true, nameof(Enabled));
+    public void Toggle() => Enabled = !Enabled;
 
     public event EventHandler<AudioFrame> SamplesAdded;
 
@@ -71,6 +82,21 @@ public class Audio : NotifyPropertyChanged
     /// </summary>
     public int      SampleRate      { get => sampleRate;        internal set => Set(ref _SampleRate, value); }
     internal int    _SampleRate, sampleRate;
+
+    /// <summary>
+    /// Audio delay in ticks; reset to zero when opening an audio stream.
+    /// </summary>
+    public long Delay
+    {
+        get => player.AudioDecoder.Delay;
+        set
+        {
+            if (!IsOpened) return;
+            if (Set(ref player.AudioDecoder.Delay, value))
+                player.ReSync(player.decoder.AudioStream);
+        }
+    }
+    internal void SetDelay(long delay) => Set(ref player.AudioDecoder.Delay, delay, true, nameof(Delay));
 
     /// <summary>
     /// Audio player's volume / amplifier (valid values 0 - no upper limit)
@@ -167,6 +193,41 @@ public class Audio : NotifyPropertyChanged
     ulong                   submittedSamples;
     #endregion
 
+    public void DelayAdd()      => Delay += Config.Audio.DelayOffset;
+    public void DelayRemove()   => Delay -= Config.Audio.DelayOffset;
+    public void DelayAdd2()     => Delay += Config.Audio.DelayOffset2;
+    public void DelayRemove2()  => Delay -= Config.Audio.DelayOffset2;
+
+    public void ToggleMute()    => Mute = !Mute;
+    public void VolumeUp()
+    {
+        if (Volume == Config.Audio.VolumeMax) return;
+        Volume = Math.Min(Volume + Config.Audio.VolumeOffset, Config.Audio.VolumeMax);
+    }
+    public void VolumeDown()
+    {
+        if (Volume == 0) return;
+        Volume = Math.Max(Volume - Config.Audio.VolumeOffset, 0);
+    }
+
+    /// <summary>
+    /// Reloads filters from Config.Audio.Filters (experimental)
+    /// </summary>
+    /// <returns>0 on success</returns>
+    public int ReloadFilters() => player.AudioDecoder.ReloadFilters();
+
+    /// <summary>
+    /// <para>
+    /// Updates filter's property (experimental)
+    /// Note: This will not update the property value in Config.Audio.Filters
+    /// </para>
+    /// </summary>
+    /// <param name="filterId">Filter's unique id specified in Config.Audio.Filters</param>
+    /// <param name="key">Filter's property to change</param>
+    /// <param name="value">Filter's property value</param>
+    /// <returns>0 on success</returns>
+    public int UpdateFilter(string filterId, string key, string value) => player.AudioDecoder.UpdateFilter(filterId, key, value);
+
     public Audio(Player player)
     {
         this.player = player;
@@ -196,7 +257,7 @@ public class Audio : NotifyPropertyChanged
         {
             if (Engine.Audio.Failed)
             {
-                Task.Run(() => { Config.Audio.Enabled = false; }); // Deadlock during Stop (same thread with RunThread)
+                Task.Run(() => { Enabled = false; }); // Deadlock during Stop (same thread with RunThread)
                 return;
             }
 
@@ -258,7 +319,7 @@ public class Audio : NotifyPropertyChanged
             catch (Exception e)
             {
                 player.Log.Error($"Audio initialization failed ({e.Message})");
-                Config.Audio.Enabled = false;
+                Enabled = false;
             }
         }
     }
@@ -392,7 +453,7 @@ public class Audio : NotifyPropertyChanged
         Refresh();
         player.UIAll();
 
-        if (wasPlaying || Config.Player.AutoPlay)
+        if (wasPlaying || Config.Playback.AutoPlay)
             player.Play();
     }
     internal void Disable()

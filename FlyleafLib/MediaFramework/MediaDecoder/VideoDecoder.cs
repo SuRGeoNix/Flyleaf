@@ -22,8 +22,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 public unsafe class VideoDecoder : DecoderBase
 {
     public Action           OpeningCodec;
+    internal string         PreferredDecoder;
     public Renderer         Renderer            { get; private set; }
-    public bool             VideoAccelerated    { get; internal set; }
+    public bool             HWAccelerated       { get; internal set; }
 
     public VideoStream      VideoStream         => (VideoStream) Stream;
 
@@ -207,27 +208,28 @@ public unsafe class VideoDecoder : DecoderBase
         if (Renderer.Disposed)
             Renderer.Setup();
 
-        VideoAccelerated = !swFallback && Renderer.ffDevice != null && Config.Video.VideoAcceleration;
+        HWAccelerated = !swFallback && Renderer.ffDevice != null && Config.Video.HWAcceleration;
 
+        PreferredDecoder = null;
         OpeningCodec?.Invoke();
 
-        if (!string.IsNullOrEmpty(Config.Decoder._VideoCodec))
-            CurCodecSpec = FindDecoder(Config.Decoder._VideoCodec);
-        else if (VideoAccelerated)
-        {
-            CurCodecSpec = FindHWDecoder(Stream.CodecID);
-            if (CurCodecSpec.IsEmpty)
-            {
-                if (CanDebug) Log.Debug($"HW decoding not supported for {Stream.CodecID}");
-                CurCodecSpec = FindSWDecoder(Stream.CodecID);
-            }
-        }
+        if (!string.IsNullOrEmpty(Config.Video._Codec))
+            CurCodecSpec = FindDecoder(Config.Video._Codec);
         else
-            CurCodecSpec = FindSWDecoder(Stream.CodecID);
+        {
+            CurCodecSpec = string.IsNullOrEmpty(PreferredDecoder) ? CodecSpec.Empty : FindDecoder(PreferredDecoder);
+            if (CurCodecSpec.IsEmpty && HWAccelerated)
+            {
+                CurCodecSpec = FindHWDecoder(Stream.CodecID);
+                if (CurCodecSpec.IsEmpty && CanDebug) Log.Debug($"HW decoding not supported for {Stream.CodecID}");
+            }
+            if (CurCodecSpec.IsEmpty)
+                CurCodecSpec = FindSWDecoder(Stream.CodecID);
+        }
 
         if (CurCodecSpec.IsEmpty)
         {
-            Log.Error($"Decoder not found ({(!string.IsNullOrEmpty(Config.Decoder._VideoCodec) ? Config.Decoder._VideoCodec : Stream.CodecID)})");
+            Log.Error($"Decoder not found ({(!string.IsNullOrEmpty(Config.Video._Codec) ? Config.Video._Codec : Stream.CodecID)})");
             return false;
         }
 
@@ -249,12 +251,12 @@ public unsafe class VideoDecoder : DecoderBase
         codecCtx->codec_id      = CurCodecSpec.Codec->id; // avcodec_parameters_to_context will change this we need to set Stream's Codec Id (eg we change mp2 to mp3)
         codecCtx->apply_cropping= 0;
 
-        if (Config.Decoder.ShowCorrupted)
+        if (Config.Video.ShowCorrupted)
             codecCtx->flags |= CodecFlags.OutputCorrupt;
 
-        if (Config.Decoder.LowDelay)
+        if (Config.Video.LowDelay)
         {
-            if (Config.Decoder.AllowDropFrames)
+            if (Config.Video.AllowDropFrames)
                 codecCtx->flags |= CodecFlags.LowDelay;
             else
             {
@@ -262,17 +264,17 @@ public unsafe class VideoDecoder : DecoderBase
                 codecCtx->flags2 |= CodecFlags2.Fast;
             }
         }
-        else if (!Config.Decoder.AllowDropFrames)
+        else if (!Config.Video.AllowDropFrames)
             codecCtx->skip_frame = AVDiscard.None;
 
-        var codecOpts = Config.Decoder.VideoCodecOpt;
+        var codecOpts = Config.Video.CodecOpt;
         AVDictionary* avopt = null;
         foreach(var optKV in codecOpts)
             _ = av_dict_set(ref avopt, optKV.Key, optKV.Value, 0);
 
-        VideoAccelerated = VideoAccelerated && CurCodecSpec.IsHW;
+        HWAccelerated = HWAccelerated && CurCodecSpec.IsHW;
 
-        if (VideoAccelerated)
+        if (HWAccelerated)
         {
             /* TODO: Frame threading [codecCtx->thread_type = ThreadTypeFlags.Frame]
              * Possible requires patching FFmpeg to pass BindFlags.ShaderResource to new allocated textures (get_buffer maybe?)
@@ -281,11 +283,11 @@ public unsafe class VideoDecoder : DecoderBase
 
             codecCtx->thread_count      = 1;
             codecCtx->hwaccel_flags    |= HWAccelFlags.IgnoreLevel;
-            if (Config.Decoder.AllowProfileMismatch)
+            if (Config.Video.AllowProfileMismatch)
                 codecCtx->hwaccel_flags|= HWAccelFlags.AllowProfileMismatch;
             codecCtx->get_format        = getHWformat;
             codecCtx->hw_device_ctx     = av_buffer_ref(Renderer.ffDevice);
-            codecCtx->extra_hw_frames   = Config.Decoder.MaxVideoFrames + 1; // 1 extra for Renderer's LastFrame
+            codecCtx->extra_hw_frames   = Config.Video.MaxFrames + 1; // 1 extra for Renderer's LastFrame
 
             if (VideoStream.DoviProfile == 7)
             {   // Enables FEL early enough as we can't be sure if actually exists
@@ -295,7 +297,7 @@ public unsafe class VideoDecoder : DecoderBase
             }
         }
         else
-            codecCtx->thread_count      = Math.Min(Config.Decoder.VideoThreads, codecCtx->codec_id == AVCodecID.Hevc ? 32 : 16);
+            codecCtx->thread_count      = Math.Min(Config.Video.DecoderThreads, codecCtx->codec_id == AVCodecID.Hevc ? 32 : 16);
 
         ret = avcodec_open2(codecCtx, null, avopt == null ? null : &avopt);
         if (ret < 0)
@@ -323,14 +325,14 @@ public unsafe class VideoDecoder : DecoderBase
         isDraining          = false;
         lastFixedPts        = 0; // TBR: might need to set this to first known pts/dts
         startPts            = VideoStream.StartTimePts;
-        allowedErrors       = Config.Decoder.MaxErrors;
+        allowedErrors       = Config.Video.MaxErrors;
 
         // Not all codecs fill key frame flag | https://github.com/SuRGeoNix/Flyleaf/issues/638 | Old MOV/MP4 container marking packets loosely as key
         checkKeyFrame       = !isIntraOnly && codecCtx->codec_id != AVCodecID.Av1 &&
-                             (VideoAccelerated ||
+                             (HWAccelerated ||
                               codecCtx->codec_id != AVCodecID.Vp8 && codecCtx->codec_id != AVCodecID.Vp9);
 
-        if (CanDebug) Log.Debug($"Using {CurCodecSpec.Name} {(VideoAccelerated ? "(HW)" : "(SW)")}");
+        if (CanDebug) Log.Debug($"Using {CurCodecSpec.Name} {(HWAccelerated ? "(HW)" : "(SW)")}");
 
         return true;
     }
@@ -370,14 +372,14 @@ public unsafe class VideoDecoder : DecoderBase
             return;
         }
 
-        int sleepMs = Config.Player.MaxLatency == 0 ? 10 : 2;
+        int sleepMs = Config.Playback.MaxLatency == 0 ? 10 : 2;
         int ret;
         AVPacket *packet;
 
         do
         {
             // Wait until Queue not Full or Stopped
-            if (Frames.Count >= Config.Decoder.MaxVideoFrames)
+            if (Frames.Count >= Config.Video.MaxFrames)
             {
                 // Seeking: discard oldest BL preroll instead of blocking EL input.
                 if (felCtx == null || !felCtx.Syncing || !Frames.DropOldestFELPreroll())
@@ -385,7 +387,7 @@ public unsafe class VideoDecoder : DecoderBase
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (Frames.Count >= Config.Decoder.MaxVideoFrames && Status == Status.QueueFull)
+                    while (Frames.Count >= Config.Video.MaxFrames && Status == Status.QueueFull)
                     {
                         // A single skipped picture would permanently shift FIFO pairing.
                         // Invalidate alignment and recover at the next EL random-access picture.
@@ -762,7 +764,7 @@ public unsafe class VideoDecoder : DecoderBase
 
         if (mFrame != null)
         {
-            allowedErrors = Config.Decoder.MaxErrors;
+            allowedErrors = Config.Video.MaxErrors;
 
             if (StartTime == NoTs)
                 StartTime = mFrame.Timestamp;
@@ -867,7 +869,7 @@ public unsafe class VideoDecoder : DecoderBase
     private void RunInternalReverse()
     {   // BUG: with B-frames, we should not remove the ref packets (we miss frames each time we restart decoding the gop)
         int ret = 0;
-        int allowedErrors = Config.Decoder.MaxErrors;
+        int allowedErrors = Config.Video.MaxErrors;
         AVPacket *packet;
 
         do
@@ -941,12 +943,12 @@ public unsafe class VideoDecoder : DecoderBase
             while (curReverseVideoPackets.Count > 0 && Status == Status.Running)
             {
                 // Wait until Queue not Full or Stopped
-                if (Frames.Count + curReverseVideoFrames.Count >= Config.Decoder.MaxVideoFrames)
+                if (Frames.Count + curReverseVideoFrames.Count >= Config.Video.MaxFrames)
                 {
                     lock (lockStatus)
                         if (Status == Status.Running) Status = Status.QueueFull;
 
-                    while (Frames.Count + curReverseVideoFrames.Count >= Config.Decoder.MaxVideoFrames && Status == Status.QueueFull) Thread.Sleep(20);
+                    while (Frames.Count + curReverseVideoFrames.Count >= Config.Video.MaxFrames && Status == Status.QueueFull) Thread.Sleep(20);
 
                     lock (lockStatus)
                     {
@@ -1007,7 +1009,7 @@ public unsafe class VideoDecoder : DecoderBase
                         else if (frame->pts == AV_NOPTS_VALUE)
                             { av_frame_unref(frame); continue; }
 
-                        bool shouldProcess = curReverseVideoPackets.Count - curReversePacketPos < Config.Decoder.MaxVideoFrames - Config.Decoder.MaxVideoFramesPrev; // TBR: Back Cache* (probably should add this somewhere else too
+                        bool shouldProcess = curReverseVideoPackets.Count - curReversePacketPos < Config.Video.MaxFrames - Config.Video.MaxFramesPrev; // TBR: Back Cache* (probably should add this somewhere else too
 
                         if (shouldProcess)
                         {
@@ -1032,7 +1034,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                     if (curReversePacketPos == curReverseVideoPackets.Count)
                     {
-                        curReverseVideoPackets.RemoveRange(Math.Max(0, Config.Decoder.MaxVideoFramesPrev + curReverseVideoPackets.Count - Config.Decoder.MaxVideoFrames), Math.Min(curReverseVideoPackets.Count, Config.Decoder.MaxVideoFrames - Config.Decoder.MaxVideoFramesPrev) );
+                        curReverseVideoPackets.RemoveRange(Math.Max(0, Config.Video.MaxFramesPrev + curReverseVideoPackets.Count - Config.Video.MaxFrames), Math.Min(curReverseVideoPackets.Count, Config.Video.MaxFrames - Config.Video.MaxFramesPrev) );
                         avcodec_flush_buffers(codecCtx);
                         felCtx?.Flush();
                         curReversePacketPos = 0;
@@ -1194,7 +1196,7 @@ public unsafe class VideoDecoder : DecoderBase
         frameNumber = Math.Max(0, frameNumber);
         long requiredTimestamp = GetFrameTimestamp(frameNumber);
         long curSeekMcs = requiredTimestamp / 10;
-        int maxLookahead = Math.Max(128, Config.Decoder.MaxVideoFrames * 16);
+        int maxLookahead = Math.Max(128, Config.Video.MaxFrames * 16);
 
         for (int retry = 0; retry < 8; retry++)
         {
@@ -1278,7 +1280,7 @@ public unsafe class VideoDecoder : DecoderBase
         checkExtraFrames = true;
         felCtx?.BeginDirect();
 
-        int maxLookahead = felCtx == null ? 1 : Math.Max(32, Config.Decoder.MaxVideoFrames * 4);
+        int maxLookahead = felCtx == null ? 1 : Math.Max(32, Config.Video.MaxFrames * 4);
         for (int i = 0; i < maxLookahead; i++)
         {
             if (felCtx != null)
@@ -1317,7 +1319,7 @@ public unsafe class VideoDecoder : DecoderBase
     public int DecodeFrameNext()
     {
         int ret;
-        int allowedErrors = Config.Decoder.MaxErrors;
+        int allowedErrors = Config.Video.MaxErrors;
 
         if (checkExtraFrames)
         {
@@ -1554,7 +1556,7 @@ public unsafe class VideoDecoder : DecoderBase
             codecCtx->hwaccel_flags    |= HWAccelFlags.IgnoreLevel;
             codecCtx->get_format        = getHWformat;
             codecCtx->hw_device_ctx     = av_buffer_ref(decoder.Renderer.ffDevice);
-            codecCtx->extra_hw_frames   = decoder.Config.Decoder.MaxVideoFrames + 1; // 1 extra for Renderer's LastFrame
+            codecCtx->extra_hw_frames   = decoder.Config.Video.MaxFrames + 1; // 1 extra for Renderer's LastFrame
             codecCtx->flags            |= CodecFlags.CopyOpaque;
 
             avcodec_open2(codecCtx, null, null);
@@ -1647,7 +1649,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                     elFrames.Enqueue((nint)received);
                     DrainDirectPairs();
-                    if (elFrames.Count > decoder.Config.Decoder.MaxVideoFrames + 1)
+                    if (elFrames.Count > decoder.Config.Video.MaxFrames + 1)
                         Resync();
                     continue;
                 }
@@ -1679,7 +1681,7 @@ public unsafe class VideoDecoder : DecoderBase
 
                 elFrames.Enqueue((nint)received);
                 DrainPairs();
-                int maxPending = decoder.Config.Decoder.MaxVideoFrames + 1;
+                int maxPending = decoder.Config.Video.MaxFrames + 1;
                 if (elFrames.Count > maxPending)
                 {
                     if (CanWarn)
@@ -1746,7 +1748,7 @@ public unsafe class VideoDecoder : DecoderBase
             directWaiting.Enqueue(frame);
             DrainDirectPairs();
 
-            int limit = Math.Max(8, decoder.Config.Decoder.MaxVideoFrames);
+            int limit = Math.Max(8, decoder.Config.Video.MaxFrames);
             if (Syncing)
             {
                 while (directWaiting.Count > limit)

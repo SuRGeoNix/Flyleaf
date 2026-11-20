@@ -4,7 +4,8 @@
     <TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>
 	<UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
-    <Version>1.7.19</Version>
+    <Version>1.8.0</Version>
+    <FlyleafLibPackageVersionRange>[3.12.0,3.13.0)</FlyleafLibPackageVersionRange>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2026</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -12,10 +13,8 @@
     <PackageIcon>Flyleaf.png</PackageIcon>
     <PackageIconUrl />
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
-    <Description>FlyleafME: A WPF Media Element Control (based on FlyleafLib)</Description>
-    <PackageReleaseNotes>
-		Updates FlyleafLib
-	</PackageReleaseNotes>
+    <Description>Legacy WPF media element control powered by FlyleafLib. For new .NET 10 WPF projects, use the FlyleafME package.</Description>
+    <PackageReleaseNotes>Compatible with FlyleafLib 3.12.x. FlyleafME is the successor package for .NET 10 WPF and uses a new control API. See https://github.com/SuRGeoNix/Flyleaf/tree/master/FlyleafME</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-windows|AnyCPU'">

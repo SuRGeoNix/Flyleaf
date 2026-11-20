@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Flyleaf.Controls.WPF</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>FlyleafME</PackageId>
+    <FlyleafLibPackageVersionRange>[3.12.0,4.0.0)</FlyleafLibPackageVersionRange>
+    <Version>2.0.0-preview.1</Version>
+    <Authors>SuRGeoNix</Authors>
+    <Copyright>SuRGeoNix © 2026</Copyright>
+    <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/SuRGeoNix/Flyleaf</PackageProjectUrl>
+    <PackageIcon>Flyleaf.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
+    <Description>A customizable WPF media player control powered by FlyleafLib, with built-in playback controls, a media queue, and dockable panels.</Description>
+    <PackageReleaseNotes>First preview of the composed FlyleafME WPF control for .NET 10.</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="FlyleafLib" />
+    <Using Include="FlyleafLib.Controls.WPF" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FlyleafLib\FlyleafLib.csproj" />
+    <None Include="..\Images\Flyleaf.png" Pack="true" PackagePath="" />
+    <None Update="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>

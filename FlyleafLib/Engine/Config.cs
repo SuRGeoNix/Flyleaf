@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Data;
 
@@ -6,7 +7,6 @@ using Vortice.Direct3D11;
 
 using ID2D1DeviceContext = Vortice.Direct2D1.ID2D1DeviceContext;
 
-using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.Plugins;
@@ -15,15 +15,14 @@ using Filter = FlyleafLib.MediaFramework.MediaDecoder.Filter;
 
 namespace FlyleafLib;
 
-/// <summary>
-/// Player's configuration
-/// </summary>
+/// <summary>Player settings saved by <see cref="Save(string)"/> or <see cref="Serialize"/>. Current playback adjustments belong to <see cref="Player"/> and its components.</summary>
 public class Config : NotifyPropertyChanged
 {
     public const string USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";
 
     public static JsonSerializerOptions jsonOpts = new() { WriteIndented = true };
 
+    /// <summary>Creates player settings and initializes plugin options from the running engine.</summary>
     public Config()
     {
         // Parse default plugin options to Config.Plugins (Creates instances until fix with statics in interfaces)
@@ -42,9 +41,10 @@ public class Config : NotifyPropertyChanged
         // save default plugin options for later
         defaultPlugins = Plugins;
 
-        Player.config   = this;
+        Playback.config = this;
         Demuxer.config  = this;
     }
+    /// <summary>Copies the configuration sections, rebuilding plugin defaults and leaving shortcut entries empty. Some mutable collections remain shared.</summary>
     public Config Clone()
     {
         Config config = new()
@@ -53,20 +53,39 @@ public class Config : NotifyPropertyChanged
             Video       = Video.Clone(),
             Subtitles   = Subtitles.Clone(),
             Demuxer     = Demuxer.Clone(),
-            Decoder     = Decoder.Clone(),
-            Player      = Player.Clone()
+            Playback    = Playback.Clone(),
+            Data        = Data.Clone()
         };
 
-        config.Player.config = config;
+        config.Playback.config = config;
         config.Demuxer.config = config;
 
         return config;
     }
+    /// <summary>Loads the current player JSON format from a file and records the source path.</summary>
+    /// <param name="path">Absolute or relative JSON file path.</param>
     public static Config Load(string path)
     {
-        Config config       = JsonSerializer.Deserialize<Config>(File.ReadAllText(path));
-        config.Loaded       = true;
-        config.LoadedPath   = path;
+        var config = Deserialize(File.ReadAllText(path));
+        config.LoadedPath = path;
+        return config;
+    }
+
+    /// <summary>Loads the current player JSON format, validates sections, and reconciles options with the installed plugins.</summary>
+    /// <param name="json">Player configuration JSON in the current schema.</param>
+    public static Config Deserialize(string json)
+    {
+        var config = JsonSerializer.Deserialize<Config>(json) ?? throw new JsonException("Player configuration must be an object.");
+        if (config.Playback?.KeyBindings == null || config.Demuxer == null || config.Video == null ||
+            config.Audio == null || config.Subtitles == null || config.Data == null ||
+            config.Video.FLFilters == null || config.Video.D3Filters == null || config.Plugins == null ||
+            config.Plugins.Values.Any(options => options == null))
+            throw new JsonException("Player configuration contains a null section.");
+
+        config.Playback.config = config;
+        config.Demuxer.config = config;
+        config.Video.EnableFilterCollectionSynchronization();
+        config.Loaded = true;
 
         // Restore the plugin options initialized by the constructor, as they are overwritten after deserialization.
 
@@ -104,6 +123,8 @@ public class Config : NotifyPropertyChanged
 
         return config;
     }
+    /// <summary>Saves the current player settings as JSON. An omitted path uses <see cref="LoadedPath"/> when available.</summary>
+    /// <param name="path">Absolute or relative JSON file path, or null to reuse <see cref="LoadedPath"/>.</param>
     public void Save(string path = null)
     {
         if (path == null)
@@ -114,55 +135,67 @@ public class Config : NotifyPropertyChanged
             path = LoadedPath;
         }
 
-        // TBR: Just sync filter values? *We need to know the current VP or keep the last used VP
+        File.WriteAllText(path, Serialize());
+    }
+
+    /// <summary>Serializes player settings as JSON and first synchronizes compatible filter values when enabled on an attached renderer.</summary>
+    public string Serialize()
+    {
+        // Serialize the effective values for both video processors.
         if (Video.player != null && Video.player.Renderer != null)
             Video.player.Renderer.SyncFilters();
 
-        File.WriteAllText(path, JsonSerializer.Serialize(this, jsonOpts));
+        lock (Video.lockFLFilters)
+        lock (Video.lockD3Filters)
+            return JsonSerializer.Serialize(this, jsonOpts);
     }
 
     internal void SetPlayer(Player player)
     {
-        Player.player   = player;
-        Player.KeyBindings.SetPlayer(player);
+        Playback.config = this;
+        Demuxer.config = this;
+        Playback.player = player;
+        Playback.KeyBindings.SetPlayer(player);
         Demuxer.player  = player;
-        Decoder.player  = player;
         Audio.player    = player;
         Video.player    = player;
         Subtitles.player= player;
     }
 
-    /// <summary>
-    /// Whether configuration has been loaded from file
-    /// </summary>
+    /// <summary>Whether <see cref="Load"/> or <see cref="Deserialize"/> created this instance. This metadata is excluded from JSON.</summary>
     [JsonIgnore]
     public bool             Loaded      { get; private set; }
 
-    /// <summary>
-    /// The path that this configuration has been loaded from
-    /// </summary>
+    /// <summary>File path recorded by <see cref="Load"/> and reused by <see cref="Save(string)"/> when no path is supplied.</summary>
     [JsonIgnore]
     public string           LoadedPath  { get; private set; }
 
-    public PlayerConfig     Player      { get; set; } = new();
+    /// <summary>Playback, buffering, capture and shortcut preferences.</summary>
+    public PlaybackConfig   Playback    { get; set; } = new();
+    /// <summary>Input discovery, buffering, interruption and FFmpeg demuxer options.</summary>
     public DemuxerConfig    Demuxer     { get; set; } = new();
-    public DecoderConfig    Decoder     { get; set; } = new();
+    /// <summary>Video output, picture filters and video decoder preferences.</summary>
     public VideoConfig      Video       { get; set; } = new();
+    /// <summary>Audio defaults, filter definitions and audio decoder preferences.</summary>
     public AudioConfig      Audio       { get; set; } = new();
+    /// <summary>Subtitle selection, search and decoder preferences.</summary>
     public SubtitlesConfig  Subtitles   { get; set; } = new();
+    /// <summary>Data decoder limits. The current data enablement is set on <see cref="Player.Data"/>.</summary>
     public DataConfig       Data        { get; set; } = new();
 
+    /// <summary>Saved option dictionaries keyed by plugin name. Loading reconciles entries with installed plugin defaults.</summary>
     public Dictionary<string, ObservableDictionary<string, string>>
                             Plugins     { get; set; } = [];
     private
            Dictionary<string, ObservableDictionary<string, string>>
                             defaultPlugins;
 
-    public class PlayerConfig : NotifyPropertyChanged
+    /// <summary>Saved playback preferences. Current speed, position, repeat, reverse playback and statistics collection belong to <see cref="Player"/>.</summary>
+    public class PlaybackConfig : NotifyPropertyChanged
     {
-        public PlayerConfig Clone()
+        public PlaybackConfig Clone()
         {
-            PlayerConfig player = (PlayerConfig) MemberwiseClone();
+            PlaybackConfig player = (PlaybackConfig) MemberwiseClone();
             player.player = null;
             player.config = null;
             player.KeyBindings = KeyBindings.Clone();
@@ -172,14 +205,10 @@ public class Config : NotifyPropertyChanged
         internal Player player;
         internal Config config;
 
-        /// <summary>
-        /// It will automatically start playing after open or seek after ended
-        /// </summary>
+        /// <summary>Automatically starts playback after a successful open or when seeking after playback ends.</summary>
         public bool     AutoPlay                    { get; set; } = true;
 
-        /// <summary>
-        /// Required buffered duration ticks before playing
-        /// </summary>
+        /// <summary>Minimum buffered duration in ticks before playback starts. Assignment can raise <see cref="DemuxerConfig.BufferDuration"/>.</summary>
         public long     MinBufferDuration {
             get => _MinBufferDuration;
             set
@@ -191,21 +220,15 @@ public class Config : NotifyPropertyChanged
         }
         long _MinBufferDuration = 500 * 10000;
 
-        /// <summary>
-        /// Key bindings configuration
-        /// </summary>
+        /// <summary>Saved shortcut definitions. Applications attach custom action delegates at runtime.</summary>
         public KeysConfig
                         KeyBindings                 { get; set; } = new KeysConfig();
 
-        /// <summary>
-        /// Zero Latency forces playback at the very last frame received (Live Video Only)
-        /// </summary>
-        public bool     ZeroLatency                 { get => _ZeroLatency; set { Set(ref _ZeroLatency, value); if (config != null) config.Decoder.LowDelay = value; if (player != null && player.IsPlaying) { player.Pause(); player.Play(); } } }
+        /// <summary>Requests playback of the latest available live video frame and updates <see cref="VideoConfig.LowDelay"/> when linked to a configuration.</summary>
+        public bool     ZeroLatency                 { get => _ZeroLatency; set { Set(ref _ZeroLatency, value); if (config != null) config.Video.LowDelay = value; if (player != null && player.IsPlaying) { player.Pause(); player.Play(); } } }
         bool _ZeroLatency;
 
-        /// <summary>
-        /// Max Latency (ticks) forces playback (with speed x1+) to stay at the end of the live network stream (default: 0 - disabled)
-        /// </summary>
+        /// <summary>Maximum live-stream latency in ticks. A positive value enables speed correction and adjusts buffering and decoder low-delay settings. Zero disables correction.</summary>
         public long     MaxLatency {
             get => _MaxLatency;
             set
@@ -221,7 +244,7 @@ public class Config : NotifyPropertyChanged
                         player.Speed = 1;
 
                     if (config != null)
-                        config.Decoder.LowDelay = false;
+                        config.Video.LowDelay = false;
 
                     return;
                 }
@@ -232,7 +255,7 @@ public class Config : NotifyPropertyChanged
                     if (config.Demuxer.BufferDuration < value * 2)
                         config.Demuxer.BufferDuration = value * 2;
 
-                    config.Decoder.LowDelay = true;
+                    config.Video.LowDelay = true;
                 }
 
                 // Small min buffer to avoid enabling latency speed directly
@@ -242,73 +265,49 @@ public class Config : NotifyPropertyChanged
         }
         long _MaxLatency = 0;
 
-        /// <summary>
-        /// Min Latency (ticks) prevents MaxLatency to go (with speed x1) less than this limit (default: 0 - as low as possible)
-        /// </summary>
+        /// <summary>Lower live-stream latency target in ticks when <see cref="MaxLatency"/> controls playback speed.</summary>
         public long     MinLatency                  { get => _MinLatency; set => Set(ref _MinLatency, value); }
         long _MinLatency = 0;
 
-        /// <summary>
-        /// Prevents frequent speed changes when MaxLatency is enabled (to avoid audio/video gaps and desyncs)
-        /// </summary>
+        /// <summary>Minimum interval in ticks between speed changes made by the live-latency controller.</summary>
         public long     LatencySpeedChangeInterval  { get; set; } = TimeSpan.FromMilliseconds(700).Ticks;
 
-        /// <summary>
-        /// Folder to save recordings (when filename is not specified)
-        /// </summary>
+        /// <summary>Destination directory for recordings created without an explicit filename.</summary>
         public string   FolderRecordings            { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Recordings");
 
-        /// <summary>
-        /// Folder to save snapshots (when filename is not specified)
-        /// </summary>
-
+        /// <summary>Destination directory for snapshots created without an explicit filename.</summary>
         public string   FolderSnapshots             { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapshots");
 
-        /// <summary>
-        /// Forces CurTime/SeekBackward/SeekForward to seek accurate on video
-        /// </summary>
+        /// <summary>Uses frame-accurate video seeking for position changes and seek shortcuts that follow this preference.</summary>
         public bool     SeekAccurate                { get => _SeekAccurate; set => Set(ref _SeekAccurate, value); }
         bool _SeekAccurate;
 
-        /// <summary>
-        /// Allows off-screen (e.g. when minimized) snapshots but might affect performance
-        /// </summary>
+        /// <summary>Keeps a video frame available for snapshots when the swapchain cannot present, at an additional rendering cost.</summary>
         public bool     SnapshotAlways              { get; set; }
 
-        /// <summary>
-        /// Snapshot encoding will be used (valid formats bmp, png, jpg/jpeg)
-        /// </summary>
+        /// <summary>Default snapshot file format when no filename is supplied. Supported values are bmp, png, jpg and jpeg.</summary>
         public string   SnapshotFormat              { get ;set; } = "bmp";
 
-        /// <summary>
-        /// Whether to refresh statistics about bitrates/fps/drops etc.
-        /// </summary>
-        public bool     Stats                       { get => _Stats; set => Set(ref _Stats, value); }
-        bool _Stats = false;
-
-        /// <summary>
-        /// Sets playback's thread priority
-        /// </summary>
+        /// <summary>Priority assigned when creating the playback thread.</summary>
         public ThreadPriority
                         ThreadPriority              { get; set; } = ThreadPriority.AboveNormal;
 
-        /// <summary>
-        /// Refreshes CurTime in UI on every frame (can cause performance issues)
-        /// </summary>
+        /// <summary>Cadence for updating <see cref="Player.CurTime"/> in the UI.</summary>
         public UIRefreshType
                         UICurTime                   { get; set; } = UIRefreshType.PerFrameSecond;
 
-        /// <summary>
-        /// The purpose of the player
-        /// </summary>
-        public Usage    Usage                       { get; set; } = Usage.AVS;
-
+        /// <summary>Primary seek shortcut step in ticks.</summary>
         public long     SeekOffset                  { get; set; } = 5 * (long)1000 * 10000;
+        /// <summary>Secondary seek shortcut step in ticks.</summary>
         public long     SeekOffset2                 { get; set; } = 15 * (long)1000 * 10000;
+        /// <summary>Tertiary seek shortcut step in ticks.</summary>
         public long     SeekOffset3                 { get; set; } = 30 * (long)1000 * 10000;
+        /// <summary>Primary shortcut step for changing the playback speed multiplier.</summary>
         public double   SpeedOffset                 { get; set; } = 0.10;
+        /// <summary>Secondary shortcut step for changing the playback speed multiplier.</summary>
         public double   SpeedOffset2                { get; set; } = 0.25;
     }
+    /// <summary>Saved input, packet-buffering and FFmpeg format preferences.</summary>
     public class DemuxerConfig : NotifyPropertyChanged
     {
         public DemuxerConfig Clone()
@@ -332,146 +331,104 @@ public class Config : NotifyPropertyChanged
         internal Player player;
         internal Config config;
 
-        /// <summary>
-        /// Whethere to allow avformat_find_stream_info during open (avoiding this can open the input faster but it could cause other issues)
-        /// </summary>
+        /// <summary>Runs FFmpeg stream probing during open to discover codec and stream information.</summary>
         public bool             AllowFindStreamInfo { get; set; } = true;
 
-        /// <summary>
-        /// Whether to enable demuxer's custom interrupt callback (for timeouts and interrupts)
-        /// </summary>
+        /// <summary>Installs the demuxer interrupt callback for cancellation and timeouts.</summary>
         public bool             AllowInterrupts     { get; set; } = true;
 
-        /// <summary>
-        /// Whether to allow interrupts during av_read_frame
-        /// </summary>
+        /// <summary>Allows interruption of FFmpeg frame reads through the demuxer callback.</summary>
         public bool             AllowReadInterrupts { get; set; } = true;
 
-        /// <summary>
-        /// Whether to allow timeouts checks within the interrupts callback
-        /// </summary>
+        /// <summary>Applies the configured timeouts through the demuxer interrupt callback.</summary>
         public bool             AllowTimeouts       { get; set; } = true;
 
-        /// <summary>
-        /// List of FFmpeg formats to be excluded from interrupts
-        /// </summary>
+        /// <summary>FFmpeg input formats exempt from read interruption.</summary>
         public List<string>     ExcludeInterruptFmts{ get; set; } = ["rtsp"];
 
-        /// <summary>
-        /// Maximum allowed duration ticks for buffering
-        /// </summary>
+        /// <summary>Maximum buffered duration in ticks. Assignment can lower <see cref="PlaybackConfig.MinBufferDuration"/>.</summary>
         public long             BufferDuration      {
             get => _BufferDuration;
             set
             {
                 if (!Set(ref _BufferDuration, value)) return;
-                if (config != null && value < config.Player.MinBufferDuration)
-                   config.Player.MinBufferDuration = value;
+                if (config != null && value < config.Playback.MinBufferDuration)
+                   config.Playback.MinBufferDuration = value;
             }
         }
         long _BufferDuration = 3 * (long)1000 * 10000; // At least 3 sec. required for weird/delayed interleaved audio with video
 
-        /// <summary>
-        /// Maximuim allowed packets for buffering (as an extra check along with BufferDuration)
-        /// </summary>
+        /// <summary>Additional packet-count limit for the demuxer buffer. Zero disables the packet limit.</summary>
         public long             BufferPackets       { get; set; }
 
-        /// <summary>
-        /// Maximuim allowed audio packets (when reached it will drop the extra packets and will fire the AudioLimit event)
-        /// </summary>
+        /// <summary>Audio packet queue limit. Excess packets are dropped and the demuxer raises its AudioLimit event. Zero disables the limit.</summary>
         public long             MaxAudioPackets     { get; set; }
 
-        /// <summary>
-        /// Maximum allowed errors before stopping
-        /// </summary>
+        /// <summary>Maximum demuxing errors before stopping.</summary>
         public int              MaxErrors           { get; set; } = 30;
 
-        /// <summary>
-        /// Custom IO Stream buffer size (in bytes) for the AVIO Context
-        /// </summary>
+        /// <summary>FFmpeg AVIO buffer size in bytes for custom streams.</summary>
         public int              IOStreamBufferSize  { get; set; } = 0x200000;
 
-        /// <summary>
-        /// avformat_close_input timeout (ticks) for protocols that support interrupts
-        /// </summary>
+        /// <summary>Timeout in ticks for closing an input when the protocol supports interruption.</summary>
         public long             CloseTimeout        { get => closeTimeout; set { closeTimeout = value; closeTimeoutMs = value / 10000; } }
         private long closeTimeout = 10 * 1000 * 10000;
         internal long closeTimeoutMs = 10 * 1000;
 
-        /// <summary>
-        /// avformat_open_input + avformat_find_stream_info timeout (ticks) for protocols that support interrupts (should be related to probesize/analyzeduration)
-        /// </summary>
+        /// <summary>Timeout in ticks for opening an input and discovering stream information when interruption is supported.</summary>
         public long             OpenTimeout         { get => openTimeout; set { openTimeout = value; openTimeoutMs = value / 10000; } }
         private long openTimeout = 5 * 60 * (long)1000 * 10000;
         internal long openTimeoutMs = 5 * 60 * 1000;
 
-        /// <summary>
-        /// av_read_frame timeout (ticks) for protocols that support interrupts
-        /// </summary>
+        /// <summary>Timeout in ticks for reading a non-live input when interruption is supported.</summary>
         public long             ReadTimeout         { get => readTimeout; set { readTimeout = value; readTimeoutMs = value / 10000; } }
         private long readTimeout = 30 * 1000 * 10000;
         internal long readTimeoutMs = 30 * 1000;
 
-        /// <summary>
-        /// av_read_frame timeout (ticks) for protocols that support interrupts (for Live streams)
-        /// </summary>
+        /// <summary>Timeout in ticks for reading a live input when interruption is supported.</summary>
         public long             ReadLiveTimeout     { get => readLiveTimeout; set { readLiveTimeout = value; readLiveTimeoutMs = value / 10000; } }
         private long readLiveTimeout = 60 * 1000 * 10000;
         internal long readLiveTimeoutMs = 60 * 1000;
 
-        /// <summary>
-        /// av_seek_frame timeout (ticks) for protocols that support interrupts
-        /// </summary>
+        /// <summary>Timeout in ticks for seeking when the protocol supports interruption.</summary>
         public long             SeekTimeout         { get => seekTimeout; set { seekTimeout = value; seekTimeoutMs = value / 10000; } }
         private long seekTimeout = 30 * 1000 * 10000;
         internal long seekTimeoutMs = 30 * 1000;
 
-        /// <summary>
-        /// Forces Input Format
-        /// </summary>
+        /// <summary>Overrides FFmpeg input format detection with the specified format name.</summary>
         public string           ForceFormat         { get; set; }
 
-        /// <summary>
-        /// Forces FPS for NoTimestamp formats (such as h264/hevc)
-        /// </summary>
+        /// <summary>Overrides the video stream frame rate when positive, including for raw inputs without timestamps.</summary>
         public double           ForceFPS            { get; set; }
 
-        /// <summary>
-        /// FFmpeg's format flags for demuxer (see https://ffmpeg.org/doxygen/trunk/avformat_8h.html)
-        /// eg. FormatFlags |= 0x40; // For AVFMT_FLAG_NOBUFFER
-        /// </summary>
+        /// <summary>Saved FFmpeg format flags applied to the demuxer.</summary>
         public DemuxerFlags     FormatFlags         { get; set; } = DemuxerFlags.DiscardCorrupt;// FFmpeg.AutoGen.ffmpeg.AVFMT_FLAG_DISCARD_CORRUPT;
 
-        /// <summary>
-        /// Certain muxers and demuxers do nesting (they open one or more additional internal format contexts). This will pass the FormatOpt and HTTPQuery params to the underlying contexts)
-        /// </summary>
+        /// <summary>Forwards format options and HTTP query parameters to nested FFmpeg inputs.</summary>
         public bool             FormatOptToUnderlying
                                                     { get; set; }
 
-        /// <summary>
-        /// Passes original's Url HTTP Query String parameters to underlying
-        /// </summary>
+        /// <summary>Includes the original input URL query parameters when constructing queries for nested HTTP inputs.</summary>
         public bool             DefaultHTTPQueryToUnderlying
                                                     { get; set; }
 
-        /// <summary>
-        /// HTTP Query String parameters to pass to underlying
-        /// </summary>
+        /// <summary>Additional query parameters for nested HTTP inputs.</summary>
         public Dictionary<string, string>
                                 ExtraHTTPQueryParamsToUnderlying
                                                     { get; set; } = [];
 
-        /// <summary>
-        /// FFmpeg's format options for demuxer
-        /// </summary>
+        /// <summary>FFmpeg demuxer options for the main video input.</summary>
         public Dictionary<string, string>
                                 FormatOpt           { get; set; } = DefaultFormatOpt();
+        /// <summary>FFmpeg demuxer options for a separately opened audio input.</summary>
         public Dictionary<string, string>
                                 AudioFormatOpt      { get; set; } = DefaultFormatOpt();
 
+        /// <summary>FFmpeg demuxer options for a separately opened subtitle input.</summary>
         public Dictionary<string, string>
                                 SubtitlesFormatOpt  { get; set; } = DefaultFormatOpt();
 
+        /// <summary>Creates the default demuxer option dictionary.</summary>
         public static Dictionary<string, string> DefaultFormatOpt() => new()
         {
             // HTTP
@@ -479,108 +436,16 @@ public class Config : NotifyPropertyChanged
             ["reconnect"]       = "1"           // Recover premature disconnections (YT external audio)
         };
 
+        /// <summary>Returns the configured format option dictionary for the requested input type.</summary>
         public Dictionary<string, string> GetFormatOptPtr(MediaType type)
             => type == MediaType.Video ? FormatOpt : type == MediaType.Audio ? AudioFormatOpt : SubtitlesFormatOpt;
     }
-    public class DecoderConfig : NotifyPropertyChanged
+    /// <summary>Saved video preferences and renderer integration hooks. Current framing and processing controls are on <see cref="Renderer"/>.</summary>
+    public class VideoConfig : NotifyPropertyChanged
     {
-        internal Player player;
+        public VideoConfig() => EnableFilterCollectionSynchronization();
 
-        public DecoderConfig Clone()
-        {
-            DecoderConfig decoder = (DecoderConfig) MemberwiseClone();
-            decoder.player = null;
-
-            return decoder;
-        }
-
-        /// <summary>
-        /// Threads that will be used from the decoder
-        /// </summary>
-        public int              VideoThreads        { get; set; } = Environment.ProcessorCount;
-
-        /// <summary>
-        /// Maximum video frames to be decoded and processed for rendering
-        /// </summary>
-        public int              MaxVideoFrames      { get => _MaxVideoFrames;   set { if (Set(ref _MaxVideoFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
-        int _MaxVideoFrames = 4; // At least 4 required for smooth playback (can cause audio crackling)
-        internal void SetMaxVideoFrames(int maxVideoFrames) { _MaxVideoFrames = maxVideoFrames; RaiseUI(nameof(MaxVideoFrames)); } // can be updated by video decoder if fails to allocate them
-
-        /// <summary>
-        /// Maximum video frames to be decoded and processed for rendering
-        /// </summary>
-        public int              MaxVideoFramesPrev  { get => _MaxVideoFramesPrev;   set { if (Set(ref _MaxVideoFramesPrev, value)) { player?.RefreshMaxVideoFrames(); } } }
-        int _MaxVideoFramesPrev = 0;
-
-        /// <summary>
-        /// Maximum audio frames to be decoded and processed for playback
-        /// </summary>
-        public int              MaxAudioFrames      { get; set; } = 5;
-
-        /// <summary>
-        /// Maximum subtitle frames to be decoded
-        /// </summary>
-        public int              MaxSubsFrames       { get; set; } = 1;
-
-        /// <summary>
-        /// Maximum data frames to be decoded
-        /// </summary>
-        public int              MaxDataFrames       { get; set; } = 100;
-
-        /// <summary>
-        /// Maximum allowed errors before stopping
-        /// </summary>
-        public int              MaxErrors           { get; set; } = 200;
-
-        /// <summary>
-        /// Allows video accceleration even in codec's profile mismatch
-        /// </summary>
-        public bool             AllowProfileMismatch{ get => _AllowProfileMismatch; set => Set(ref _AllowProfileMismatch, value); }
-        bool _AllowProfileMismatch = false;
-
-        /// <summary>
-        /// Allows corrupted frames (Parses AV_CODEC_FLAG_OUTPUT_CORRUPT to AVCodecContext)
-        /// </summary>
-        public bool             ShowCorrupted       { get => _ShowCorrupted;        set => Set(ref _ShowCorrupted, value); }
-        bool _ShowCorrupted;
-
-        /// <summary>
-        /// Forces low delay (Parses AV_CODEC_FLAG2_FAST or AV_CODEC_FLAG_LOW_DELAY -based on DropFrames- to AVCodecContext) (auto-enabled with MaxLatency)
-        /// </summary>
-        public bool             LowDelay            { get => _LowDelay;             set => Set(ref _LowDelay, value); }
-        bool _LowDelay;
-
-        /// <summary>
-        /// Sets AVCodecContext skip_frame to None or Default (affects also LowDelay)
-        /// </summary>
-        public bool             AllowDropFrames     { get => _AllowDropFrames;      set => Set(ref _AllowDropFrames, value); }
-        bool _AllowDropFrames;
-
-        public string           AudioCodec          { get => _AudioCodec;           set => Set(ref _AudioCodec, value); }
-        internal string _AudioCodec;
-
-        public string           VideoCodec          { get => _VideoCodec;           set => Set(ref _VideoCodec, value); }
-        internal string _VideoCodec;
-
-        public string           SubtitlesCodec      { get => _SubtitlesCodec;       set => Set(ref _SubtitlesCodec, value); }
-        internal string _SubtitlesCodec;
-
-        public string GetCodecPtr(MediaType type)
-            => type == MediaType.Video ? _VideoCodec : type == MediaType.Audio ? _AudioCodec : _SubtitlesCodec;
-
-        public Dictionary<string, string>
-                                AudioCodecOpt       { get; set; } = [];
-        public Dictionary<string, string>
-                                VideoCodecOpt       { get; set; } = [];
-        public Dictionary<string, string>
-                                SubtitlesCodecOpt   { get; set; } = [];
-
-        public Dictionary<string, string> GetCodecOptPtr(MediaType type)
-            => type == MediaType.Video ? VideoCodecOpt : type == MediaType.Audio ? AudioCodecOpt : SubtitlesCodecOpt;
-    }
-    public class VideoConfig : VPConfig
-    {
-        public VideoConfig()
+        internal void EnableFilterCollectionSynchronization()
         {
             UIInvokeIfRequired(() =>
             {
@@ -594,141 +459,99 @@ public class Config : NotifyPropertyChanged
             VideoConfig video = (VideoConfig) MemberwiseClone();
             video.player = null;
 
+            video.CodecOpt = CodecOpt == null ? null : new(CodecOpt);
+
             return video;
         }
 
-        internal Player player { get => _player; set { _player = value; vp = value?.Renderer; } }
-        Player _player;
+        internal Player player;
 
-        /// <summary>
-        /// Whether video should be allowed
-        /// </summary>
-        public bool             Enabled                     { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.Video.Enable(); else player?.Video.Disable(); } }
-        bool _Enabled = true;
-        internal void SetEnabled(bool enabled)              => Set(ref _Enabled, enabled, true, nameof(Enabled));
-        public void Toggle() => Enabled = !Enabled;
+        /// <summary>SDR pixel format used when creating the video swapchain.</summary>
+        public SwapChainFormat  SwapChainFormat         { get; set; } = SwapChainFormat.BGRA;
 
-        /// <summary>
-        /// <para>Forces a specific GPU Adapter to be used by the renderer</para>
-        /// <para>GPUAdapter must match with the description of the adapter eg. rx 580 (available adapters can be found in Engine.Video.GPUAdapters)</para>
-        /// </summary>
+        /// <summary>Allows FP16 scRGB output for supported HDR content on a display with Windows HDR enabled.</summary>
+        public bool             AllowHDRSwapchain       { get => allowHDRSwapchain; set { if (Set(ref allowHDRSwapchain, value)) player?.Renderer?.VPRequest(VPRequestType.UpdateSwapChain); } }
+        bool allowHDRSwapchain = true;
+
+        /// <summary>Video presentation sync interval. Zero disables vertical synchronization.</summary>
+        public uint             VSync                   { get; set; } = 1;
+
+        /// <summary>Color used to clear the renderer and fill areas outside the video.</summary>
+        public System.Windows.Media.Color
+                                BackColor               { get => VorticeToWPFColor(flBackColor);  set { if (Set(ref flBackColor, WPFToVorticeColor(value))) { d3BackColor = WPFToVideoColor(value); player?.Renderer?.VPRequest(VPRequestType.BackColor); } } }
+        internal Vortice.Mathematics.Color flBackColor = new(0, 0, 0, 255);
+        internal VideoColor d3BackColor = new() { Rgba = new() { R = 0, G = 0, B = 0, A = 1 } };
+
+        /// <summary>Step in percentage points used by the renderer’s zoom commands.</summary>
+        public int              ZoomOffset              { get => zoomOffset;            set { Set(ref zoomOffset,       value); } }
+        int zoomOffset = 10;
+
+        /// <summary>Renderer adapter preference by description, selected when the graphics device is created.</summary>
         public string           GPUAdapter                  { get; set; }
 
-        /// <summary>
-        /// Embedded alpha channel in HW decoded -horizontal/vertical- split frame (FlyleafVP only)
-        /// </summary>
-        public SplitFrameAlphaPosition
-                                SplitFrameAlphaPosition     { get => _SplitFrameAlphaPosition;   set => Set(ref _SplitFrameAlphaPosition, value); }
-        internal SplitFrameAlphaPosition _SplitFrameAlphaPosition;
-
-        /// <summary>
-        /// Clears the screen on stop/close/open
-        /// </summary>
+        /// <summary>Clears the video surface on open, stop and close.</summary>
         public bool             ClearScreen                 { get; set; } = true;
 
-        /// <summary>
-        /// Used to limit the number of frames rendered, particularly at increased speed
-        /// </summary>
+        /// <summary>Limits rendered frames per second, including during increased playback speed.</summary>
         public double           MaxOutputFps                { get; set; } = 60;
 
-        /// <summary>
-        /// The max resolution that the current system can achieve and will be used from the input/stream suggester plugins
-        /// </summary>
+        /// <summary>Detected stream-selection resolution limit in pixels. Excluded from JSON.</summary>
         [JsonIgnore]
         public int              MaxVerticalResolutionAuto   { get; internal set; }
 
-        /// <summary>
-        /// Custom max vertical resolution that will be used from the input/stream suggester plugins
-        /// </summary>
+        /// <summary>Saved vertical resolution limit in pixels for stream selection. Zero uses automatic detection.</summary>
         public int              MaxVerticalResolutionCustom { get => _MaxVerticalResolutionCustom;  set => Set(ref _MaxVerticalResolutionCustom, value); }
         int _MaxVerticalResolutionCustom;
 
-        /// <summary>
-        /// The max resolution that is currently used (based on Auto/Custom)
-        /// </summary>
+        /// <summary>Effective stream-selection limit in pixels, using the override, detected value or 1080 fallback. Excluded from JSON.</summary>
         [JsonIgnore]
         public int              MaxVerticalResolution       => MaxVerticalResolutionCustom == 0 ? (MaxVerticalResolutionAuto != 0 ? MaxVerticalResolutionAuto : 1080) : MaxVerticalResolutionCustom;
 
-        /// <summary>
-        /// Monitor's SDR Minimum Nits (Auto: -1)
-        /// </summary>
+        /// <summary>Minimum SDR display luminance in nits used for display mapping. Minus one selects the automatic value.</summary>
         public float            TargetSDRMinNits            { get => _targetSDRMinNits;    set {  if (Set(ref _targetSDRMinNits, value)) player?.Renderer?.FLUpdateTargetNitsConfig(false); } }
         float _targetSDRMinNits = -1;
 
-        /// <summary>
-        /// Monitor's SDR Maximum Nits (Auto: -1)
-        /// </summary>
+        /// <summary>Peak SDR display luminance in nits used for display mapping. Minus one selects the automatic value.</summary>
         public float            TargetSDRPeakNits           { get => _targetSDRPeakNits;    set {  if (Set(ref _targetSDRPeakNits, value)) player?.Renderer?.FLUpdateTargetNitsConfig(false); } }
         float _targetSDRPeakNits = -1;
 
-        /// <summary>
-        /// Monitor's HDR Minimum Nits (Auto: -1)
-        /// </summary>
+        /// <summary>Minimum HDR display luminance in nits used for display mapping. Minus one selects the automatic value.</summary>
         public float            TargetHDRMinNits            { get => _targetHDRMinNits;    set {  if (Set(ref _targetHDRMinNits, value)) player?.Renderer?.FLUpdateTargetNitsConfig(true); } }
         float _targetHDRMinNits = -1;
 
-        /// <summary>
-        /// Monitor's HDR Maximum Nits (Auto: -1)
-        /// </summary>
+        /// <summary>Peak HDR display luminance in nits used for display mapping. Minus one selects the automatic value.</summary>
         public float            TargetHDRPeakNits           { get => _targetHDRPeakNits;    set {  if (Set(ref _targetHDRPeakNits, value)) player?.Renderer?.FLUpdateTargetNitsConfig(true); } }
         float _targetHDRPeakNits = -1;
 
-        /// <summary>
-        /// Sets Super Resolution (Nvidia / Intel - D3D11VP only)
-        /// </summary>
+        /// <summary>Requests Super Resolution for eligible video on the D3D11 processor. <see cref="Renderer.SuperResolution"/> reports renderer state.</summary>
         public bool             SuperResolution             { get => _SuperResolution;  set { if (Set(ref _SuperResolution, value)) player?.Renderer?.VPRequest(VPRequestType.Viewport); } }
         internal bool _SuperResolution;
 
-        /// <summary>
-        /// Forces SwsScale instead of FlyleafVP for non HW decoded frames
-        /// </summary>
-        public bool             SwsForce                    { get; set; } = false;
+        /// <summary>Requests hardware video decoding on decoder setup. <see cref="MediaPlayer.Video.HWAcceleration"/> reports the effective result.</summary>
+        public bool             HWAcceleration           { get; set; } = true;
+        /// <summary>Toggles the saved hardware decoding preference for the next decoder setup.</summary>
+        public void ToggleHWAcceleration() => HWAcceleration = !HWAcceleration;
 
-        /// <summary>
-        /// Activates Direct3D video acceleration (decoding)
-        /// </summary>
-        public bool             VideoAcceleration           { get; set; } = true;
-        public void ToggleVideoAcceleration() => VideoAcceleration = !VideoAcceleration;
-
-        /// <summary>
-        /// Whether to use embedded video processor with custom pixel shaders or D3D11<br/>
-        /// * FLVP supports HDR to SDR, hardware/software frames and more formats<br/>
-        /// * D3D11 uses less power, supports only hardware frames, deinterlace, super resolution and more accurate filters based on gpu
-        /// </summary>
-        public VideoProcessors  VideoProcessor              { get => _VideoProcessor;   set { if (Set(ref _VideoProcessor, value))  player?.Renderer?.VPSwitchCheck(); } }
-        VideoProcessors _VideoProcessor = VideoProcessors.Auto;
-
-        /// <summary>
-        /// GPU post-processing interfaces for custom shaders and effects
-        /// </summary>
+        /// <summary>Runtime factory for custom GPU post-processing. Assign before renderer device creation. Excluded from JSON.</summary>
         [JsonIgnore]
         public IVideoPostProcessorFactory
                                 PostProcessorFactory        { get; set; }
 
-        /// <summary>
-        /// Sets DeInterlace (D3D11VP only)
-        /// </summary>
-        public DeInterlace      DeInterlace                 { get => _DeInterlace;      set { if (Set(ref _DeInterlace, value))     player?.Renderer?.VPRequest(VPRequestType.Deinterlace); } }
-        DeInterlace _DeInterlace = DeInterlace.Auto;
-
-        /// <summary>
-        /// Whether to use double rate (Bob) for DeInterlace instead normal (Weave/Blend)
-        /// </summary>
+        /// <summary>Presents both output fields during supported deinterlacing. False presents one output per input frame.</summary>
         public bool             DoubleRate                  { get => _DoubleRate;       set => Set(ref _DoubleRate, value); }
         bool _DoubleRate = true;
 
-        /// <summary>
-        /// Enables custom Direct2D drawing over playback frames
-        /// </summary>
+        /// <summary>Enables Direct2D setup when the renderer creates its device. Register drawing callbacks separately.</summary>
         public bool             Use2DGraphics               { get; set; }
 
-        /// <summary>
-        /// Scaling quality used for bitmap subtitle rendering.
-        /// </summary>
+        /// <summary>Scaling flags used for bitmap subtitle rendering.</summary>
         public SwsFlags         BitmapSubsScaleQuality      { get; set; } = SwsFlags.Bilinear | SwsFlags.Bitexact;
 
+        /// <summary>Runtime notification that the renderer created its Direct2D drawing context.</summary>
         public event EventHandler<ID2D1DeviceContext> D2DInitialized;
+        /// <summary>Runtime notification before the renderer releases its Direct2D drawing context.</summary>
         public event EventHandler<ID2D1DeviceContext> D2DDisposing;
+        /// <summary>Runtime hook for drawing with Direct2D over a playback frame.</summary>
         public event EventHandler<ID2D1DeviceContext> D2DDraw;
 
         internal void OnD2DInitialized(Renderer renderer, ID2D1DeviceContext context)
@@ -740,23 +563,62 @@ public class Config : NotifyPropertyChanged
         internal void OnD2DDraw(Renderer renderer, ID2D1DeviceContext context)
             => D2DDraw?.Invoke(renderer, context);
 
-        /// <summary>
-        /// Synchronizes common filters when switching processors and before saving (picture output can differ)
-        /// </summary>
+        /// <summary>Synchronizes compatible picture filter values across processors when switching or serializing.</summary>
         public bool             SyncVPFilters               { get => _SyncVPFilters; set => Set(ref _SyncVPFilters, value); }
         bool _SyncVPFilters = true;
+        /// <summary>Saved Flyleaf processor filter entries and their configured values.</summary>
         public ObservableDictionary<FLFilters, FLFilter>
                                 FLFilters                   { get ; set; } = [];
+        /// <summary>Saved D3D11 processor filter entries and their configured values. The renderer refreshes device capabilities.</summary>
         public ObservableDictionary<VideoProcessorFilter, D3Filter>
                                 D3Filters                   { get ; set; } = [];
 
-        internal bool flFiltersFilled;
-        internal bool d3FiltersFilled;
-        internal bool hasFLFilters;
-        internal bool hasD3Filters;
+        // These locks belong to the config-owned dictionaries and their WPF registrations.
         internal readonly object lockFLFilters  = new();
         internal readonly object lockD3Filters  = new();
+
+        // Decoder
+
+        /// <summary>Requested number of video decoder threads.</summary>
+        public int              DecoderThreads      { get; set; } = Environment.ProcessorCount;
+
+        /// <summary>Video frame budget for decoding and rendering. Hardware allocation can reduce the stored value.</summary>
+        public int              MaxFrames           { get => _MaxFrames;   set { if (Set(ref _MaxFrames, value)) { player?.RefreshMaxVideoFrames(); } } }
+        int _MaxFrames = 4; // At least 4 required for smooth playback (can cause audio crackling)
+        internal void SetMaxFrames(int maxVideoFrames) { _MaxFrames = maxVideoFrames; RaiseUI(nameof(MaxFrames)); } // can be updated by video decoder if fails to allocate them
+
+        /// <summary>Portion of the video frame budget reserved for previously decoded frames.</summary>
+        public int              MaxFramesPrev       { get => _MaxFramesPrev;   set { if (Set(ref _MaxFramesPrev, value)) { player?.RefreshMaxVideoFrames(); } } }
+        int _MaxFramesPrev = 0;
+
+        /// <summary>Allows attempting hardware decoding when the stream profile differs from the hardware decoder’s advertised profile.</summary>
+        public bool             AllowProfileMismatch{ get => _AllowProfileMismatch; set => Set(ref _AllowProfileMismatch, value); }
+        bool _AllowProfileMismatch = false;
+
+        /// <summary>Requests decoded output from frames marked corrupt.</summary>
+        public bool             ShowCorrupted       { get => _ShowCorrupted;        set => Set(ref _ShowCorrupted, value); }
+        bool _ShowCorrupted;
+
+        /// <summary>Requests low-delay video decoding on setup. Playback latency settings can update this value.</summary>
+        public bool             LowDelay            { get => _LowDelay;             set => Set(ref _LowDelay, value); }
+        bool _LowDelay;
+
+        /// <summary>Allows the decoder to skip frames and affects the low-delay flags applied during setup.</summary>
+        public bool             AllowDropFrames     { get => _AllowDropFrames;      set => Set(ref _AllowDropFrames, value); }
+        bool _AllowDropFrames;
+
+        /// <summary>Maximum video decoding errors before stopping.</summary>
+        public int              MaxErrors           { get; set; } = 200;
+
+        /// <summary>Forced FFmpeg video decoder name. Null or empty selects automatically.</summary>
+        public string Codec { get => _Codec; set => Set(ref _Codec, value); }
+        internal string _Codec;
+
+        /// <summary>FFmpeg option dictionary for opening the video decoder.</summary>
+        public Dictionary<string, string> CodecOpt { get; set; } = [];
+
     }
+    /// <summary>Saved audio selection, gain, filters and decoder preferences. Current volume, mute, device and synchronization are on <see cref="Player.Audio"/>.</summary>
     public class AudioConfig : NotifyPropertyChanged
     {
         public AudioConfig Clone()
@@ -764,85 +626,48 @@ public class Config : NotifyPropertyChanged
             AudioConfig audio = (AudioConfig) MemberwiseClone();
             audio.player = null;
 
+            audio.CodecOpt = CodecOpt == null ? null : new(CodecOpt);
+
             return audio;
         }
 
         internal Player player;
 
-        /// <summary>
-        /// Whether audio should allowed
-        /// </summary>
-        public bool             Enabled             { get => _Enabled;          set { if (Set(ref _Enabled, value)) if (value) player?.Audio.Enable(); else player?.Audio.Disable(); } }
-        bool _Enabled = true;
-        internal void SetEnabled(bool enabled)      => Set(ref _Enabled, enabled, true, nameof(Enabled));
-        public void Toggle() => Enabled = !Enabled;
-
-        /// <summary>
-        /// Audio delay ticks (will be reseted to 0 for every new audio stream)
-        /// </summary>
-        [JsonIgnore] // We reset this on open (TBR: Resync should be Task?* can block UI | Same for Enable) 
-        public long             Delay               { get => _Delay;            set { if (player != null && !player.Audio.IsOpened) return;  if (Set(ref _Delay, value)) player?.ReSync(player.decoder.AudioStream); } }
-        long _Delay;
-        internal void SetDelay(long delay)          => Set(ref _Delay, delay, true, nameof(Delay));
-
+        /// <summary>Primary audio delay shortcut step in ticks.</summary>
         public long             DelayOffset         { get; set; } =  100 * 10000;
+        /// <summary>Secondary audio delay shortcut step in ticks.</summary>
         public long             DelayOffset2        { get; set; } = 1000 * 10000;
 
-        public void DelayAdd()      => Delay += DelayOffset;
-        public void DelayRemove()   => Delay -= DelayOffset;
-        public void DelayAdd2()     => Delay += DelayOffset2;
-        public void DelayRemove2()  => Delay -= DelayOffset2;
-
+        /// <summary>Volume shortcut step in percentage points.</summary>
         public int              VolumeOffset        { get; set; } = 5;
 
-        /// <summary>
-        /// The upper limit of the volume amplifier
-        /// </summary>
+        /// <summary>Audio amplification ceiling as a percentage of the original signal level.</summary>
         public int              VolumeMax           { get => _VolumeMax; set { Set(ref _VolumeMax, value); if (player != null && player.Audio.masteringVoice != null) player.Audio.masteringVoice.Volume = value / 100f;  } }
         int _VolumeMax = 150;
 
-        public void ToggleMute()    => player.Audio.Mute = !player.Audio.Mute;
-        public void VolumeUp()
-        {
-            if (player.Audio.Volume == VolumeMax) return;
-            player.Audio.Volume = Math.Min(player.Audio.Volume + VolumeOffset, VolumeMax);
-        }
-        public void VolumeDown()
-        {
-            if (player.Audio.Volume == 0) return;
-            player.Audio.Volume = Math.Max(player.Audio.Volume - VolumeOffset, 0);
-        }
-
-        /// <summary>
-        /// List of filters for post processing the audio samples (experimental)<br/>
-        /// (Requires FiltersEnabled)
-        /// </summary>
+        /// <summary>Audio filter chain definitions used when building or reloading the FFmpeg graph. Runtime filter commands leave these definitions intact.</summary>
         public List<Filter>     Filters             { get; set; }
 
-        /// <summary>
-        /// Reloads filters from Config.Audio.Filters (experimental)
-        /// </summary>
-        /// <returns>0 on success</returns>
-        public int ReloadFilters() => player.AudioDecoder.ReloadFilters();
-
-        /// <summary>
-        /// <para>
-        /// Updates filter's property (experimental)
-        /// Note: This will not update the property value in Config.Audio.Filters
-        /// </para>
-        /// </summary>
-        /// <param name="filterId">Filter's unique id specified in Config.Audio.Filters</param>
-        /// <param name="key">Filter's property to change</param>
-        /// <param name="value">Filter's property value</param>
-        /// <returns>0 on success</returns>
-        public int UpdateFilter(string filterId, string key, string value) => player.AudioDecoder.UpdateFilter(filterId, key, value);
-
-        /// <summary>
-        /// Audio languages preference by priority
-        /// </summary>
+        /// <summary>Preferred audio languages in order. Defaults to the system language preferences.</summary>
         public List<Language>   Languages           { get { _Languages ??= GetSystemLanguages(); return _Languages; } set => _Languages = value; }
         List<Language> _Languages;
+        // Decoder
+
+        /// <summary>Audio decoder frame queue limit. Recording can temporarily override this value.</summary>
+        public int              MaxFrames      { get; set; } = 5;
+
+        /// <summary>Maximum audio decoding errors before stopping.</summary>
+        public int              MaxErrors           { get; set; } = 200;
+
+        /// <summary>Forced FFmpeg audio decoder name. Null or empty selects automatically.</summary>
+        public string Codec { get => _Codec; set => Set(ref _Codec, value); }
+        internal string _Codec;
+
+        /// <summary>FFmpeg option dictionary for opening the audio decoder.</summary>
+        public Dictionary<string, string> CodecOpt { get; set; } = [];
+
     }
+    /// <summary>Saved subtitle selection, search and decoder preferences. Current synchronization and parsing callbacks are on <see cref="Player.Subtitles"/>.</summary>
     public class SubtitlesConfig : NotifyPropertyChanged
     {
         public SubtitlesConfig Clone()
@@ -854,213 +679,145 @@ public class Config : NotifyPropertyChanged
 
             subs.player = null;
 
+            subs.CodecOpt = CodecOpt == null ? null : new(CodecOpt);
+
             return subs;
         }
 
         internal Player player;
 
-        /// <summary>
-        /// Whether subtitles should be allowed
-        /// </summary>
-        public bool             Enabled             { get => _Enabled; set { if(Set(ref _Enabled, value)) if (value) player?.Subtitles.Enable(); else player?.Subtitles.Disable(); } }
-        bool _Enabled = true;
-        internal void SetEnabled(bool enabled)      => Set(ref _Enabled, enabled, true, nameof(Enabled));
-        public void Toggle() => Enabled = !Enabled;
+        /// <summary>Primary subtitle delay shortcut step in ticks.</summary>
+        public long             DelayOffset         { get; set; } =  100 * 10000;
+        /// <summary>Secondary subtitle delay shortcut step in ticks.</summary>
+        public long             DelayOffset2        { get; set; } = 1000 * 10000;
 
-        /// <summary>
-        /// Subtitle delay ticks (will be reseted to 0 for every new subtitle stream)
-        /// </summary>
-        [JsonIgnore] // We reset this on open (TBR: Resync should be Task?* can block UI | Same for Enable)
-        public long             Delay               { get => _Delay; set { if (player != null && !player.Subtitles.IsOpened) return; if (Set(ref _Delay, value)) player?.ReSync(player.decoder.SubtitlesStream); } }
-        long _Delay;
-        internal void SetDelay(long delay)          => Set(ref _Delay, delay, true, nameof(Delay));
-
-        public long             DelayOffset    { get; set; } =  100 * 10000;
-        public long             DelayOffset2   { get; set; } = 1000 * 10000;
-
-        public void DelayAdd()      => Delay += DelayOffset;
-        public void DelayRemove()   => Delay -= DelayOffset;
-        public void DelayAdd2()     => Delay += DelayOffset2;
-        public void DelayRemove2()  => Delay -= DelayOffset2;
-
-        /// <summary>
-        /// Subtitle languages preference by priority
-        /// </summary>
+        /// <summary>Preferred subtitle languages in order. Defaults to the system language preferences.</summary>
         public List<Language>   Languages           { get { _Languages ??= GetSystemLanguages(); return _Languages; } set => _Languages = value; }
         List<Language> _Languages;
 
-        /// <summary>
-        /// Whether to use local search plugins (see also <see cref="SearchLocalOnInputType"/>)
-        /// </summary>
+        /// <summary>Enables local subtitle discovery for the configured input types.</summary>
         public bool             SearchLocal         { get => _SearchLocal; set => Set(ref _SearchLocal, value); }
         bool _SearchLocal = false;
 
-        /// <summary>
-        /// Allowed input types to be searched locally for subtitles (empty list allows all types)
-        /// </summary>
+        /// <summary>Input types eligible for local subtitle discovery. An empty list allows all types.</summary>
         public List<InputType>  SearchLocalOnInputType
                                                     { get; set; } = [InputType.File, InputType.UNC, InputType.Torrent];
 
-        /// <summary>
-        /// Whether to use online search plugins (see also <see cref="SearchOnlineOnInputType"/>)
-        /// </summary>
+        /// <summary>Enables online subtitle discovery for the configured input types. Assignment can trigger discovery for the open video.</summary>
         public bool             SearchOnline        { get => _SearchOnline; set { Set(ref _SearchOnline, value); if (player != null && player.Video.isOpened) Task.Run(() => { if (player != null && player.Video.isOpened) player.decoder.SearchOnlineSubtitles(); }); } }
         bool _SearchOnline = false;
 
-        /// <summary>
-        /// Allowed input types to be searched online for subtitles (empty list allows all types)
-        /// </summary>
+        /// <summary>Input types eligible for online subtitle discovery. An empty list allows all types.</summary>
         public List<InputType>  SearchOnlineOnInputType
                                                     { get; set; } = [InputType.File, InputType.UNC, InputType.Torrent];
 
-        /// <summary>
-        /// Subtitles parser (can be used for custom parsing)
-        /// </summary>
-        [JsonIgnore]
-        public Action<SubtitlesFrame>
-                                Parser              { get; set; } = ParseSubtitles.Parse;
+        // Decoder
+
+        /// <summary>Subtitle decoder frame queue limit.</summary>
+        public int              MaxFrames           { get; set; } = 1;
+
+        /// <summary>Maximum subtitle decoding errors before stopping.</summary>
+        public int              MaxErrors           { get; set; } = 200;
+
+        /// <summary>Forced FFmpeg subtitle decoder name. Null or empty selects automatically.</summary>
+        public string Codec { get => _Codec; set => Set(ref _Codec, value); }
+        internal string _Codec;
+
+        /// <summary>FFmpeg option dictionary for opening the subtitle decoder.</summary>
+        public Dictionary<string, string> CodecOpt  { get; set; } = [];
+
     }
+    /// <summary>Saved data decoder limits. Current data stream enablement is runtime state.</summary>
     public class DataConfig : NotifyPropertyChanged
     {
-        public DataConfig Clone()
-        {
-            DataConfig data = (DataConfig)MemberwiseClone();
+        public DataConfig Clone() => new() { MaxFrames = MaxFrames, MaxErrors = MaxErrors };
 
-            data.player = null;
+        // Decoder
 
-            return data;
-        }
+        /// <summary>Data decoder frame queue limit.</summary>
+        public int              MaxFrames           { get; set; } = 100;
 
-        internal Player player;
+        /// <summary>Maximum data decoding errors before stopping.</summary>
+        public int              MaxErrors           { get; set; } = 200;
 
-        /// <summary>
-        /// Whether data should be processed
-        /// </summary>
-        public bool             Enabled             { get => _Enabled; set { if (Set(ref _Enabled, value)) if (value) player?.Data.Enable(); else player?.Data.Disable(); } }
-        bool _Enabled = false;
-        internal void SetEnabled(bool enabled) => Set(ref _Enabled, enabled, true, nameof(Enabled));
     }
+
 }
 
-/// <summary>
-/// Engine's configuration
-/// </summary>
+/// <summary>Process-wide settings used by <see cref="Engine"/> and saved separately from player configuration.</summary>
 public class EngineConfig
 {
-    /// <summary>
-    /// It will not initiallize audio and will be disabled globally
-    /// </summary>
+    /// <summary>Skips audio engine initialization at startup and disables audio process-wide.</summary>
     public bool     DisableAudio            { get; set; }
 
-    /// <summary>
-    /// <para>Required to register ffmpeg libraries. Make sure you provide x86 or x64 based on your project.</para>
-    /// <para>:&lt;path&gt; for relative path from current folder or any below</para>
-    /// <para>&lt;path&gt; for absolute or relative path</para>
-    /// </summary>
+    /// <summary>Directory containing architecture-matched FFmpeg libraries. A leading colon searches from the application directory through its ancestors.</summary>
     public string   FFmpegPath              { get; set; } = "FFmpeg";
 
-    /// <summary>
-    /// <para>Can be used to choose which FFmpeg libs to load</para>
-    /// All (Devices &amp; Filters)<br/>
-    /// Filters<br/>
-    /// Main<br/>
-    /// </summary>
+    /// <summary>Selects the FFmpeg library set loaded at engine startup.</summary>
     public LoadProfile
                     FFmpegLoadProfile       { get; set; } = LoadProfile.All;
 
-    /// <summary>
-    /// Whether to allow HLS live seeking (this can cause segmentation faults in case of incompatible ffmpeg version with library's custom structures)
-    /// </summary>
+    /// <summary>Enables live HLS seeking through FFmpeg internals. It requires a compatible FFmpeg build.</summary>
     public bool     FFmpegHLSLiveSeek       { get; set; }
 
-    /// <summary>
-    /// Sets FFmpeg logger's level
-    /// </summary>
+    /// <summary>FFmpeg diagnostic level. Assignment refreshes FFmpeg logging when the engine is running.</summary>
     public FF.LogLevel
                     FFmpegLogLevel          { get => _FFmpegLogLevel; set { _FFmpegLogLevel = value; if (Engine.IsLoaded) FFmpegEngine.SetLogLevel(); } }
     FF.LogLevel _FFmpegLogLevel = FF.LogLevel.Quiet;
 
-    /// <summary>
-    /// Whether configuration has been loaded from file
-    /// </summary>
+    /// <summary>Whether <see cref="Load"/> created this instance. This metadata is excluded from JSON.</summary>
     [JsonIgnore]
     public bool     Loaded                  { get; private set; }
 
-    /// <summary>
-    /// The path that this configuration has been loaded from
-    /// </summary>
+    /// <summary>File path recorded by <see cref="Load"/> and reused by <see cref="Save(string)"/> when no path is supplied.</summary>
     [JsonIgnore]
     public string   LoadedPath              { get; private set; }
 
-    /// <summary>
-    /// <para>Sets loggers output</para>
-    /// <para>:debug -> System.Diagnostics.Debug</para>
-    /// <para>:console -> System.Console</para>
-    /// <para>&lt;path&gt; -> Absolute or relative file path</para>
-    /// </summary>
-    public string   LogOutput               { get => _LogOutput; set { _LogOutput = value; if (Engine.IsLoaded) SetOutput(); } }
+    /// <summary>Log destination. Use a file path, :console, :debug, :custom, or an empty string to discard output. Assignment on the active engine configuration updates the sink.</summary>
+    public string   LogOutput
+    {
+        get => _LogOutput;
+        set
+        {
+            if (Engine.IsLoaded && ReferenceEquals(Engine.Config, this)) SetOutput(value);
+            _LogOutput = value;
+        }
+    }
     string _LogOutput = "";
 
-    /// <summary>
-    /// Sets logger's level
-    /// </summary>
+    /// <summary>Verbosity of Flyleaf logging.</summary>
     public LogLevel LogLevel                { get; set; } = LogLevel.Quiet;
 
-    /// <summary>
-    /// When the output is file it will append instead of overwriting
-    /// </summary>
+    /// <summary>Appends to an existing log when opening a file sink. File rotation applies when append is disabled.</summary>
     public bool     LogAppend               { get; set; }
 
-    /// <summary>
-    /// Lines to cache before writing them to file
-    /// </summary>
+    /// <summary>Buffered line threshold for scheduling a file log flush.</summary>
     public int      LogCachedLines          { get; set; } = 20;
 
-    /// <summary>
-    /// Max filesize (in bytes) of log before starting a new log file <see cref="LogRollMaxFiles"/>
-    /// </summary>
+    /// <summary>Size threshold in bytes for rotating a file log when rotation is enabled.</summary>
     public long     LogRollMaxFileSize      { get; set; } = 10 * 1024 * 1024;
 
-    /// <summary>
-    /// Max number of log files to roll over before deleting the oldest
-    /// </summary>
+    /// <summary>Number of rotated log files to keep. Zero disables rotation.</summary>
     public long     LogRollMaxFiles         { get; set; } = 0;
 
-    /// <summary>
-    /// Sets the logger's datetime string format
-    /// </summary>
+    /// <summary>Date and time format used in log lines.</summary>
     public string   LogDateTimeFormat       { get; set; } = "HH.mm.ss.fff";
 
-    /// <summary>
-    /// <para>Required to register plugins. Make sure you provide x86 or x64 based on your project and same .NET framework.</para>
-    /// <para>:&lt;path&gt; for relative path from current folder or any below</para>
-    /// <para>&lt;path&gt; for absolute or relative path</para>
-    /// </summary>
+    /// <summary>Plugin directory loaded at startup. A leading colon searches from the application directory through its ancestors.</summary>
     public string   PluginsPath             { get; set; } = "Plugins";
 
-    /// <summary>
-    /// <para>Activates Master Thread to monitor all the players and perform the required updates</para>
-    /// <para>Required for Activity Mode, Stats &amp; Buffered Duration on Pause</para>
-    /// </summary>
+    /// <summary>Enables engine polling for player activity, statistics and paused buffering updates.</summary>
     public bool     UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; if (value && Engine.IsLoaded) Engine.StartThread(); } }
-    static bool _UIRefresh = true;
+    bool _UIRefresh = true;
 
-    /// <summary>
-    /// <para>How often should update the UI in ms (low values can cause performance issues)</para>
-    /// <para>Should UIRefreshInterval &lt; 1000ms and 1000 % UIRefreshInterval == 0 for accurate per second stats</para>
-    /// </summary>
+    /// <summary>Engine polling interval in milliseconds. Use a divisor of 1000 for accurate per-second statistics.</summary>
     public int      UIRefreshInterval       { get; set; } = 250;
 
-    /// <summary>
-    /// Keep display powered on while video is playing
-    /// </summary>
+    /// <summary>Requests that Windows keep the display powered on during playback.</summary>
     public bool     KeepDisplayActive       { get; set; } = true;
 
-    /// <summary>
-    /// Loads engine's configuration
-    /// </summary>
-    /// <param name="path">Absolute or relative path to load the configuraiton</param>
-    /// <returns></returns>
+    /// <summary>Loads process-wide settings from a JSON file and records its path.</summary>
+    /// <param name="path">Absolute or relative JSON file path.</param>
     public static EngineConfig Load(string path)
     {
         EngineConfig config = JsonSerializer.Deserialize<EngineConfig>(File.ReadAllText(path));
@@ -1070,10 +827,8 @@ public class EngineConfig
         return config;
     }
 
-    /// <summary>
-    /// Saves engine's current configuration
-    /// </summary>
-    /// <param name="path">Absolute or relative path to save the configuration</param>
+    /// <summary>Saves process-wide settings as JSON. An omitted path uses <see cref="LoadedPath"/> when available.</summary>
+    /// <param name="path">Absolute or relative JSON file path, or null to reuse <see cref="LoadedPath"/>.</param>
     public void Save(string path = null)
     {
         if (path == null)

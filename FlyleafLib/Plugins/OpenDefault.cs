@@ -1,4 +1,4 @@
-﻿using FlyleafLib.MediaFramework.MediaPlaylist;
+using FlyleafLib.MediaFramework.MediaPlaylist;
 
 namespace FlyleafLib.Plugins;
 
@@ -49,27 +49,30 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
 
 
             // Playlists (M3U, M3U8, PLS | TODO: WPL, XSPF)
-            if (ext == "m3u")// || ext == "m3u8")
+            if (ext == "m3u")
             {
-                Playlist.InputType = InputType.Web; // TBR: Can be mixed
-                Playlist.FolderBase = Path.GetTempPath();
-
-                var items = isWeb ? M3UPlaylist.ParseFromHttp(Playlist.Url) : M3UPlaylist.Parse(Playlist.Url);
-
-                foreach(var mitem in items)
+                var text = isWeb ? DownloadToString(Playlist.Url, 30000) : File.ReadAllText(Playlist.Url);
+                if (text == null) return new("Could not read the playlist.");
+                // HLS belongs to the media demuxer, even when named .m3u.
+                // Ordinary lists retain the existing library-owned playlist path.
+                if (!PlaylistFormats.IsHlsManifest(text))
                 {
-                    AddPlaylistItem(new()
+                    Playlist.InputType = InputType.Web; // TBR: Can be mixed
+                    Playlist.FolderBase = Path.GetTempPath();
+                    foreach (var mitem in M3UPlaylist.ParseFromString(text))
                     {
-                        Title       = mitem.Title,
-                        Url         = mitem.Url,
-                        DirectUrl   = mitem.Url,
-                        Referrer    = mitem.Referrer
-                    });
+                        AddPlaylistItem(new()
+                        {
+                            Title = mitem.Title,
+                            Url = mitem.Url,
+                            DirectUrl = mitem.Url,
+                            Referrer = mitem.Referrer,
+                            HTTPHeaders = mitem.UserAgent == null ? null : new() { ["User-Agent"] = mitem.UserAgent }
+                        });
+                    }
+                    Handler.OnPlaylistCompleted();
+                    return new();
                 }
-
-                Handler.OnPlaylistCompleted();
-
-                return new();
             }
             else if (ext == "pls")
             {

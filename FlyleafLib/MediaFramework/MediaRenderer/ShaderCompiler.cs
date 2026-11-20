@@ -62,6 +62,15 @@ internal static partial class ShaderCompiler
                 if (CanDebug)
                     LogDebug($"Compiling '{uniqueId}'");
 
+                // Wrap only panorama image sampling. HDR detection remains in source space.
+                if (defines?.Contains(Renderer.dPanoWrap) == true && !defines.Contains(Renderer.dHDRDetect))
+                {
+                    string sample = hlslSample.ToString();
+                    for (int texture = 1; texture <= 4; texture++)
+                        sample = sample.Replace($"Texture{texture}.Sample(Sampler,", $"PanoSample(Texture{texture},");
+                    hlslSample = sample;
+                }
+
                 Debug.Assert(PS_HEADER.Length + PS_BT2020.Length + PS_PQSpline.Length + PS_DOVI.Length + PS_MAIN.Length + PS_FOOTER.Length + Encoding.UTF8.GetMaxByteCount(hlslSample.Length) < BUFFER_SIZE);
 
                 byte[] bufferPool = ArrayPool<byte>.Shared.Rent(BUFFER_SIZE);

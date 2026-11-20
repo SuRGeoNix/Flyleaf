@@ -156,16 +156,16 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         {
             System.Windows.Point curDpi = new(e.Location.X, e.Location.Y);
             if (e.Delta > 0)
-                Player.Config.Video.ZoomIn(curDpi);
+                Player.Renderer?.ZoomIn(curDpi);
             else
-                Player.Config.Video.ZoomOut(curDpi);
+                Player.Renderer?.ZoomOut(curDpi);
         }
         else if (PanRotateOnShiftWheel && ModifierKeys.HasFlag(Keys.Shift))
         {
             if (e.Delta > 0)
-                Player.Config.Video.RotateRight();
+                Player.Renderer?.RotateRight();
             else
-                Player.Config.Video.RotateLeft();
+                Player.Renderer?.RotateLeft();
         }
     }
     private void Host_MouseMove(object sender, MouseEventArgs e)
@@ -182,10 +182,10 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         if (e.Button != MouseButtons.Left)
             return;
 
-        if (PanMoveOnCtrl && ModifierKeys.HasFlag(Keys.Control))
+        if (Player?.Renderer != null && PanMoveOnCtrl && ModifierKeys.HasFlag(Keys.Control))
         {
-            Player.Config.Video.PanXOffset = panPrevX + e.X - mouseLeftDownPoint.X;
-            Player.Config.Video.PanYOffset = panPrevY + e.Y - mouseLeftDownPoint.Y;
+            Player.Renderer.PanXOffset = panPrevX + e.X - mouseLeftDownPoint.X;
+            Player.Renderer.PanYOffset = panPrevY + e.Y - mouseLeftDownPoint.Y;
         }
         else if (DragMove && Capture && ParentForm != null && !IsFullScreen)
         {
@@ -203,8 +203,8 @@ public partial class FlyleafHost : UserControl, IHostPlayer, INotifyPropertyChan
         {
             Player.Activity.RefreshFullActive();
 
-            panPrevX = Player.Config.Video.PanXOffset;
-            panPrevY = Player.Config.Video.PanYOffset;
+            panPrevX = Player.Renderer?.PanXOffset ?? 0;
+            panPrevY = Player.Renderer?.PanYOffset ?? 0;
 
             if (ModifierKeys.HasFlag(Keys.Shift))
             {

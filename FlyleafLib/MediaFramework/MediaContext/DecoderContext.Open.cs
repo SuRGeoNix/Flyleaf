@@ -379,8 +379,16 @@ public partial class DecoderContext
             else if (session.SubtitlesStream != -1)
                 Open(VideoDemuxer.AVStreamToStream[session.SubtitlesStream]);
 
-            Config.Audio.SetDelay(session.AudioDelay);
-            Config.Subtitles.SetDelay(session.SubtitlesDelay);
+            if (player != null)
+            {
+                player.Audio.SetDelay(session.AudioDelay);
+                player.Subtitles.SetDelay(session.SubtitlesDelay);
+            }
+            else
+            {
+                AudioDecoder.Delay = session.AudioDelay;
+                SubtitlesDecoder.Delay = session.SubtitlesDelay;
+            }
 
             if (session.CurTime > 1 * (long)1000 * 10000)
                 Seek(session.CurTime / 10000);
@@ -452,9 +460,9 @@ public partial class DecoderContext
             if (!args.Success)
                 return args;
 
-            if (defaultVideo && Config.Video.Enabled)
+            if (defaultVideo && VideoEnabled)
                 args.Error = OpenSuggestedVideo(defaultAudio);
-            else if (defaultAudio && Config.Audio.Enabled)
+            else if (defaultAudio && AudioEnabled)
                 args.Error = OpenSuggestedAudio();
             
             if ((defaultVideo || defaultAudio) && AudioStream == null && VideoStream == null)
@@ -464,7 +472,7 @@ public partial class DecoderContext
                 return args;
             }
 
-            if (defaultSubtitles && Config.Subtitles.Enabled)
+            if (defaultSubtitles && SubtitlesEnabled)
             {
                 if (Playlist.Selected.ExternalSubtitlesStream != null)
                     Open(Playlist.Selected.ExternalSubtitlesStream);
@@ -472,7 +480,7 @@ public partial class DecoderContext
                     OpenSuggestedSubtitles();
             }
 
-            if (Config.Data.Enabled)
+            if (DataEnabled)
                 OpenSuggestedData();
 
             return args;
@@ -693,7 +701,7 @@ public partial class DecoderContext
                 }
 
                 // Open Audio based on new Video Stream (if not the same suggestion)
-                if (defaultAudio && stream.Type == MediaType.Video && Config.Audio.Enabled)
+                if (defaultAudio && stream.Type == MediaType.Video && AudioEnabled)
                 {
                     bool requiresChange = true;
                     SuggestAudio(out var aStream, out var aExtStream, VideoDemuxer.AudioStreams);
@@ -772,7 +780,7 @@ public partial class DecoderContext
             error = Open(stream, defaultAudio).Error;
         else if (extStream != null)
             error = Open(extStream, defaultAudio).Error;
-        else if (defaultAudio && Config.Audio.Enabled)
+        else if (defaultAudio && AudioEnabled)
             error = OpenSuggestedAudio(); // We still need audio if no video exists
 
         return error;

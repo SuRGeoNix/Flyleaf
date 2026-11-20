@@ -1,0 +1,681 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:me="clr-namespace:Flyleaf.Controls.WPF">
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="PanelControls.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <BooleanToVisibilityConverter x:Key="FlyleafME.QueueControlVisibility"/>
+
+    <Style x:Key="FlyleafME.AutoNextToggleStyle" TargetType="ToggleButton">
+        <Setter Property="Width" Value="44"/>
+        <Setter Property="Height" Value="22"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="ToolTip" Value="Auto-next"/>
+        <Setter Property="AutomationProperties.Name" Value="Auto-next"/>
+        <Setter Property="Content" Value="&#xE769;"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Track" Background="{DynamicResource FlyleafME.SurfaceBrush}"
+                            BorderBrush="{DynamicResource FlyleafME.BorderBrush}" BorderThickness="1"
+                            CornerRadius="11" Padding="1,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <Border x:Name="Thumb" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Background="{DynamicResource FlyleafME.HoverBrush}" CornerRadius="9"/>
+                            <Path x:Name="PauseIcon" Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Data="M 4,3 L 4,9 M 8,3 L 8,9" Stroke="{TemplateBinding Foreground}"
+                                  StrokeThickness="1.75" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                            <Path x:Name="PlayIcon" Grid.Column="1" Width="12" Height="12"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Data="M 4.25,2.3 L 9.8,5.5 Q 10.65,6 9.8,6.5 L 4.25,9.7 Q 3.25,10.25 3.25,9.2 L 3.25,2.8 Q 3.25,1.75 4.25,2.3 Z"
+                                  Fill="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Thumb" Property="Grid.Column" Value="1"/>
+                            <Setter TargetName="Thumb" Property="Background" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                            <Setter TargetName="PauseIcon" Property="Stroke" Value="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
+                            <Setter TargetName="PlayIcon" Property="Fill" Value="{DynamicResource FlyleafME.OnAccentBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="{DynamicResource FlyleafME.RaisedSurfaceBrush}"/></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsChecked" Value="True"><Setter Property="Content" Value="&#xE768;"/></Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="FlyleafME.InformationTextStyle" TargetType="{x:Type TextBox}">
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TextBox}">
+                    <Border x:Name="PART_ContentHost" Background="{TemplateBinding Background}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <DataTemplate x:Key="FlyleafME.InformationRowTemplate">
+        <Grid Margin="0,3" TextElement.FontSize="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="Label" Text="{Binding Label, Mode=OneWay}" Margin="0,0,10,0"
+                     Style="{StaticResource FlyleafME.InformationTextStyle}"
+                     Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
+            <TextBox x:Name="Value" Grid.Column="1" Text="{Binding Value, Mode=OneWay}"
+                     Style="{StaticResource FlyleafME.InformationTextStyle}"/>
+        </Grid>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding Label}" Value="">
+                <Setter TargetName="Label" Property="Visibility" Value="Collapsed"/>
+                <Setter TargetName="Value" Property="Grid.Column" Value="0"/>
+                <Setter TargetName="Value" Property="Grid.ColumnSpan" Value="2"/>
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <Style x:Key="FlyleafME.ButtonStyle" TargetType="{x:Type Button}">
+        <Setter Property="MinHeight" Value="34"/>
+        <Setter Property="MinWidth" Value="82"/>
+        <Setter Property="Padding" Value="15,7"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="{DynamicResource FlyleafME.RaisedSurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FlyleafME.BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" SnapsToDevicePixels="True">
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource FlyleafME.HoverBrush}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Opacity" Value="0.8"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.45"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="FlyleafME.PrimaryButtonStyle" TargetType="{x:Type Button}">
+        <Setter Property="MinHeight" Value="34"/>
+        <Setter Property="MinWidth" Value="104"/>
+        <Setter Property="Padding" Value="16,7"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.OnAccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" SnapsToDevicePixels="True">
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource FlyleafME.AccentHoverBrush}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Opacity" Value="0.8"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.45"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="FlyleafME.OverlayIconButtonStyle" TargetType="{x:Type Button}">
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Margin" Value="1,0"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.OverlayTextBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" CornerRadius="5">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource FlyleafME.OverlayHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource FlyleafME.OverlayPressedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FlyleafME.OverlayIconToggleStyle" TargetType="{x:Type ToggleButton}">
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Margin" Value="1,0"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.OverlayTextBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                    <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" CornerRadius="5">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource FlyleafME.OverlayHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource FlyleafME.OverlayPressedBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource FlyleafME.OverlayPressedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+
+    <!-- Reusable semantic styles; controls keep normal WPF binding and templating behavior. -->
+    <Style x:Key="FlyleafME.PanelStyle" TargetType="{x:Type Border}">
+        <Setter Property="Background" Value="{DynamicResource FlyleafME.SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FlyleafME.BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="12"/>
+    </Style>
+
+    <Style x:Key="FlyleafME.HeadingTextStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <Style x:Key="FlyleafME.SecondaryTextStyle" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <Style x:Key="FlyleafME.InputStyle" TargetType="{x:Type TextBox}">
+        <Setter Property="Background" Value="{DynamicResource FlyleafME.RaisedSurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FlyleafME.BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="MinHeight" Value="30"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TextBox}">
+                    <Border x:Name="InputBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="PART_ContentHost"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="InputBorder" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                        </Trigger>
+                        <Trigger Property="Validation.HasError" Value="True">
+                            <Setter TargetName="InputBorder" Property="BorderBrush" Value="{DynamicResource FlyleafME.ErrorBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.5"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="FlyleafME.CheckBoxStyle" TargetType="{x:Type CheckBox}">
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type CheckBox}">
+                    <Grid Background="Transparent">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border x:Name="Box" Width="16" Height="16" VerticalAlignment="Center" CornerRadius="3"
+                                Background="{DynamicResource FlyleafME.RaisedSurfaceBrush}" BorderBrush="{DynamicResource FlyleafME.BorderBrush}" BorderThickness="1">
+                            <Path x:Name="Tick" Data="M 3,7 L 6,10 L 12,3" Stroke="{DynamicResource FlyleafME.OnAccentBrush}" StrokeThickness="1.8" Visibility="Collapsed"/>
+                        </Border>
+                        <ContentPresenter Grid.Column="1" Margin="7,0,0,0" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
+                        <Rectangle x:Name="FocusRing" Grid.ColumnSpan="2" RadiusX="3" RadiusY="3" Stroke="{DynamicResource FlyleafME.AccentBrush}" StrokeDashArray="2,2" Visibility="Collapsed" Margin="-3" IsHitTestVisible="False"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                            <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="{x:Null}">
+                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                            <Setter TargetName="Tick" Property="Data" Value="M 3,7 L 12,7"/>
+                            <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusRing" Property="Visibility" Value="Visible"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FlyleafME.ToolTipStyle" TargetType="{x:Type ToolTip}">
+        <Setter Property="Background" Value="{DynamicResource FlyleafME.RaisedSurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FlyleafME.BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,5"/>
+    </Style>
+
+    <Style x:Key="FlyleafME.ThemeContextMenuStyle" TargetType="{x:Type ContextMenu}">
+        <Setter Property="Background" Value="{DynamicResource FlyleafME.SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FlyleafME.BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ContextMenu}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}" CornerRadius="8" SnapsToDevicePixels="True">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                      CanContentScroll="True" Focusable="False">
+                            <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FlyleafME.ThemeMenuItemStyle" TargetType="{x:Type MenuItem}">
+        <Setter Property="ItemContainerStyle" Value="{DynamicResource FlyleafME.ThemeMenuItemStyle}"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+        <Setter Property="MinWidth" Value="155"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type MenuItem}">
+                    <Grid>
+                    <Border x:Name="MenuBackground" Background="Transparent" CornerRadius="4" Padding="9,7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ContentPresenter Grid.Column="0" ContentSource="Header"
+                                              VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                            <TextBlock x:Name="Gesture" Grid.Column="1" Text="{TemplateBinding InputGestureText}"
+                                       Margin="16,0,0,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
+                            <TextBlock x:Name="Checkmark" Grid.Column="2" Text="&#xE73E;" Margin="10,0,2,0"
+                                       FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                       Foreground="{DynamicResource FlyleafME.AccentBrush}"
+                                       VerticalAlignment="Center" Visibility="Collapsed"/>
+                            <TextBlock x:Name="SubmenuArrow" Grid.Column="3" Text="›" FontSize="17" Margin="12,0,0,0"
+                                       Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        </Grid>
+                    </Border>
+                    <Popup x:Name="PART_Popup" IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                           Placement="Right" PlacementTarget="{Binding ElementName=MenuBackground}"
+                           HorizontalOffset="-2" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                        <Border Background="{DynamicResource FlyleafME.SurfaceBrush}" BorderBrush="{DynamicResource FlyleafME.BorderBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="4">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="True"
+                                          MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}" Focusable="False">
+                                <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="InputGestureText" Value="">
+                            <Setter TargetName="Gesture" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="HasItems" Value="True">
+                            <Setter TargetName="SubmenuArrow" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsSubmenuOpen" Value="True">
+                            <Setter TargetName="MenuBackground" Property="Background" Value="{DynamicResource FlyleafME.HoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="MenuBackground" Property="Background" Value="{DynamicResource FlyleafME.HoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Checkmark" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FlyleafME.ThemeMenuSeparatorStyle" TargetType="{x:Type Separator}">
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Margin" Value="9,5"/>
+        <Setter Property="Background" Value="{DynamicResource FlyleafME.BorderBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Separator}">
+                    <Border Background="{TemplateBinding Background}" Height="1"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- All slots are rendered inside FlyleafHost's existing overlay window.
+         Top/bottom/side slots position UI; none of them resize the video surface. -->
+    <Style TargetType="{x:Type me:FlyleafOverlayLayout}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type me:FlyleafOverlayLayout}">
+                    <Grid Background="{x:Null}" ClipToBounds="True">
+                        <!-- Center overlays occupy the entire viewport independently of the bars. -->
+                        <ContentPresenter x:Name="CenterSlot" Panel.ZIndex="0"
+                                          Content="{TemplateBinding CenterContent}"/>
+
+                        <Grid Panel.ZIndex="1" Background="{x:Null}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <ContentPresenter x:Name="TopSlot" Grid.Row="0"
+                                              Content="{TemplateBinding TopContent}"/>
+
+                            <Grid Grid.Row="1" Background="{x:Null}">
+                                <ContentPresenter x:Name="LeftSlot"
+                                                  Content="{TemplateBinding LeftContent}"
+                                                  HorizontalAlignment="Left" VerticalAlignment="Stretch"/>
+                                <ContentPresenter x:Name="RightSlot"
+                                                  Content="{TemplateBinding RightContent}"
+                                                  HorizontalAlignment="Right" VerticalAlignment="Stretch"/>
+                            </Grid>
+
+                            <ContentPresenter x:Name="BottomSlot" Grid.Row="2"
+                                              Content="{TemplateBinding BottomContent}"/>
+                        </Grid>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="TopContent" Value="{x:Null}">
+                            <Setter TargetName="TopSlot" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="CenterContent" Value="{x:Null}">
+                            <Setter TargetName="CenterSlot" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="BottomContent" Value="{x:Null}">
+                            <Setter TargetName="BottomSlot" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="LeftContent" Value="{x:Null}">
+                            <Setter TargetName="LeftSlot" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="RightContent" Value="{x:Null}">
+                            <Setter TargetName="RightSlot" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+
+    <!-- Two compact rows: timeline, then stable transport/source/utility groups. -->
+    <Style x:Key="FlyleafME.PlaybackIconButtonStyle" TargetType="Button" BasedOn="{StaticResource FlyleafME.OverlayIconButtonStyle}">
+        <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/>
+        <Setter Property="FontSize" Value="14"/><Setter Property="Focusable" Value="False"/>
+        <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}}"/>
+        <Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.3"/></Trigger></Style.Triggers>
+    </Style>
+    <Style x:Key="FlyleafME.PlaybackTagButtonStyle" TargetType="Button" BasedOn="{StaticResource FlyleafME.PlaybackIconButtonStyle}">
+        <Setter Property="Width" Value="Auto"/><Setter Property="MinWidth" Value="28"/>
+        <Setter Property="Padding" Value="6,0"/><Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+            <Border x:Name="Plate" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Plate" Property="Background" Value="{DynamicResource FlyleafME.OverlayHoverBrush}"/></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="Plate" Property="Background" Value="{DynamicResource FlyleafME.OverlayPressedBrush}"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.3"/></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="FlyleafME.PlaybackVolumeStyle" TargetType="Slider">
+        <Setter Property="Height" Value="28"/><Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsMoveToPointEnabled" Value="True"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider">
+            <Grid Background="Transparent">
+                <Track x:Name="PART_Track" VerticalAlignment="Center" Height="20" IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False" Height="3" VerticalAlignment="Center">
+                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="{DynamicResource FlyleafME.AccentBrush}" CornerRadius="2"/></ControlTemplate></RepeatButton.Template>
+                    </RepeatButton></Track.DecreaseRepeatButton>
+                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False" Height="3" VerticalAlignment="Center">
+                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="{DynamicResource FlyleafME.OverlayBorderBrush}" CornerRadius="2"/></ControlTemplate></RepeatButton.Template>
+                    </RepeatButton></Track.IncreaseRepeatButton>
+                    <Track.Thumb><Thumb Width="10" Height="10" Cursor="Hand" VerticalAlignment="Center">
+                        <Thumb.Template><ControlTemplate TargetType="Thumb"><Ellipse Fill="{DynamicResource FlyleafME.OverlayTextBrush}"/></ControlTemplate></Thumb.Template>
+                    </Thumb></Track.Thumb>
+                </Track>
+            </Grid>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="FlyleafME.PlaybackVerticalVolumeStyle" TargetType="Slider">
+        <Setter Property="Width" Value="28"/><Setter Property="Height" Value="110"/>
+        <Setter Property="Focusable" Value="False"/><Setter Property="IsMoveToPointEnabled" Value="True"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider">
+            <Grid Width="28" Height="110" Background="Transparent">
+                <Track x:Name="PART_Track" Orientation="Vertical" HorizontalAlignment="Center" Width="20" IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False" Width="3">
+                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="{DynamicResource FlyleafME.AccentBrush}" CornerRadius="2"/></ControlTemplate></RepeatButton.Template>
+                    </RepeatButton></Track.DecreaseRepeatButton>
+                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False" Width="3">
+                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="{DynamicResource FlyleafME.OverlayBorderBrush}" CornerRadius="2"/></ControlTemplate></RepeatButton.Template>
+                    </RepeatButton></Track.IncreaseRepeatButton>
+                    <Track.Thumb><Thumb Width="10" Height="10" Cursor="Hand" HorizontalAlignment="Center">
+                        <Thumb.Template><ControlTemplate TargetType="Thumb"><Ellipse Fill="{DynamicResource FlyleafME.OverlayTextBrush}"/></ControlTemplate></Thumb.Template>
+                    </Thumb></Track.Thumb>
+                </Track>
+            </Grid>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="me:FlyleafPlaybackBar">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="me:FlyleafPlaybackBar">
+            <Border x:Name="PART_Surface" Margin="8,0,8,8" Padding="10,5,10,5" Background="{DynamicResource FlyleafME.OverlayBrush}"
+                    BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}" BorderThickness="1" CornerRadius="8" SnapsToDevicePixels="True">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="24"/><RowDefinition Height="36"/></Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="PART_CurrentTime" FontFamily="Consolas" FontSize="11" Margin="0,0,10,0"
+                                   Foreground="{DynamicResource FlyleafME.OverlayTextBrush}" VerticalAlignment="Center"
+                                   Text="{Binding CurrentTimeText, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        <me:FlyleafSeekBar x:Name="PART_Seek" Grid.Column="1" Player="{Binding Player, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekWhileDragging="{Binding Options.SeekWhileDragging, RelativeSource={RelativeSource TemplatedParent}}"
+                            IsEnabled="{Binding CanSeek, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="PART_Duration" Grid.Column="2" FontFamily="Consolas" FontSize="11" Margin="10,0,0,0"
+                                   Foreground="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}" VerticalAlignment="Center"
+                                   Text="{Binding DurationText, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers><DataTrigger Binding="{Binding IsLive, RelativeSource={RelativeSource TemplatedParent}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                            </Style></StackPanel.Style>
+                            <Ellipse Width="5" Height="5" Fill="#F26C67" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="LIVE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"/>
+                        </StackPanel>
+                    </Grid>
+                    <Grid x:Name="PART_ControlsRow" Grid.Row="1" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel x:Name="PART_TransportGroup" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <Button x:Name="PART_Previous" Content="&#xE892;" ToolTip="Previous item" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    Visibility="{Binding ShowItemNavigation, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource FlyleafME.QueueControlVisibility}}"
+                                    Command="{Binding PreviousCommand, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding HasPrevious, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Button x:Name="PART_Play" Width="34" Height="34" Margin="2,0" FontSize="16" ToolTip="Play / Pause"
+                                    Command="{Binding Player.Commands.TogglePlayPause, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding CanPlay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Button.Style><Style TargetType="Button" BasedOn="{StaticResource FlyleafME.PlaybackIconButtonStyle}">
+                                    <Setter Property="Background" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource FlyleafME.OnAccentBrush}"/>
+                                    <Setter Property="Content" Value="&#xE768;"/>
+                                    <Style.Triggers><DataTrigger Binding="{Binding IsPlaying, RelativeSource={RelativeSource TemplatedParent}}" Value="True"><Setter Property="Content" Value="&#xE769;"/></DataTrigger></Style.Triggers>
+                                </Style></Button.Style>
+                            </Button>
+                            <Button x:Name="PART_Next" Content="&#xE893;" ToolTip="Next item" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    Visibility="{Binding ShowItemNavigation, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource FlyleafME.QueueControlVisibility}}"
+                                    Command="{Binding NextCommand, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding HasNext, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Button x:Name="PART_Stop" Content="&#xE71A;" ToolTip="Stop" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    Command="{Binding Player.Commands.Stop, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding CanStop, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        </StackPanel>
+                        <StackPanel x:Name="PART_SourceGroup" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
+                            <Button x:Name="PART_Video" ToolTip="Video format and streams" Style="{StaticResource FlyleafME.PlaybackTagButtonStyle}" IsEnabled="{Binding HasVideo, RelativeSource={RelativeSource TemplatedParent}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE714;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="PART_VideoDetail" Text="{Binding VideoLabel, RelativeSource={RelativeSource TemplatedParent}}" MaxWidth="144" TextTrimming="CharacterEllipsis" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="PART_Audio" ToolTip="Audio streams" Style="{StaticResource FlyleafME.PlaybackTagButtonStyle}" IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="PART_AudioDetail" Text="{Binding AudioLabel, RelativeSource={RelativeSource TemplatedParent}}" MaxWidth="86" TextTrimming="CharacterEllipsis" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="PART_Subtitles" ToolTip="Subtitle streams and appearance" Style="{StaticResource FlyleafME.PlaybackTagButtonStyle}" IsEnabled="{Binding CanPlay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="CC" FontFamily="Segoe UI" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="PART_SubtitleDetail" Text="{Binding SubtitlesLabel, RelativeSource={RelativeSource TemplatedParent}}" MaxWidth="38" TextTrimming="CharacterEllipsis" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel x:Name="PART_UtilityGroup" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <Button x:Name="PART_Speed" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    ToolTip="{Binding SpeedToolTip, RelativeSource={RelativeSource TemplatedParent}}" AutomationProperties.Name="Playback speed"
+                                    IsEnabled="{Binding CanPlay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Grid Width="18" Height="18">
+                                    <Path Data="M 4.25,14.75 A 7,7 0 1 1 13.75,14.75 M 4.5,10 L 5.5,10 M 12.5,10 L 13.5,10"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                    <Path Data="M 9,11 L 9,5.75" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.55" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                                        <Path.RenderTransform>
+                                            <RotateTransform CenterX="9" CenterY="11" Angle="{Binding SpeedNeedleAngle, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                        </Path.RenderTransform>
+                                    </Path>
+                                    <Ellipse Width="2.75" Height="2.75" HorizontalAlignment="Center" VerticalAlignment="Top"
+                                             Margin="0,9.625,0,0" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Grid>
+                            </Button>
+                            <ToggleButton x:Name="PART_AutoNext" Margin="0,0,6,0"
+                                          Style="{StaticResource FlyleafME.AutoNextToggleStyle}"
+                                          Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"
+                                          IsChecked="{Binding QueueSource.AutoAdvance, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                          Visibility="{Binding ShowAutoNext, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource FlyleafME.QueueControlVisibility}}"/>
+                            <Button x:Name="PART_Volume" ToolTip="{Binding VolumeToolTip, RelativeSource={RelativeSource TemplatedParent}}" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}" IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Slider x:Name="PART_HorizontalVolume" Width="78" Margin="4,0,6,0" Style="{StaticResource FlyleafME.PlaybackVolumeStyle}"
+                                    Minimum="0" Maximum="{Binding Player.Config.Audio.VolumeMax, RelativeSource={RelativeSource TemplatedParent}}"
+                                    Value="{Binding Player.Audio.Volume, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Button x:Name="PART_Playlist" ToolTip="Queue" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    IsEnabled="{Binding CanOpenQueue, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Grid Width="18" Height="18">
+                                    <Path Data="M 8.5,5 L 15.5,5 M 8.5,9 L 15.5,9 M 8.5,13 L 15.5,13"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                    <Path Data="M 2.5,6.5 L 6.5,9 L 2.5,11.5 Z"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="PART_Settings" Content="&#xE713;" ToolTip="Settings" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}" IsEnabled="{Binding CanOpenSettings, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Button x:Name="PART_More" Content="&#xE712;" ToolTip="More playback options" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"/>
+                            <Button x:Name="PART_Fullscreen" Content="&#xE740;" ToolTip="Fullscreen / normal" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    Command="{Binding Player.Commands.ToggleFullScreen, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        </StackPanel>
+                        <Popup x:Name="PART_VolumePopup" Grid.Column="2" Placement="Top" VerticalOffset="-8" AllowsTransparency="True" StaysOpen="False" PopupAnimation="Fade">
+                            <Border Padding="8,10" CornerRadius="7" DataContext="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                                    Background="{DynamicResource FlyleafME.OverlayBrush}" BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}" BorderThickness="1">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Volume" FontSize="10" Margin="0,0,0,6" Foreground="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}" HorizontalAlignment="Center"/>
+                                    <Slider Orientation="Vertical" Style="{StaticResource FlyleafME.PlaybackVerticalVolumeStyle}" Minimum="0" Maximum="{Binding Player.Config.Audio.VolumeMax}"
+                                            Value="{Binding Player.Audio.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Button Content="{Binding VolumeIcon}" ToolTip="Mute / Unmute" Margin="0,6,0,0" Command="{Binding Player.Commands.ToggleMute}" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"/>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </Grid>
+            </Border>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+</ResourceDictionary>

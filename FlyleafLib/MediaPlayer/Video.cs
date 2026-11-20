@@ -5,6 +5,19 @@ namespace FlyleafLib.MediaPlayer;
 
 public class Video : NotifyPropertyChanged
 {
+    /// <summary>Whether video processing is enabled for this player.</summary>
+    public bool Enabled
+    {
+        get => decoder.videoEnabled;
+        set
+        {
+            if (!Set(ref decoder.videoEnabled, value)) return;
+            if (value) Enable(); else Disable();
+        }
+    }
+    internal void SetEnabled(bool enabled) => Set(ref decoder.videoEnabled, enabled, true, nameof(Enabled));
+    public void Toggle() => Enabled = !Enabled;
+
     /* [TODO]
      * 
      * Consider replacing with VideoStream and everyone (player/renderer) will update values there* (Update UI or event by groups -fill demux, fill codec/frame-)
@@ -45,14 +58,14 @@ public class Video : NotifyPropertyChanged
     internal long   _FramesTotal, framesTotal;
 
     /// <summary>
-    /// DWM Total Frames Presented (requires Config.Player.Stats and Engine.Config.UIRefresh)
+    /// DWM Total Frames Presented (requires Player.Stats and Engine.Config.UIRefresh)
     /// Notes: For better count accuracy should avoid Alt+Tab and Minimize (resets per input or seek)
     /// </summary>
     public uint         FramesDisplayed { get => _FramesDisplayed;   internal set => Set(ref _FramesDisplayed, value); }
     internal uint   _FramesDisplayed;
 
     /// <summary>
-    /// DWM Total Frames Dropped (requires Config.Player.Stats and Engine.Config.UIRefresh)
+    /// DWM Total Frames Dropped (requires Player.Stats and Engine.Config.UIRefresh)
     /// Notes: For better count accuracy should avoid Alt+Tab and Minimize (resets per input or seek)
     /// </summary>
     public uint         FramesDropped   { get => _FramesDropped;    internal set => Set(ref _FramesDropped, value); }
@@ -73,9 +86,9 @@ public class Video : NotifyPropertyChanged
     public string       PixelFormat     { get => pixelFormat;       internal set => Set(ref _PixelFormat, value); }
     internal string _PixelFormat, pixelFormat;
 
-    public bool         VideoAcceleration
-                                        { get => videoAcceleration; internal set => Set(ref _VideoAcceleration, value); }
-    internal bool   _VideoAcceleration, videoAcceleration;
+    public bool         HWAcceleration
+                                        { get => hwAcceleration; internal set => Set(ref _HWAcceleration, value); }
+    internal bool   _HWAcceleration, hwAcceleration;
 
     public string       ColorFormat     { get => colorFormat;       internal set => Set(ref _ColorFormat, value); }
     string          _ColorFormat, colorFormat;
@@ -98,14 +111,14 @@ public class Video : NotifyPropertyChanged
 
         uiAction = () =>
         {
-            StreamIndex         = streamIndex;
-            IsOpened            = isOpened;
-            Codec               = codec;
-            FramesTotal         = framesTotal;
-            FPS                 = fps;
-            PixelFormat         = pixelFormat;
-            VideoAcceleration   = videoAcceleration;
-            ColorFormat         = colorFormat;
+            StreamIndex     = streamIndex;
+            IsOpened        = isOpened;
+            Codec           = codec;
+            FramesTotal     = framesTotal;
+            FPS             = fps;
+            PixelFormat     = pixelFormat;
+            HWAcceleration  = hwAcceleration;
+            ColorFormat     = colorFormat;
         };
     }
 
@@ -116,7 +129,7 @@ public class Video : NotifyPropertyChanged
         fps                 = 0;
         pixelFormat         = null;
         framesTotal         = 0;
-        videoAcceleration   = false;
+        hwAcceleration   = false;
         isOpened            = false;
         colorFormat         = "";
 
@@ -140,8 +153,8 @@ public class Video : NotifyPropertyChanged
         fps         = decoder.VideoStream.FPS;
         pixelFormat = decoder.VideoStream.PixelFormatStr;
         framesTotal = decoder.VideoStream.TotalFrames;
-        videoAcceleration
-                    = player.VideoDecoder.VideoAccelerated;
+        hwAcceleration
+                    = player.VideoDecoder.HWAccelerated;
         colorFormat = $"{decoder.VideoStream.ColorSpace}\r\n{decoder.VideoStream.ColorTransfer}\r\n{decoder.VideoStream.ColorRange}";
         isOpened    =!player.VideoDecoder.Disposed;
 
@@ -183,7 +196,7 @@ public class Video : NotifyPropertyChanged
 
     internal void Enable()
     {
-        if (player.VideoDemuxer.Disposed || Config.Player.Usage == Usage.Audio)
+        if (player.VideoDemuxer.Disposed || player.Usage == Usage.Audio)
             return;
 
         bool wasPlaying = player.IsPlaying;
@@ -192,7 +205,7 @@ public class Video : NotifyPropertyChanged
         decoder.OpenSuggestedVideo();
         player.ReSync(decoder.VideoStream, (int) (player.CurTime / 10000), true);
 
-        if (wasPlaying || Config.Player.AutoPlay)
+        if (wasPlaying || Config.Playback.AutoPlay)
             player.Play();
     }
     internal void Disable()
@@ -218,7 +231,7 @@ public class Video : NotifyPropertyChanged
         Reset();
         player.UIAll();
 
-        if (wasPlaying || Config.Player.AutoPlay)
+        if (wasPlaying || Config.Playback.AutoPlay)
             player.Play();
     }
 }

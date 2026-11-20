@@ -18,7 +18,7 @@ unsafe partial class Player
          *  we currently use isOpened only (as two statuses)
          */
 
-        bool gotAudio       = !Audio.IsOpened || Config.Player.MaxLatency != 0;
+        bool gotAudio       = !Audio.IsOpened || Config.Playback.MaxLatency != 0;
         bool gotVideo       = false;
         bool shouldStop     = false;
         bool showOneFrame   = true;
@@ -32,7 +32,7 @@ unsafe partial class Player
         VideoDemuxer.Start();
         VideoDecoder.Start();
 
-        if (Audio.isOpened && Config.Audio.Enabled)
+        if (Audio.isOpened && Audio.Enabled)
         {
             if (AudioDecoder.OnVideoDemuxer)
                 AudioDecoder.Start();
@@ -43,7 +43,7 @@ unsafe partial class Player
             }
         }
 
-        if (Subtitles.isOpened && Config.Subtitles.Enabled)
+        if (Subtitles.isOpened && Subtitles.Enabled)
         {
             lock (lockSubtitles)
             if (SubtitlesDecoder.OnVideoDemuxer)
@@ -55,7 +55,7 @@ unsafe partial class Player
             }
         }
 
-        if (Data.isOpened && Config.Data.Enabled)
+        if (Data.isOpened && Data.Enabled)
         {
             if (DataDecoder.OnVideoDemuxer)
                 DataDecoder.Start();
@@ -68,7 +68,7 @@ unsafe partial class Player
 
         vFrame = null; aFrame = null; sFrame = null; dFrame = null;
 
-        if (Config.Player.MaxLatency != 0)
+        if (Config.Playback.MaxLatency != 0)
         {
             lastSpeedChangeTicks = DateTime.UtcNow.Ticks;
             showOneFrame = false;
@@ -173,7 +173,7 @@ unsafe partial class Player
         // Negative Buffer Duration during codec change (we don't dipose the cached frames or we receive them later) *skip waiting for now
         var bufDuration = GetBufferedDuration();
         if (bufDuration >= 0)
-            while (seeks.IsEmpty && bufDuration < Config.Player.MinBufferDuration && status == Status.Playing && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull)
+            while (seeks.IsEmpty && bufDuration < Config.Playback.MinBufferDuration && status == Status.Playing && VideoDemuxer.IsRunning && VideoDemuxer.Status != MediaFramework.Status.QueueFull)
             {
                 Thread.Sleep(20);
                 bufDuration = GetBufferedDuration();
@@ -208,7 +208,7 @@ unsafe partial class Player
 
         while (status == Status.Playing)
         {
-            // Seeks and then requiresBuffering | TBR: missing SeekCompleted callback?
+            // Seeks and then requiresBuffering.
             lock (seeks)
             {
                 seeks.TryPop(out seekData);
@@ -218,6 +218,7 @@ unsafe partial class Player
 
             if (seekData != null)
             {
+                SeekStarted?.Invoke(this, seekData.ms);
                 Renderer.RenderIdleStart();
                 requiresBuffering = true;
                 ResetFrameStats();
@@ -229,16 +230,23 @@ unsafe partial class Player
                     Subtitles.ClearSubsText();
                 }
 
-                lock (stepSeekLock)
+                bool seekSucceeded = false;
+                try
                 {
-                    decoder.PauseDecoders(); // TBR: Required to avoid gettings packets between Seek and ShowFrame which causes resync issues
-                    StopScreamerVASDAudio();
-
-                    if (decoder.Seek(seekData.accurate ? Math.Max(0, seekData.ms - 3000) : seekData.ms, seekData.forward, !seekData.accurate) < 0) // Consider using GetVideoFrame with no timestamp (any) to ensure keyframe packet for faster seek in HEVC
-                        Log.Warn("[V] Seek Failed");
-                    else if (seekData.accurate)
-                        decoder.GetVideoFrame(seekData.ms * (long)10000);
+                    lock (stepSeekLock)
+                    {
+                        decoder.PauseDecoders(); // Avoid packets between seek and frame retrieval.
+                        StopScreamerVASDAudio();
+                        int seekResult = decoder.Seek(seekData.accurate ? Math.Max(0, seekData.ms - 3000) : seekData.ms, seekData.forward, !seekData.accurate);
+                        if (seekResult < 0) Log.Warn("[V] Seek Failed");
+                        else
+                        {
+                            if (seekData.accurate) decoder.GetVideoFrame(seekData.ms * (long)10000);
+                            seekSucceeded = true;
+                        }
+                    }
                 }
+                finally { SeekCompleted?.Invoke(this, seekSucceeded ? seekData.ms : -1); }
             }
 
             // Ensures we have rendered vFrame ready for present (startTicks/sw)
@@ -246,7 +254,7 @@ unsafe partial class Player
             {
                 Renderer.RenderIdleStart();
 
-                if (Config.Player.Stats && framesDisplayedDwmEnd > 0)
+                if (Stats && framesDisplayedDwmEnd > 0)
                 {
                     framesDisplayedDwmEnd   = Renderer.SwapChain.GetFrameStatistics().PresentCount - framesDisplayedDwmStart;
                     framesDisplayedDwm     += framesDisplayedDwmEnd;
@@ -286,7 +294,7 @@ unsafe partial class Player
                     continue;
                 }
 
-                if (Config.Player.Stats)
+                if (Stats)
                     framesDisplayedDwmStart = Renderer.SwapChain.GetFrameStatistics().PresentCount;
 
                 startTicks = vFrame.Timestamp;
@@ -332,7 +340,7 @@ unsafe partial class Player
                 secondField = false;
                 framesFailed++;
 
-                if (vDistanceMs < -50)// || GetBufferedDuration() < Config.Player.MinBufferDuration / 2)
+                if (vDistanceMs < -50)// || GetBufferedDuration() < Config.Playback.MinBufferDuration / 2)
                 {
                     requiresBuffering = true;
                     continue;
@@ -414,7 +422,7 @@ unsafe partial class Player
             else
                 refreshed = false;
 
-            if (Config.Player.MaxLatency != 0)
+            if (Config.Playback.MaxLatency != 0)
                 CheckLatency();
 
             if (Renderer.FieldType != VideoFrameFormat.Progressive && Config.Video.DoubleRate && !secondField)
@@ -534,7 +542,7 @@ unsafe partial class Player
         Renderer.RenderIdleStart(true);  // TBR: We force re-render of last frame as we are not sure if we actually presented (keep track?)
         StopScreamerVASDAudio();
 
-        if (Config.Player.Stats)
+        if (Stats)
         {
             Thread.Sleep(15); // wait for last present
             framesDisplayedDwmEnd   = SafeSubstract(Renderer.SwapChain.GetFrameStatistics().PresentCount, framesDisplayedDwmStart);
@@ -558,15 +566,15 @@ unsafe partial class Player
 
         if (CanDebug) Log.Debug($"[Latency {curLatency/10000}ms] Frames: {vFrames.Count} Packets: {vPackets.Count} Speed: {speed}");
 
-        if (curLatency <= Config.Player.MinLatency) // We've reached the down limit (back to speed x1)
+        if (curLatency <= Config.Playback.MinLatency) // We've reached the down limit (back to speed x1)
         {
             ChangeSpeedWithoutBuffering(1, curLatency);
             return;
         }
-        else if (curLatency < Config.Player.MaxLatency)
+        else if (curLatency < Config.Playback.MaxLatency)
             return;
 
-        var newSpeed = Math.Max(Math.Round((double)curLatency / Config.Player.MaxLatency, 1, MidpointRounding.ToPositiveInfinity), 1.1);
+        var newSpeed = Math.Max(Math.Round((double)curLatency / Config.Playback.MaxLatency, 1, MidpointRounding.ToPositiveInfinity), 1.1);
 
         if (newSpeed > 4) // TBR: dispose only as much as required to avoid rebuffering
         {
@@ -586,7 +594,7 @@ unsafe partial class Player
 
         long curTicks = DateTime.UtcNow.Ticks;
 
-        if (newSpeed != 1 && curTicks - lastSpeedChangeTicks < Config.Player.LatencySpeedChangeInterval)
+        if (newSpeed != 1 && curTicks - lastSpeedChangeTicks < Config.Playback.LatencySpeedChangeInterval)
             return;
 
         lastSpeedChangeTicks = curTicks;
@@ -636,7 +644,7 @@ unsafe partial class Player
             {
                 if (bufferTicks > MIN_PLAY_BUFFER)      // Play Buffer has enough samples
                     Thread.Sleep(10);
-                else if (bufferTicks < 3_0000 && Config.Player.MaxLatency == 0) // Low Play Buffer (risk of using latency on next buffer submit)
+                else if (bufferTicks < 3_0000 && Config.Playback.MaxLatency == 0) // Low Play Buffer (risk of using latency on next buffer submit)
                     shouldResync = true;
                 else if (bufferTicks <= MIN_PLAY_BUFFER)// Re-filling an already filled buffer | We consider continues (no waitTicks check) however desyncMs will catch it
                 {
@@ -789,7 +797,7 @@ unsafe partial class Player
     uint showFrameCount, framesFailed, framesDisplayed, framesDisplayedDwm, framesDisplayedDwmStart, framesDisplayedDwmEnd;
     internal void ResetFrameStats()
     {
-        if (Config.Player.Stats)
+        if (Stats)
         {
             /*Video.fpsCurrent = */showFrameCount = framesFailed = framesDisplayed = framesDisplayedDwm = framesDisplayedDwmEnd = 0;
             UI(() => /*Video.FPSCurrent = */Video.FramesDropped = Video.FramesDisplayed = 0);

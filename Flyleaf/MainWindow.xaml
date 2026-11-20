@@ -1,0 +1,132 @@
+﻿<Window x:Class="Flyleaf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:me="clr-namespace:Flyleaf.Controls.WPF;assembly=FlyleafME"
+        Title="Flyleaf" Width="900" Height="560"
+        MinWidth="404" MinHeight="360"
+        WindowStyle="None" ResizeMode="CanResize" AllowsTransparency="False"
+        FontFamily="Segoe UI" FontSize="13"
+        Background="Black"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        DpiChanged="Window_DpiChanged" StateChanged="Window_StateChanged" Closed="Window_Closed">
+
+    <Grid x:Name="WindowLayout">
+    <me:FlyleafME x:Name="MediaElement" Margin="2" Player="{Binding Player}"
+                  IsAttached="True" KeepRatioOnResize="False"
+                  AttachedDragMove="BothOwner" AttachedResize="None"
+                  KeyBindings="Both" ToggleFullScreenOnDoubleClick="Both">
+        <me:FlyleafME.HeaderContent>
+                        <Border x:Name="HeaderBar" Height="46"
+                                Background="{DynamicResource FlyleafME.OverlayBrush}"
+                                BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}" BorderThickness="0,0,0,1">
+                            <Grid Margin="8,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Grid Grid.Column="0" Background="Transparent" ClipToBounds="True"
+                                      MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <me:FlyleafLogo Grid.Column="0" Width="28" Height="28" Margin="6,0,10,0"/>
+                                    <TextBlock Grid.Column="1" Text="Flyleaf" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <Border Grid.Column="2" Width="1" Height="18" Margin="14,0" Opacity="0.5"
+                                            Background="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}"/>
+                                    <TextBlock Grid.Column="3" FontSize="12" Margin="0,0,12,0"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}"
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="{Binding ElementName=MediaElement, Path=Queue.CurrentTitle}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ElementName=MediaElement, Path=Queue.CurrentTitle}" Value="{x:Null}">
+                                                        <Setter Property="Text" Value="{Binding Player.Playlist.Selected.Title}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel x:Name="PlayerActions" Orientation="Horizontal">
+                                        <Button x:Name="ThemeButton" Content="&#xE790;" ToolTip="Switch theme (right-click for options)"
+                                                Click="ToggleTheme_Click" Foreground="{DynamicResource FlyleafME.AccentBrush}"
+                                                Style="{StaticResource FlyleafME.OverlayIconButtonStyle}">
+                                            <Button.ContextMenu>
+                                                <ContextMenu Style="{StaticResource FlyleafME.ThemeContextMenuStyle}">
+                                                    <MenuItem x:Name="DarkThemeMenuItem" Header="Dark" Tag="Dark" IsCheckable="True"
+                                                              Style="{StaticResource FlyleafME.ThemeMenuItemStyle}" Click="ThemeMenu_Click"/>
+                                                    <MenuItem x:Name="LightThemeMenuItem" Header="Light" Tag="Light" IsCheckable="True"
+                                                              Style="{StaticResource FlyleafME.ThemeMenuItemStyle}" Click="ThemeMenu_Click"/>
+                                                    <MenuItem x:Name="SystemThemeMenuItem" Header="Follow Windows" Tag="System" IsCheckable="True"
+                                                              Style="{StaticResource FlyleafME.ThemeMenuItemStyle}" Click="ThemeMenu_Click"/>
+                                                    <Separator Style="{StaticResource FlyleafME.ThemeMenuSeparatorStyle}"/>
+                                                    <MenuItem x:Name="AccentMenu" Header="Accent color"
+                                                              Style="{StaticResource FlyleafME.ThemeMenuItemStyle}"/>
+                                                    <Separator Style="{StaticResource FlyleafME.ThemeMenuSeparatorStyle}"/>
+                                                    <MenuItem x:Name="SeekWhileDraggingMenuItem" Header="Seek while dragging" IsCheckable="True"
+                                                              Style="{StaticResource FlyleafME.ThemeMenuItemStyle}"/>
+                                                    <MenuItem x:Name="KeepWindowRatioMenuItem" Header="Keep window aspect ratio" IsCheckable="True"
+                                                              Checked="KeepWindowRatio_Checked"
+                                                              Style="{StaticResource FlyleafME.ThemeMenuItemStyle}"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
+                                    </StackPanel>
+                                    <StackPanel x:Name="WindowActions" Orientation="Horizontal">
+                                        <ToggleButton x:Name="PinButton" ToolTip="Always on top"
+                                                      Style="{StaticResource FlyleafME.OverlayIconToggleStyle}">
+                                            <Canvas Width="18" Height="18">
+                                                <Path Data="M 6,3 L 12,3 M 7,3 L 7,8 L 5,11 L 13,11 L 11,8 L 11,3 M 9,11 L 9,17"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                                      StrokeThickness="1.5" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                            </Canvas>
+                                        </ToggleButton>
+                                        <Button ToolTip="Minimize" Click="Minimize_Click"
+                                                Style="{StaticResource FlyleafME.OverlayIconButtonStyle}">
+                                            <Canvas Width="18" Height="18">
+                                                <Path Data="M 3,14.5 L 15,14.5"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                      StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                            </Canvas>
+                                        </Button>
+                                        <Button x:Name="MaximizeButton" Content="&#xE922;" ToolTip="Maximize"
+                                                Click="Maximize_Click"
+                                                Style="{StaticResource FlyleafME.OverlayIconButtonStyle}"/>
+                                    </StackPanel>
+                                    <ToggleButton x:Name="FullscreenButton" Content="&#xE740;" ToolTip="Fullscreen / restore"
+                                                  Checked="Fullscreen_Changed" Unchecked="Fullscreen_Changed"
+                                                  Style="{StaticResource FlyleafME.OverlayIconToggleStyle}"/>
+                                    <Button x:Name="CloseButton" Content="&#xE8BB;" ToolTip="Close" Click="Close_Click"
+                                            Style="{StaticResource FlyleafME.OverlayIconButtonStyle}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+        </me:FlyleafME.HeaderContent>
+        <me:FlyleafME.OverlayContent>
+            <Grid>
+                <me:FlyleafOverlayLayout>
+                    <me:FlyleafOverlayLayout.BottomContent>
+                        <me:FlyleafPlaybackBar x:Name="PlaybackBar"/>
+                    </me:FlyleafOverlayLayout.BottomContent>
+                </me:FlyleafOverlayLayout>
+
+            </Grid>
+        </me:FlyleafME.OverlayContent>
+    </me:FlyleafME>
+        <!-- The media element is inset so its native child windows cannot cover this frame. -->
+        <Border x:Name="WindowOutline" Panel.ZIndex="100" BorderThickness="2"
+                BorderBrush="{DynamicResource FlyleafME.AccentBrush}"
+                Opacity="0.38" IsHitTestVisible="False" SnapsToDevicePixels="True"/>
+    </Grid>
+
+</Window>

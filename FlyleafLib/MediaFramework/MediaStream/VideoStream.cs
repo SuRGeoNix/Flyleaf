@@ -238,11 +238,11 @@ public unsafe class VideoStream : StreamBase
             TotalFrames = Duration / FrameDuration;
     }
 
-    // >= Second time fill from Decoder / Frame | TBR: We could avoid re-filling it when re-enabling a stream ... when same PixelFormat (VideoAcceleration)
+    // >= Second time fill from Decoder / Frame | TBR: We could avoid re-filling it when re-enabling a stream ... when same PixelFormat (HWAcceleration)
     public void Refresh(VideoDecoder decoder, AVFrame* frame) // TBR: Can be filled multiple times from different Codecs
     {
         var codecCtx= decoder.CodecCtx;
-        var format  = decoder.VideoAccelerated && codecCtx->sw_pix_fmt != AVPixelFormat.None ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt;
+        var format  = decoder.HWAccelerated && codecCtx->sw_pix_fmt != AVPixelFormat.None ? codecCtx->sw_pix_fmt : codecCtx->pix_fmt;
 
         if (PixelFormat != format)
         {
@@ -308,7 +308,7 @@ public unsafe class VideoStream : StreamBase
         }
 
         // HW Texture's Crop
-        if (decoder.VideoAccelerated)
+        if (decoder.HWAccelerated)
         {
             var desc    = decoder.Renderer.ffTextureDesc;
             txtWidth    = desc.Width;

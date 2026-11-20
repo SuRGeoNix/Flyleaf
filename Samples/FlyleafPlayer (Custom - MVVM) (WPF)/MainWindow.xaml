@@ -43,13 +43,13 @@
                 <!-- 360 Panoramic Controls -->
                 <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Margin="-40 0 0 0">
                     <CheckBox Content="360 Panoramic" Foreground="Cyan" FontWeight="Bold"
-                              IsChecked="{Binding Player.Config.Video.Pano360.Enabled, Mode=TwoWay}"/>
+                              IsChecked="{Binding Player.Renderer.Pano360.Enabled, Mode=TwoWay}"/>
                     <StackPanel Orientation="Horizontal" Margin="0 4 0 0">
                         <TextBlock Text="FOV:" Foreground="White" VerticalAlignment="Center"/>
                         <Slider Width="100" Minimum="30" Maximum="150" 
-                                Value="{Binding Player.Config.Video.Pano360.Fov, Mode=TwoWay}" 
+                                Value="{Binding Player.Renderer.Pano360.Fov, Mode=TwoWay}"
                                 VerticalAlignment="Center" Margin="4 0"/>
-                        <TextBlock Text="{Binding Player.Config.Video.Pano360.Fov, StringFormat={}{0:F0}°}" 
+                        <TextBlock Text="{Binding Player.Renderer.Pano360.Fov, StringFormat={}{0:F0}°}"
                                    Foreground="White" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Button Content="Reset View" Width="70" HorizontalAlignment="Left" Margin="0 4 0 0"
@@ -123,7 +123,7 @@
                         <Button Content="VolumeUp" Command="{Binding Player.Commands.VolumeUp}"/>
                         <Button Content="VolumeDown" Command="{Binding Player.Commands.VolumeDown}"/>
                         <Button Content="ToggleMute" Command="{Binding Player.Commands.ToggleMute}"/>
-                        <Slider Maximum="{Binding Player.Config.Player.VolumeMax}" Value="{Binding Player.Audio.Volume}" Width="100"/>
+                        <Slider Maximum="{Binding Player.Config.Playback.VolumeMax}" Value="{Binding Player.Audio.Volume}" Width="100"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <Button Content="NormalScreen" Command="{Binding Player.Commands.NormalScreen}"/>
@@ -133,7 +133,7 @@
                 </StackPanel>
 
                 <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center">
-                    <Slider Width="400" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Player.SeekOffset}" LargeChange="{Binding Player.Config.Player.SeekOffset2}"/>
+                    <Slider Width="400" Maximum="{Binding Player.Duration}" Value="{Binding Player.CurTime}" IsMoveToPointEnabled="True" SmallChange="{Binding Player.Config.Playback.SeekOffset}" LargeChange="{Binding Player.Config.Playback.SeekOffset2}"/>
                 </StackPanel>
             </Grid>
         </fl:FlyleafHost>

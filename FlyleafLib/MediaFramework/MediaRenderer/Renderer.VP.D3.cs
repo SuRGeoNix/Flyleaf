@@ -112,7 +112,7 @@ public unsafe partial class Renderer
             return;
         }
 
-        if (CanDebug && needsFillUnlock) Log.Debug($"D3D11 Video Processor\r\n{GetDump()}");
+        if (CanTrace && needsFillUnlock) Log.Trace($"D3D11 Video Processor\r\n{GetDump()}");
 
         vc.VideoProcessorSetStreamAutoProcessingMode(vp, 0, false);
         vc.VideoProcessorSetOutputColorSpace(vp, d3ColorOut);
@@ -136,7 +136,7 @@ public unsafe partial class Renderer
 
     bool D3Config(AVFrame* frame)
     {
-        if (VideoDecoder.VideoAccelerated)
+        if (VideoDecoder.HWAccelerated)
             D3HWConfig();
         else
             D3SWConfig(frame);
@@ -451,7 +451,7 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
     }
     void D3SetCrop()
     {
-        crop            = scfg.Crop + ucfg.crop;
+        crop            = scfg.Crop + userCrop;
         VisibleWidth    = scfg.txtWidth  - crop.Width;
         VisibleHeight   = scfg.txtHeight - crop.Height;
 
@@ -461,7 +461,7 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
     }
     void D3Deinterlace()
     {
-        FieldType = ucfg.DeInterlace == DeInterlace.Auto ? scfg.FieldOrder : (VideoFrameFormat)ucfg.DeInterlace;
+        FieldType = DeInterlace == DeInterlace.Auto ? scfg.FieldOrder : (VideoFrameFormat)DeInterlace;
         vc.VideoProcessorSetStreamFrameFormat(vp, 0, FieldType);
         RaiseUI(nameof(FieldType));
     }
@@ -553,16 +553,16 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
 
     void D3ProcessRequests()
     {
-        while (vpRequestsIn != VPRequestType.Empty)
+        while ((vpRequests = TakeVPRequests()) != VPRequestType.Empty)
         {
-            if (vpRequestsIn.HasFlag(VPRequestType.ReConfigVP))
+            if (vpRequests.HasFlag(VPRequestType.ReConfigVP))
             {
+                VPRequest(vpRequests & ~VPRequestType.ReConfigVP, execute: false);
                 VPSwitch();
-                return;
+                if (VideoProcessor != VideoProcessors.D3D11)
+                    return;
+                continue;
             }
-
-            vpRequests  = vpRequestsIn;
-            vpRequestsIn= VPRequestType.Empty;
 
             if (vpRequests.HasFlag(VPRequestType.BackColor))
                 SetBackColor();

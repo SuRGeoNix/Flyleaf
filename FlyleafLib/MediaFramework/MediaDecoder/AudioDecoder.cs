@@ -27,6 +27,9 @@ namespace FlyleafLib.MediaFramework.MediaDecoder;
 
 public unsafe partial class AudioDecoder : DecoderBase
 {
+    // Runtime timestamp adjustment in ticks; also used by standalone decoder sessions.
+    internal long Delay;
+
     // Sink's Format (after Decoder + Filter)
     public AVChannelLayout  ChannelLayout       { get => channelLayout; private set { channelLayout = value; } }
     AVChannelLayout channelLayout;
@@ -57,10 +60,10 @@ public unsafe partial class AudioDecoder : DecoderBase
 
     protected override bool Setup()
     {
-        AVCodec* codec = string.IsNullOrEmpty(Config.Decoder._AudioCodec) ? avcodec_find_decoder(Stream.CodecID) : avcodec_find_decoder_by_name(Config.Decoder._AudioCodec);
+        AVCodec* codec = string.IsNullOrEmpty(Config.Audio._Codec) ? avcodec_find_decoder(Stream.CodecID) : avcodec_find_decoder_by_name(Config.Audio._Codec);
         if (codec == null)
         {
-            Log.Error($"Codec not found ({(string.IsNullOrEmpty(Config.Decoder._AudioCodec) ? Stream.CodecID : Config.Decoder._AudioCodec)})");
+            Log.Error($"Codec not found ({(string.IsNullOrEmpty(Config.Audio._Codec) ? Stream.CodecID : Config.Audio._Codec)})");
             return false;
         }
 
@@ -83,7 +86,7 @@ public unsafe partial class AudioDecoder : DecoderBase
         codecCtx->pkt_timebase  = Stream.AVStream->time_base;
         codecCtx->codec_id      = codec->id; // avcodec_parameters_to_context will change this we need to set Stream's Codec Id (eg we change mp2 to mp3)
 
-        var codecOpts = Config.Decoder.AudioCodecOpt;
+        var codecOpts = Config.Audio.CodecOpt;
         AVDictionary* avopt = null;
         foreach(var optKV in codecOpts)
             _ = av_dict_set(ref avopt, optKV.Key, optKV.Value, 0);
@@ -141,21 +144,21 @@ public unsafe partial class AudioDecoder : DecoderBase
 
     protected override void RunInternal()
     {
-        int allowedErrors   = Config.Decoder.MaxErrors;
-        int sleepMs         = Config.Decoder.MaxAudioFrames > 5 && Config.Player.MaxLatency == 0 ? 10 : 4;
+        int allowedErrors   = Config.Audio.MaxErrors;
+        int sleepMs         = Config.Audio.MaxFrames > 5 && Config.Playback.MaxLatency == 0 ? 10 : 4;
         int ret;
         AVPacket *packet;
 
         do
         {
             // Wait until Queue not Full or Stopped
-            if (Frames.Count >= Config.Decoder.MaxAudioFrames)
+            if (Frames.Count >= Config.Audio.MaxFrames)
             {
                 lock (lockStatus)
                     if (Status == Status.Running)
                         Status = Status.QueueFull;
 
-                while (Frames.Count >= Config.Decoder.MaxAudioFrames && Status == Status.QueueFull)
+                while (Frames.Count >= Config.Audio.MaxFrames && Status == Status.QueueFull)
                     Thread.Sleep(sleepMs);
 
                 lock (lockStatus)
@@ -345,7 +348,7 @@ public unsafe partial class AudioDecoder : DecoderBase
                             Thread.Sleep(10);
                         Monitor.Enter(lockCodecCtx);
                         
-                        long ts = (long)((frame->pts + frame->duration) * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay;
+                        long ts = (long)((frame->pts + frame->duration) * AudioStream.Timebase) - demuxer.StartTime + Delay;
 
                         if (ts < VideoDecoder.StartTime)
                         {
@@ -382,12 +385,12 @@ public unsafe partial class AudioDecoder : DecoderBase
         /* TBR
         * 1. If we change to different in/out sample rates we need to calculate delay
         * 2. By destorying the cBuf can create critical issues while the audio decoder reads the data? (add lock) | we need to copy the lost data and change the pointers
-        * 3. Recalculate on Config.Decoder.MaxAudioFrames change (greater)
+        * 3. Recalculate on Config.Audio.MaxFrames change (greater)
         * 4. cBufTimesSize cause filters can pass the limit when we need to use lockSpeed
         */
 
         samples     = Math.Max(10000, samples); // 10K samples to ensure that currently we will not re-allocate?
-        int size    = Config.Decoder.MaxAudioFrames * samples * SampleBytes * cBufTimesSize;
+        int size    = Config.Audio.MaxFrames * samples * SampleBytes * cBufTimesSize;
         
         if (cBuf != null)
         {

@@ -51,7 +51,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
     public Dictionary<string, ObservableDictionary<string, string>>
                         PluginsConfig       => Config?.Plugins;
 
-    public bool         ShowDebug           { get => _ShowDebug; set { Set(ref _ShowDebug, value); Config.Player.Stats = value; } }
+    public bool         ShowDebug           { get => _ShowDebug; set { Set(ref _ShowDebug, value); if (Player != null) Player.Stats = value; } }
     bool _ShowDebug;
 
     public bool         CanPaste            { get => _CanPaste; set => Set(ref _CanPaste, value); }
@@ -155,6 +155,8 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
         if (Player == null || isDesignMode)
             return;
 
+        Player.Stats = ShowDebug;
+
         if (SelectedTheme != null)
             Player.Config.Video.BackColor = SelectedTheme.SurfaceColor;
 
@@ -167,7 +169,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
 
         // Additional Key Bindings for Subtitles
         // Update Actions if loaded from Config file (TBR: possible also on swap?)
-        foreach (var binding in Config.Player.KeyBindings.Keys)
+        foreach (var binding in Config.Playback.KeyBindings.Keys)
         {
             if (binding.Action != KeyBindingAction.Custom || string.IsNullOrEmpty(binding.ActionName))
                 continue;
@@ -199,13 +201,13 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
         if (!Config.Loaded)
         {
             if (!SubsYUp)
-                Config.Player.KeyBindings.AddCustom(Key.Up,     false, aSubsYUp,           "SubsYUp",          true);
+                Config.Playback.KeyBindings.AddCustom(Key.Up,     false, aSubsYUp,           "SubsYUp",          true);
             if (!SubsYDown)
-                Config.Player.KeyBindings.AddCustom(Key.Down,   false, aSubsYDown,         "SubsYDown",        true);
+                Config.Playback.KeyBindings.AddCustom(Key.Down,   false, aSubsYDown,         "SubsYDown",        true);
             if (!SubsFontIncrease)
-                Config.Player.KeyBindings.AddCustom(Key.Right,  false, aSubsFontIncrease,  "SubsFontIncrease", true);
+                Config.Playback.KeyBindings.AddCustom(Key.Right,  false, aSubsFontIncrease,  "SubsFontIncrease", true);
             if (!SubsFontDecrease)
-                Config.Player.KeyBindings.AddCustom(Key.Left,   false, aSubsFontDecrease,  "SubsFontDecrease", true);
+                Config.Playback.KeyBindings.AddCustom(Key.Left,   false, aSubsFontDecrease,  "SubsFontDecrease", true);
         }
 
         Player.Renderer.ViewportChanged += ViewportChanged;
@@ -376,11 +378,12 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
             {
                 if (Player != null) Player.Activity.IsEnabled = false;
                 CanPaste = !string.IsNullOrEmpty(Clipboard.GetText());
-                popUpCustomAspectRatio.Header = $"Custom ({Config.Video.AspectRatioCustom})";
-                FixMenuSingleCheck(popUpAspectRatio, Config.Video.AspectRatio.ToString());
-                if (Config.Video.AspectRatio == AspectRatio.Custom)
+                if (Player?.Renderer == null) return;
+                popUpCustomAspectRatio.Header = $"Custom ({Player.Renderer.AspectRatioCustom})";
+                FixMenuSingleCheck(popUpAspectRatio, Player.Renderer.AspectRatio.ToString());
+                if (Player.Renderer.AspectRatio == AspectRatio.Custom)
                     popUpCustomAspectRatio.IsChecked = true;
-                else if (Config.Video.AspectRatio == AspectRatio.Keep)
+                else if (Player.Renderer.AspectRatio == AspectRatio.Keep)
                     popUpKeepAspectRatio.IsChecked = true;
             };
         }
@@ -495,18 +498,19 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
     public ICommand ChangeAspectRatio   { get; set; }
     public void ChangeAspectRatioAction(object obj = null)
     {
+        if (Player?.Renderer == null) return;
         MenuItem mi = ((MenuItem)obj);
 
         if (Regex.IsMatch(mi.Header.ToString(), "Custom"))
         {
             if (Regex.IsMatch(mi.Header.ToString(), "Set")) return;
-            Config.Video.AspectRatio = AspectRatio.Custom;
+            Player.Renderer.AspectRatio = AspectRatio.Custom;
             return;
         }
         else if (Regex.IsMatch(mi.Header.ToString(), "Keep"))
-            Config.Video.AspectRatio = AspectRatio.Keep;
+            Player.Renderer.AspectRatio = AspectRatio.Keep;
         else
-            Config.Video.AspectRatio = mi.Header.ToString();
+            Player.Renderer.AspectRatio = mi.Header.ToString();
     }
 
     public ICommand ResetSubsPositionY  { get; set; }
@@ -541,6 +545,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
     #region TODO
     private async void DialogAspectRatio()
     {
+        if (Player?.Renderer == null) return;
         if (dialogSettingsIdentifier == null) return;
         if (DialogHost.IsDialogOpen(dialogSettingsIdentifier)) return;
 
@@ -548,13 +553,13 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
         var stackHorizontal1 = new StackPanel() { Margin = new Thickness(10), Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Center};
         var stackHorizontal2 = new StackPanel() { Margin = new Thickness(10), Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center };
 
-        var textBox = new TextBox() { VerticalAlignment = VerticalAlignment.Center, Width = 70, Margin = new Thickness(10, 0, 0, 0), Text=Config.Video.AspectRatioCustom.ToString()};
+        var textBox = new TextBox() { VerticalAlignment = VerticalAlignment.Center, Width = 70, Margin = new Thickness(10, 0, 0, 0), Text=Player.Renderer.AspectRatioCustom.ToString()};
         textBox.PreviewTextInput += (n1, n2) => { n2.Handled = !Regex.IsMatch(n2.Text, @"^[0-9\.\,\/\:]+$"); };
 
         var buttonOK = new Button() { Content = "OK" };
         var buttonCancel = new Button() { Margin = new Thickness(10, 0, 0, 0), Content = "Cancel" };
 
-        buttonOK.Click +=       (n1, n2) => { if (textBox.Text != AspectRatio.Invalid) Config.Video.AspectRatioCustom = textBox.Text; DialogHost.Close(dialogSettingsIdentifier); };
+        buttonOK.Click +=       (n1, n2) => { if (textBox.Text != AspectRatio.Invalid) Player.Renderer.AspectRatioCustom = textBox.Text; DialogHost.Close(dialogSettingsIdentifier); };
         buttonCancel.Click +=   (n1, n2) => { DialogHost.Close(dialogSettingsIdentifier); };
 
         stackHorizontal1.Children.Add(new TextBlock() { VerticalAlignment = VerticalAlignment.Center, Text="Set Custom Ratio: "});

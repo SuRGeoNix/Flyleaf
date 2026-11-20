@@ -19,6 +19,7 @@ struct PSInput
 {
     float4 Position : SV_POSITION;
     float2 Texture  : TEXCOORD0;
+    float2 ViewTexture : TEXCOORD1;
 };
 
 PSInput main(VSInput vsi)
@@ -28,6 +29,7 @@ PSInput main(VSInput vsi)
     psi.Position= mul(vsi.Position, mat);
     psi.Texture = lerp(cropRegion.xy, cropRegion.zw, vsi.Texture);
 
+    psi.ViewTexture = vsi.Texture;
     return psi;
 }
 "u8;
@@ -43,6 +45,7 @@ struct PSInput
 {
     float4 Position : SV_POSITION;
     float2 Texture  : TEXCOORD0;
+    float2 ViewTexture : TEXCOORD1;
 };
 
 PSInput main(VSInput vsi)
@@ -52,6 +55,7 @@ PSInput main(VSInput vsi)
     psi.Position= vsi.Position;
     psi.Texture = vsi.Texture;
 
+    psi.ViewTexture = vsi.Texture;
     return psi;
 }
 "u8;

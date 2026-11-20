@@ -1,0 +1,128 @@
+﻿<UserControl x:Class="Flyleaf.Controls.WPF.FlyleafQueuePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Flyleaf.Controls.WPF">
+    <UserControl.Resources>
+        <Style x:Key="QueueIcon" TargetType="Button" BasedOn="{StaticResource FlyleafME.ButtonStyle}">
+            <Setter Property="Width" Value="30"/><Setter Property="MinWidth" Value="30"/><Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Padding" Value="6"/><Setter Property="Margin" Value="0,0,3,0"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/><Setter Property="FontSize" Value="14"/>
+            <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}}"/>
+        </Style>
+        <Style x:Key="QueueMenuButton" TargetType="Button" BasedOn="{StaticResource FlyleafME.ButtonStyle}">
+            <Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Padding" Value="7,4"/><Setter Property="Margin" Value="0,0,3,0"/>
+        </Style>
+        <Style x:Key="QueueMenuChevron" TargetType="Path">
+            <Setter Property="Data" Value="M 0,0 L 3,3 L 6,0"/><Setter Property="StrokeThickness" Value="1.2"/>
+            <Setter Property="Stroke" Value="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Margin" Value="6,0,0,0"/>
+        </Style>
+        <Style x:Key="QueueToggle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/>
+            <Setter Property="Margin" Value="0,0,3,0"/><Setter Property="FontFamily" Value="Segoe MDL2 Assets"/><Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{DynamicResource FlyleafME.TextBrush}"/>
+            <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}}"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton">
+                <Border x:Name="Chrome" Background="{DynamicResource FlyleafME.RaisedSurfaceBrush}" CornerRadius="6"
+                        BorderBrush="{DynamicResource FlyleafME.BorderBrush}" BorderThickness="1" SnapsToDevicePixels="True">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource FlyleafME.HoverBrush}"/></Trigger>
+                    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource FlyleafME.SelectionBrush}"/><Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentBrush}"/></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="QueueIndex" TargetType="TextBlock">
+            <Setter Property="MinWidth" Value="24"/><Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="TextAlignment" Value="Right"/><Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontFamily" Value="Consolas"/><Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
+            <Style.Triggers><DataTrigger Binding="{Binding IsCurrent}" Value="True"><Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentBrush}"/></DataTrigger></Style.Triggers>
+        </Style>
+        <DataTemplate DataType="{x:Type local:FlyleafQueueSource}">
+            <Grid ToolTip="{Binding Input}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding IndexText}" Style="{StaticResource QueueIndex}"/>
+                <Button Grid.Column="1" Content="⌄" Width="18" Tag="{Binding}" Click="Expand_Click" Padding="0" MinWidth="0" MinHeight="22" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" ToolTip="Expand or collapse embedded items">
+                    <Button.Style><Style TargetType="Button"><Style.Triggers><DataTrigger Binding="{Binding Children.Count}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                </Button>
+                <TextBlock Grid.Column="2" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+            </Grid>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type local:FlyleafQueueChild}">
+            <Grid Margin="18,0,0,0" ToolTip="{Binding Title}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding IndexText}" Style="{StaticResource QueueIndex}"/>
+                <TextBlock Grid.Column="1" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+            </Grid>
+        </DataTemplate>    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <WrapPanel x:Name="ToolbarHost" Margin="0,0,0,4" SizeChanged="Toolbar_SizeChanged">
+            <StackPanel x:Name="QueueTools" Orientation="Horizontal" Margin="0,0,0,4">
+                <Button x:Name="AddButton" AutomationProperties.Name="Add to queue" Click="Add_Click" Style="{StaticResource QueueMenuButton}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBlock Text="Add"/>
+                        <Path Style="{StaticResource QueueMenuChevron}"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="PlaylistButton" AutomationProperties.Name="Playlist actions" Click="Playlist_Click" Style="{StaticResource QueueMenuButton}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Playlist"/>
+                        <Path Style="{StaticResource QueueMenuChevron}"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="RemoveSelection" Content="&#xE74D;" ToolTip="Remove selected entries (Delete)" IsEnabled="False" Style="{StaticResource QueueIcon}" Click="Remove_Click"/>
+                <Border x:Name="ToolbarDivider" Width="1" Height="18" Margin="4,0,6,0" VerticalAlignment="Center"
+                        Background="{DynamicResource FlyleafME.BorderBrush}" SnapsToDevicePixels="True"/>
+            </StackPanel>
+            <StackPanel x:Name="PlaybackTools" Orientation="Horizontal" Margin="0,0,0,4">
+                <Button x:Name="SortQueueButton" ToolTip="Sort queue" IsEnabled="False" Style="{StaticResource QueueIcon}" Click="Sort_Click">
+                    <Viewbox Width="16" Height="16">
+                        <Path Stroke="{DynamicResource FlyleafME.TextBrush}" StrokeThickness="1.4"
+                              StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Data="M 4,14 L 4,2 M 1,5 L 4,2 L 7,5 M 12,2 L 12,14 M 9,11 L 12,14 L 15,11"/>
+                    </Viewbox>
+                </Button>
+                <Button Content="&#xE8B1;" ToolTip="Shuffle queue" Style="{StaticResource QueueIcon}" Click="Shuffle_Click"/>
+                <ToggleButton x:Name="AutoAdvanceToggle" Margin="0,0,3,0"
+                              IsChecked="{Binding AutoAdvance, Mode=TwoWay}" Style="{StaticResource FlyleafME.AutoNextToggleStyle}"/>
+                <ToggleButton x:Name="RepeatToggle" Content="&#xE8EE;" ToolTip="Repeat queue" IsChecked="{Binding Repeat, Mode=TwoWay}" Style="{StaticResource QueueToggle}"/>
+            </StackPanel>
+        </WrapPanel>
+        <ListBox x:Name="Items" Grid.Row="1" SelectionMode="Extended" Background="Transparent" BorderThickness="0"
+                 Foreground="{DynamicResource FlyleafME.TextBrush}" HorizontalContentAlignment="Stretch"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" AllowDrop="True"
+                 SelectionChanged="Items_SelectionChanged" ContextMenuOpening="Items_ContextMenuOpening"
+                 PreviewKeyDown="Items_KeyDown" PreviewMouseLeftButtonDown="Items_MouseDown"
+                 PreviewMouseMove="Items_MouseMove" DragOver="Items_DragOver" Drop="Items_Drop">
+            <ListBox.ContextMenu>
+                <ContextMenu Opened="QueueMenu_Opened" Closed="QueueMenu_Closed"/>
+            </ListBox.ContextMenu>
+            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="3,5"/>
+                <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Row" Background="Transparent" CornerRadius="3" Padding="{TemplateBinding Padding}" BorderThickness="1" BorderBrush="Transparent"><Grid><ContentPresenter/><Border x:Name="PlayingAccent" Width="2" HorizontalAlignment="Right" Background="{DynamicResource FlyleafME.AccentBrush}" Visibility="Collapsed"/></Grid></Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource FlyleafME.HoverBrush}"/></Trigger>
+                        <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource FlyleafME.SelectionBrush}"/></Trigger>
+                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource FlyleafME.SelectionBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter TargetName="PlayingAccent" Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate></Setter.Value></Setter>
+            </Style></ListBox.ItemContainerStyle>
+        </ListBox>
+        <TextBlock Grid.Row="2" Text="{Binding ItemCountText}" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" Margin="3,8,0,0"
+                   ToolTip="{Binding Context.MediaElement.PlaylistStatus, RelativeSource={RelativeSource AncestorType=local:FlyleafQueuePanel}}"/>
+        <TextBlock Grid.Row="3" Text="{Binding Message}" TextWrapping="Wrap" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" Margin="3,4,0,0"/>
+    </Grid>
+</UserControl>

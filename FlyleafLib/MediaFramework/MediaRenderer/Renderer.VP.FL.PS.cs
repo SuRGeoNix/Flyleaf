@@ -30,6 +30,7 @@ public unsafe partial class Renderer
     internal const string dDoviFEL          = "dDoviFEL";
 
     internal const string dFilters          = "dFilters";
+    internal const string dPanoWrap         = "dPanoWrap";
     internal const string dPano360          = "dPano360";
     internal const string dICC              = "dICC";
 
@@ -69,13 +70,19 @@ color = float4(
             felShaderEnabled = false;
         }
 
-        if (ucfg.Pano360._enabled)
+        if (Pano360._enabled)
         {
             psId += "P";
             defines.Add(dPano360);
+            // Split-alpha sampling uses subregions of the source; retain its existing sampler.
+            if (SplitFrameAlphaPosition == SplitFrameAlphaPosition.None)
+            {
+                psId += "W";
+                defines.Add(dPanoWrap);
+            }
         }
 
-        if (ucfg.hasFLFilters) // TODO: fix vp switch when set filters or unset*
+        if (hasFLFilters) // TODO: fix vp switch when set filters or unset*
         {
             psId += "-";
             defines.Add(dFilters);
@@ -151,7 +158,7 @@ color = float4(
 
         if (canFL && VideoProcessor != VideoProcessors.SwsScale)
         {
-            if (VideoDecoder.VideoAccelerated) // VP can be D3D11 but never with VA*?
+            if (VideoDecoder.HWAccelerated) // VP can be D3D11 but never with VA*?
                 FLHWConfig();
             else
             {
@@ -215,7 +222,7 @@ color = float4(
 
         srvDesc[0].ViewDimension = srvDesc[1].ViewDimension = ShaderResourceViewDimension.Texture2DArray;
 
-        switch (ucfg._SplitFrameAlphaPosition)
+        switch (splitFrameAlphaPosition)
         {
             case SplitFrameAlphaPosition.None:
                 // Spatial tone-detail sampling currently exists only on the unsplit HW Y/UV path.
@@ -408,7 +415,7 @@ color = float4(outY, outUV, 1.0f);
                 txtDesc[1].Format = srvDesc[1].Format = Format.R8G8_UNorm;
             }
 
-            switch (ucfg._SplitFrameAlphaPosition)
+            switch (splitFrameAlphaPosition)
             {
                 case SplitFrameAlphaPosition.None:
                     SetPS(@"
@@ -504,7 +511,7 @@ color *= pow(2, " + (maxBits - scfg.PixelComp0Depth) + @");
             }
 
             if (scfg.PixelPlanes < 4)
-                switch (ucfg._SplitFrameAlphaPosition)
+                switch (splitFrameAlphaPosition)
                 {
                     case SplitFrameAlphaPosition.None:
                         shader += @"

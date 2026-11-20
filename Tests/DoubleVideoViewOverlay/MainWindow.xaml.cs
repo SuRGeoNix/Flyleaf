@@ -50,9 +50,9 @@ namespace DoubleFlyleafHostOverlay
             PlayerSeek = new Player();
 
             // Disables Mouse/Keys/Audio on Preview/Seek Player
-            PlayerSeek.Config.Audio.Enabled = false;
-            PlayerSeek.Config.Player.AutoPlay = false;
-            //PlayerSeek.Config.Video.AspectRatio = AspectRatio.Fill;
+            PlayerSeek.Audio.Enabled = false;
+            PlayerSeek.Config.Playback.AutoPlay = false;
+            //PlayerSeek.Renderer.AspectRatio = AspectRatio.Fill;
 
             DataContext = this;
 

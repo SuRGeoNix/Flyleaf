@@ -32,7 +32,7 @@ namespace WpfFlyleafHost
             InitializeComponent();
 
             DataContext = this;
-            Player.Config.Video.VideoProcessor = FlyleafLib.VideoProcessors.Flyleaf; // TBR: D3D11 has bad performance with Zoom and Replica
+            Player.Renderer.PreferredVideoProcessor = FlyleafLib.VideoProcessors.Flyleaf; // TBR: D3D11 has bad performance with Zoom and Replica
             //Player.PropertyChanged += Player_PropertyChanged;
         }
 

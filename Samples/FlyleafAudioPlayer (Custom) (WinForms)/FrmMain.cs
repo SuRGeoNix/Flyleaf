@@ -33,26 +33,25 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
             Config = new Config();
 
             // Initiliaze the player as Audio Player
-            Config.Player.Usage = Usage.Audio;
-            Player = new Player(Config);
+            Player = new Player(Config, usage: Usage.Audio);
 
             // Listen to property changed events (No need to invoke UI as the library will do it automatically)
             Player.PropertyChanged      += Player_PropertyChanged;
             Player.Audio.PropertyChanged+= PlayerAudio_PropertyChanged;
 
             // Allow auto play on open
-            Config.Player.AutoPlay      = true;
+            Config.Playback.AutoPlay      = true;
 
             // Prepare Volume Max/Offset/Initial values
             Config.Audio.VolumeMax      = 200;
             sliderVolume.Maximum        = Config.Audio.VolumeMax;
             Player.Audio.Volume         = 75;
             Config.Audio.VolumeOffset   = 5;
-            btnMute.Click += (o, e) => { Config.Audio.ToggleMute(); };
+            btnMute.Click += (o, e) => { Player.Audio.ToggleMute(); };
 
             // Prepare Seek Offsets and Commands
-            Config.Player.SeekOffset    = TimeSpan.FromSeconds( 5).Ticks;
-            Config.Player.SeekOffset2   = TimeSpan.FromSeconds(15).Ticks;
+            Config.Playback.SeekOffset    = TimeSpan.FromSeconds( 5).Ticks;
+            Config.Playback.SeekOffset2   = TimeSpan.FromSeconds(15).Ticks;
 
             btnPlayPause.Enabled = false; // Player.CanPlay will control this
             btnPlayPause.Click  += (o, e) => { Player.TogglePlayPause(); };
@@ -66,9 +65,9 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
             sliderVolume.KeyDown += (o, e) =>
             {
                 if (e.KeyCode == Keys.Up)
-                    Config.Audio.VolumeUp();
+                    Player.Audio.VolumeUp();
                 else if (e.KeyCode == Keys.Down)
-                    Config.Audio.VolumeDown();
+                    Player.Audio.VolumeDown();
 
                 e.Handled = true;
             };
@@ -80,9 +79,9 @@ namespace FlyleafAudioPlayer__Custom___WinForms_
                 else if (e.KeyCode == Keys.Right)
                     Player.SeekForward();
                 else if (e.KeyCode == Keys.Up)
-                    Config.Audio.VolumeUp();
+                    Player.Audio.VolumeUp();
                 else if (e.KeyCode == Keys.Down)
-                    Config.Audio.VolumeDown();
+                    Player.Audio.VolumeDown();
 
                 e.Handled = true;
             };
