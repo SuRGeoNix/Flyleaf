@@ -193,7 +193,7 @@ public struct AspectRatio : IEquatable<AspectRatio>
         new(4,      3),
         new(16,     9),
         new(16,     10),
-        new(2.35f,  1)
+        new(2.35,   1)
     ];
 
     public static implicit operator AspectRatio(string value) => new(value);

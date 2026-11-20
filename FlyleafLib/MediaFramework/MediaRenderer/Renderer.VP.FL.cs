@@ -40,7 +40,7 @@ public unsafe partial class Renderer
     bool            vflip;
 
     ID3D11Buffer    panoBuffer;
-    PanoBufferType  panoData  = new() { PanoParams = new(0.5f, 0.5f, 0.5f, 90f), AspectRatio = 1.778f };
+    PanoBufferType  panoData  = new() { PanoParams = new(0, 0, 0.5f, 90f), AspectRatio = 1.778f };
 
     ID3D11ShaderResourceView
                     iccSrv;
@@ -206,9 +206,10 @@ public unsafe partial class Renderer
 
     struct PanoBufferType
     {
-        public Vector4 PanoParams;  // rotationX, rotationY, zoom, fov
+        public Vector4 PanoParams;  // yaw degrees, pitch degrees, zoom, fov degrees
         public float AspectRatio;
         Vector3 pad;
+        public Vector4 SourceRegion;
     }
 
     void FLInit()
@@ -278,7 +279,7 @@ public unsafe partial class Renderer
         context.RSSetViewport(Viewport);
 
         // Update pano aspectRatio when viewport changes
-        if (ucfg.Pano360._enabled)
+        if (Pano360._enabled)
             vpRequests |= VPRequestType.UpdatePano;
     }
     void FLSetRotationFlip()
@@ -287,11 +288,11 @@ public unsafe partial class Renderer
 
         vsData.Matrix = Matrix4x4.CreateFromYawPitchRoll(0.0f, 0.0f, (float) (Math.PI / 180 * rotation));
 
-        vflip = ucfg.vflip ^ scfg.VFlip;
+        vflip = userVFlip ^ scfg.VFlip;
 
-        if (ucfg.hflip || vflip)
+        if (userHFlip || vflip)
         {
-            vsData.Matrix *= Matrix4x4.CreateScale(ucfg.hflip ? -1 : 1, vflip ? -1 : 1, 1);
+            vsData.Matrix *= Matrix4x4.CreateScale(userHFlip ? -1 : 1, vflip ? -1 : 1, 1);
             context.RSSetState(rsStateHVFlip);
         }
         else
@@ -318,7 +319,7 @@ public unsafe partial class Renderer
             sourceCrop   = scfg.Crop;
         }
 
-        crop = sourceCrop + ucfg.crop;
+        crop = sourceCrop + userCrop;
         VisibleWidth  = sourceWidth  - crop.Width;
         VisibleHeight = sourceHeight - crop.Height;
 
@@ -330,7 +331,7 @@ public unsafe partial class Renderer
             W = (sourceHeight - crop.Bottom) / (float)sourceHeight
         };
 
-        var alphaPos = ucfg._SplitFrameAlphaPosition;
+        var alphaPos = splitFrameAlphaPosition;
 
         if (alphaPos != SplitFrameAlphaPosition.None)
         {
@@ -381,12 +382,9 @@ public unsafe partial class Renderer
             hdrData.NativeOutput = 0;
         }
 
-        hdrData.TargetPeakNits  = configTargetPeak > 0 ? configTargetPeak : autoTargetPeak;
-        hdrData.TargetMinNits   = configTargetMin >= 0 ? configTargetMin  : hdrData.TargetPeakNits * autoTargetMin / autoTargetPeak;
-
-        // Keep the target range sane even if a display API/config reports broken values.
-        hdrData.TargetPeakNits = Math.Max(hdrData.TargetPeakNits, 0.1f);
-        hdrData.TargetMinNits  = Math.Clamp(hdrData.TargetMinNits, 0.0f, hdrData.TargetPeakNits - 0.001f);
+        var target = DisplayLuminanceRange.Resolve(configTargetMin, configTargetPeak, autoTargetMin, autoTargetPeak, hdrSwapchain);
+        hdrData.TargetPeakNits = target.Peak;
+        hdrData.TargetMinNits = target.Minimum;
 
         hdrData.BT1886BlackRoot= MathF.Pow(hdrData.TargetMinNits / hdrData.TargetPeakNits, 1.0f / 2.4f);
         hdrData.BT1886InvRange = 1.0f / (1.0f - hdrData.BT1886BlackRoot);
@@ -402,37 +400,38 @@ public unsafe partial class Renderer
         if (hdrHasStats && (!isDovi || DoviUseHDRDetect || doviL1Nits == null))
         {
             FLHDRApply();
-            vpRequestsIn &= ~VPRequestType.UpdateHDR;
+            Interlocked.And(ref pendingVPRequests, ~(int)VPRequestType.UpdateHDR);
         }
         else
-            vpRequestsIn |= VPRequestType.UpdateHDR;
+            VPRequest(VPRequestType.UpdateHDR, execute: false);
 
         TargetDynamicRange = $"{(hdrSwapchain ? "HDR" : "SDR")} ({hdrData.TargetMinNits:F2}/{hdrData.TargetPeakNits:F0})";
         RaiseUI(nameof(TargetDynamicRange));
     }
-    void FLSetPano360()
+    void FLSetPano360() => FLSetPano360(Viewport.Width, Viewport.Height);
+    void FLSetPano360(float width, float height)
     {
-        var pano = ucfg.Pano360;
-        panoData.PanoParams = new((float)pano._rotationX, (float)pano._rotationY, (float)pano._zoom, (float)pano._fov);
-        // aspectRatio based on control (viewport) size, not video source size
-        panoData.AspectRatio = ControlWidth > 0 && ControlHeight > 0 ? (float)ControlWidth / ControlHeight : 1.778f;
+        var pano = Pano360;
+        panoData.PanoParams = new((float)pano._yaw, (float)pano._pitch, (float)pano._zoom, (float)pano._fov);
+        float ratio = width > 0 && height > 0 ? width / height : 1.0f;
+        // The camera's horizontal axis becomes vertical after an output quarter turn.
+        panoData.AspectRatio = rotation == 90 || rotation == 270 ? 1 / ratio : ratio;
+        panoData.SourceRegion = vsData.Crop;
         context.UpdateSubresource(panoData, panoBuffer);
     }
-    
+
     void FLProcessRequests()
     {
-        while (vpRequestsIn != VPRequestType.Empty)
+        while ((vpRequests = TakeVPRequests()) != VPRequestType.Empty)
         {
-            if (vpRequestsIn.HasFlag(VPRequestType.ReConfigVP))
+            if (vpRequests.HasFlag(VPRequestType.ReConfigVP))
             {
+                VPRequest(vpRequests & ~VPRequestType.ReConfigVP, execute: false);
                 VPSwitch();
-
                 if (VideoProcessor == VideoProcessors.D3D11)
                     return;
+                continue;
             }
-
-            vpRequests  = vpRequestsIn;
-            vpRequestsIn= VPRequestType.Empty;
 
             if (vpRequests.HasFlag(VPRequestType.BackColor))
                 SetBackColor();
@@ -530,6 +529,9 @@ public unsafe partial class Renderer
         FLBindVideoFrame(frame, true);
         context.OMSetRenderTargets(rtv);
         context.RSSetViewport(view);
+        if (Pano360._enabled)
+            FLSetPano360(view.Width, view.Height);
+
         context.Draw(6, 0);
     }
 

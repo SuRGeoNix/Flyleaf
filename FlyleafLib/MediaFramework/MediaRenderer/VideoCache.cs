@@ -11,15 +11,15 @@ public class VideoCache
     public bool         IsEmpty     => Count == 0;
     public VideoFrame   Next        => Current?.Next;
 
-    DecoderConfig       dcfg;
+    VideoConfig         vcfg;
     internal VideoFrame RendererFrame, First, Last, Current;
     long                curId;
     bool                isCurrentNext;
     bool                disposeRenderFrame;
     readonly HashSet<long> skippedFEL = []; // Never render BL without its EL.
 
-    internal VideoCache(DecoderConfig dcfg)
-        => this.dcfg = dcfg;
+    internal VideoCache(VideoConfig vcfg)
+        => this.vcfg = vcfg;
 
     public void Enqueue(VideoFrame frame, bool used = false)
     {   // Called by Decoder & ShowFrame (used = true to force next as current)
@@ -44,7 +44,7 @@ public class VideoCache
                     isCurrentNext = !used;
                     Current = Last;
 
-                    while (Current.Id - First.Id > dcfg.MaxVideoFramesPrev)
+                    while (Current.Id - First.Id > vcfg.MaxFramesPrev)
                         { Shrink(); if (First == null) break; }
 
                     //if (First != null) Log($"E: [{First.Id} {Last.Id}] {(Current != null ? Current.Id : "-")} *");
@@ -60,7 +60,7 @@ public class VideoCache
         lock (this)
         {
             Current = null;
-            while (Last != null && Last.Id - First.Id > dcfg.MaxVideoFramesPrev - 1)
+            while (Last != null && Last.Id - First.Id > vcfg.MaxFramesPrev - 1)
                 Shrink();
         }
     }
@@ -82,7 +82,7 @@ public class VideoCache
                     var id = Current.Id;
                     Current = next;
 
-                    while (id - First.Id > dcfg.MaxVideoFramesPrev - 1)
+                    while (id - First.Id > vcfg.MaxFramesPrev - 1)
                         { Shrink(); if (First == null) break; }
                 }
 

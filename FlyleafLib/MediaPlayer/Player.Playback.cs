@@ -23,7 +23,14 @@ partial class Player
     }
 
     /// <summary>
-    /// Fires on seek completed for the specified ms (ms will be -1 on failure)
+    /// Fires when a queued seek is taken for execution. Superseded queued requests do not fire.
+    /// Invoked on the seek/playback worker; handlers must not synchronously pause or stop playback.
+    /// </summary>
+    public event EventHandler<int> SeekStarted;
+
+    /// <summary>
+    /// Fires after a seek operation for the requested ms (-1 on failure), before any subsequent playback buffering.
+    /// Invoked on the seek/playback worker; handlers must not synchronously pause or stop playback.
     /// </summary>
     public event EventHandler<int> SeekCompleted;
 
@@ -77,7 +84,7 @@ partial class Player
                         #if DEBUG
                         Name            = $"[#{PlayerId}] Playback",
                         #endif
-                        Priority        = Config.Player.ThreadPriority,
+                        Priority        = Config.Playback.ThreadPriority,
                         IsBackground    = true
                     };
 
@@ -128,11 +135,11 @@ partial class Player
                 UI(() => LastError = lastError);
             }
 
-            if (Config.Player.Usage == Usage.Audio || !Video.IsOpened)
+            if (Usage == Usage.Audio || !Video.IsOpened)
                 ScreamerAudioOnly();
             else
             {
-                if (Config.Player.ZeroLatency)
+                if (Config.Playback.ZeroLatency)
                     ScreamerZeroLatency();
                 else if (ReversePlayback)
                 {
@@ -271,7 +278,7 @@ partial class Player
         => Seek(ms, false, !IsLive);
 
     public void ToggleSeekAccurate()
-        => Config.Player.SeekAccurate = !Config.Player.SeekAccurate;
+        => Config.Playback.SeekAccurate = !Config.Playback.SeekAccurate;
 
     private void Seek(int ms, bool forward, bool accurate)
     {
@@ -314,6 +321,7 @@ partial class Player
     {
         int ret;
         bool wasEnded = false;
+        bool seekExecuting = false;
         SeekData seekData = null;
 
         try
@@ -329,6 +337,9 @@ partial class Player
 
                     seeks.Clear();
                 }
+
+                seekExecuting = true;
+                SeekStarted?.Invoke(this, seekData.ms);
 
                 if (status == Status.Ended)
                 {
@@ -354,7 +365,6 @@ partial class Player
                             Log.Warn("Seek failed 2");
 
                         VideoDemuxer.Start();
-                        SeekCompleted?.Invoke(this, -1);
                     }
                     else
                     {
@@ -363,11 +373,11 @@ partial class Player
                             Log.Warn("Seek failed 3");
 
                         AudioDemuxer.Start();
-                        SeekCompleted?.Invoke(this, -1);
                     }
 
                     decoder.PauseOnQueueFull();
-                    SeekCompleted?.Invoke(this, seekData.ms);
+                    seekExecuting = false;
+                    SeekCompleted?.Invoke(this, ret < 0 ? -1 : seekData.ms);
                 }
                 else
                 {
@@ -394,10 +404,14 @@ partial class Player
                             decoder.PauseOnQueueFull();
                             seekCompletedMs = seekData.ms;
                         }
+                        else seekCompletedMs = CanPlay ? seekData.ms : -1;
                     }
 
                     if (seekCompletedMs is int seekCompletedMsValue)
+                    {
+                        seekExecuting = false;
                         SeekCompleted?.Invoke(this, seekCompletedMsValue);
+                    }
                 }
 
                 Thread.Sleep(20);
@@ -405,6 +419,7 @@ partial class Player
         }
         catch (Exception e)
         {
+            if (seekExecuting) { seekExecuting = false; SeekCompleted?.Invoke(this, -1); }
             Log.Error($"Seek failed ({e.Message})");
         }
         finally
@@ -432,7 +447,7 @@ partial class Player
                     if (restartSeek)
                         StartPausedSeekTask();
 
-                    if ((wasEnded && Config.Player.AutoPlay) || stoppedWithError != null) // TBR: Possible race condition with if (Status == Status.Playing)
+                    if ((wasEnded && Config.Playback.AutoPlay) || stoppedWithError != null) // TBR: Possible race condition with if (Status == Status.Playing)
                         Play();
                 }
             }

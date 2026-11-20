@@ -64,7 +64,8 @@ public unsafe partial class Renderer : NotifyPropertyChanged
         Config      = videoDecoder.Config;
         this.player = player;
         ucfg        = Config.Video;
-        Frames      = new(Config.Decoder);
+        Pano360     = new(this);
+        Frames      = new(Config.Video);
         SwapChain   = new(this);
 
         Init();
@@ -260,7 +261,7 @@ public unsafe partial class Renderer : NotifyPropertyChanged
                 context2d?. Dispose();
                 device2d?.  Dispose();
             }
-            
+
             DXGIDevice. Dispose(); DXGIDevice   = null;
             context.    ClearState();
             context.    Flush();

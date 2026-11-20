@@ -49,7 +49,7 @@ public class SwapChain
                         WinUIClbk;
     bool                isCornerRadiusEmpty = true;
     LogHandler          Log;
-    VPConfig            ucfg;
+    Config.VideoConfig  ucfg;
     object              lockDispose = new();
 
     internal SwapChain(Renderer renderer)
@@ -313,11 +313,19 @@ public class SwapChain
 
     public void Resize(int width, int height)
     {   // Externally used when a WndProc hook is not available (e.g. WinUI)
-        controlWidth    = width;
-        controlHeight   = height;
+        if (width <= 0 || height <= 0)
+        {
+            CanPresent = false;
+            return;
+        }
 
-        CanPresent = controlWidth > 0 && controlHeight > 0;
-        if (controlWidth != Renderer.ControlWidth || controlHeight != Renderer.ControlHeight) // TBR: It will not refresh on restore from minimize (same sizes)
+        // Compare against the last request. The render thread may already have taken
+        // a different size while its public dimensions still report the old size.
+        bool needsResize = !CanPresent || width != controlWidth || height != controlHeight;
+        controlWidth = width;
+        controlHeight = height;
+        CanPresent = true;
+        if (needsResize)
             Renderer.VPRequest(VPRequestType.Resize);
     }
 
@@ -480,7 +488,7 @@ public class SwapChain
             try
             {
                 bool wasEmpty = isCornerRadiusEmpty;
-                isCornerRadiusEmpty = ucfg.cornerRadius == CornerRadiusEmpty; // Let SCInit do it when SCDisposed
+                isCornerRadiusEmpty = Renderer.cornerRadius == CornerRadiusEmpty; // Let SCInit do it when SCDisposed
 
                 // Don't use canRenderPresent as we will need to keep track to set it when changes
                 if (Disposed)
@@ -503,7 +511,7 @@ public class SwapChain
             }
             catch (Exception e)
             {
-                Log.Error($"Failed to set CornerRadius = {ucfg.cornerRadius} ({e.Message})");
+                Log.Error($"Failed to set CornerRadius = {Renderer.cornerRadius} ({e.Message})");
             }
         }
     }
@@ -514,14 +522,14 @@ public class SwapChain
         dcClip.SetRight (controlWidth);
         dcClip.SetBottom(controlHeight);
         
-        dcClip.SetTopLeftRadiusX        ((float)ucfg.cornerRadius.TopLeft);
-        dcClip.SetTopLeftRadiusY        ((float)ucfg.cornerRadius.TopLeft);
-        dcClip.SetTopRightRadiusX       ((float)ucfg.cornerRadius.TopRight);
-        dcClip.SetTopRightRadiusY       ((float)ucfg.cornerRadius.TopRight);
-        dcClip.SetBottomLeftRadiusX     ((float)ucfg.cornerRadius.BottomLeft);
-        dcClip.SetBottomLeftRadiusY     ((float)ucfg.cornerRadius.BottomLeft);
-        dcClip.SetBottomRightRadiusX    ((float)ucfg.cornerRadius.BottomRight);
-        dcClip.SetBottomRightRadiusY    ((float)ucfg.cornerRadius.BottomRight);
+        dcClip.SetTopLeftRadiusX        ((float)Renderer.cornerRadius.TopLeft);
+        dcClip.SetTopLeftRadiusY        ((float)Renderer.cornerRadius.TopLeft);
+        dcClip.SetTopRightRadiusX       ((float)Renderer.cornerRadius.TopRight);
+        dcClip.SetTopRightRadiusY       ((float)Renderer.cornerRadius.TopRight);
+        dcClip.SetBottomLeftRadiusX     ((float)Renderer.cornerRadius.BottomLeft);
+        dcClip.SetBottomLeftRadiusY     ((float)Renderer.cornerRadius.BottomLeft);
+        dcClip.SetBottomRightRadiusX    ((float)Renderer.cornerRadius.BottomRight);
+        dcClip.SetBottomRightRadiusY    ((float)Renderer.cornerRadius.BottomRight);
     }
 
     public FrameStatistics GetFrameStatistics()

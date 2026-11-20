@@ -37,19 +37,19 @@ public unsafe class DataDecoder : DecoderBase
 
     protected override void RunInternal()
     {
-        int allowedErrors = Config.Decoder.MaxErrors;
+        int allowedErrors = Config.Data.MaxErrors;
         AVPacket *packet;
 
         do
         {
             // Wait until Queue not Full or Stopped
-            if (Frames.Count >= Config.Decoder.MaxDataFrames)
+            if (Frames.Count >= Config.Data.MaxFrames)
             {
                 lock (lockStatus)
                     if (Status == Status.Running)
                         Status = Status.QueueFull;
 
-                while (Frames.Count >= Config.Decoder.MaxDataFrames && Status == Status.QueueFull)
+                while (Frames.Count >= Config.Data.MaxFrames && Status == Status.QueueFull)
                     Thread.Sleep(20);
 
                 lock (lockStatus)

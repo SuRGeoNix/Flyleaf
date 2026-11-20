@@ -1,0 +1,293 @@
+﻿using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+using FlyleafLib.MediaFramework.MediaRenderer;
+using FlyleafLib.MediaPlayer;
+using Microsoft.Win32;
+using static Flyleaf.Controls.WPF.FlyleafMenuItems;
+
+namespace Flyleaf.Controls.WPF;
+
+public partial class FlyleafME
+{
+    public event EventHandler<FlyleafMenuBuildingEventArgs>? MenuBuilding;
+    public event EventHandler<FlyleafOpenInputEventArgs>? OpenInputRequested;
+    /// <summary>Handles a batch selected in the Open dialog. Subscribing enables multi-select.</summary>
+    public event EventHandler<IReadOnlyList<string>>? OpenFilesRequested;
+    public event EventHandler? SettingsRequested;
+    public event EventHandler<FlyleafPlaylistActionEventArgs>? PlaylistActionRequested;
+    public static readonly DependencyProperty PlaylistStatusProperty = DependencyProperty.Register(
+        nameof(PlaylistStatus), typeof(string), typeof(FlyleafME), new PropertyMetadata("Queue"));
+    public string PlaylistStatus { get => (string)GetValue(PlaylistStatusProperty); set => SetValue(PlaylistStatusProperty, value); }
+    public static readonly DependencyProperty PlaylistActionsAvailableProperty = DependencyProperty.Register(
+        nameof(PlaylistActionsAvailable), typeof(bool), typeof(FlyleafME), new PropertyMetadata(false));
+    public bool PlaylistActionsAvailable { get => (bool)GetValue(PlaylistActionsAvailableProperty); set => SetValue(PlaylistActionsAvailableProperty, value); }
+    public static readonly DependencyProperty SupportsFolderImportProperty = DependencyProperty.Register(
+        nameof(SupportsFolderImport), typeof(bool), typeof(FlyleafME),
+        new PropertyMetadata(false, (d, _) => ((FlyleafME)d).RefreshPanelContexts()));
+    /// <summary>Shows folder import actions when the application handles AddFolder requests.</summary>
+    public bool SupportsFolderImport { get => (bool)GetValue(SupportsFolderImportProperty); set => SetValue(SupportsFolderImportProperty, value); }
+    internal bool HasPlaylistActionHandler => PlaylistActionRequested != null;
+    internal bool CanOfferFolderImport => SupportsFolderImport && HasPlaylistActionHandler;
+
+    internal void AddFolderMenuItem(ItemsControl menu)
+    {
+        if (CanOfferFolderImport)
+            Add(menu, "Add folder…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.AddFolder) : null);
+    }
+    public void RequestPlaylistAction(FlyleafPlaylistAction action, IReadOnlyList<string>? inputs = null) => PlaylistActionRequested?.Invoke(this, new(action, inputs));
+    ContextMenu? generalMenu;
+    int menuActionGeneration;
+
+    /// <summary>Routes a user-supplied input through application policy, then defaults to the current player.</summary>
+    public void OpenInput(string input)
+    {
+        Dispatcher.VerifyAccess(); ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(input);
+        var request = new FlyleafOpenInputEventArgs(input);
+        OpenInputRequested?.Invoke(this, request);
+        if (!request.Handled) Player?.OpenAsync(input);
+    }
+
+    public void ShowContextMenu()
+    {
+        Dispatcher.VerifyAccess(); ObjectDisposedException.ThrowIf(disposed, this);
+        ShowContextMenu(null, PlacementMode.MousePoint);
+    }
+
+    internal void ShowContextMenu(FrameworkElement? anchor, PlacementMode placement)
+    {
+        if (!IsLoaded || disposed) return;
+        CloseGeneralMenu();
+        var menu = BuildContextMenu(); generalMenu = menu;
+        menu.PlacementTarget = anchor ?? (Host.Overlay is { IsVisible: true } overlay ? overlay : Host.Surface is { IsVisible: true } surface ? surface : this);
+        menu.Placement = placement;
+        menu.IsOpen = true;
+    }
+    void CloseGeneralMenu() { if (generalMenu != null) generalMenu.IsOpen = false; generalMenu = null; }
+
+    ContextMenu BuildContextMenu()
+    {
+        var menu = new ContextMenu { Resources = Resources, MaxHeight = SystemParameters.WorkArea.Height };
+        menu.SetResourceReference(StyleProperty, "FlyleafME.ThemeContextMenuStyle");
+        menu.SetResourceReference(ItemsControl.ItemContainerStyleProperty, "FlyleafME.ThemeMenuItemStyle");
+        var target = Player;
+        bool Current() => !disposed && target is { IsDisposed: false } && ReferenceEquals(Player, target);
+        var source = target?.Playlist.Selected;
+        bool CurrentInput() => Current() && ReferenceEquals(source, target!.Playlist.Selected);
+        IDisposable? activity = null;
+        menu.Opened += (_, _) => activity = FlyleafPopupActivity.Hold(target);
+        menu.Closed += (_, _) => { activity?.Dispose(); activity = null; if (ReferenceEquals(generalMenu, menu)) generalMenu = null; };
+
+        var input = Group(menu, "Input");
+        Add(input, "Open media…", OpenFile);
+        Add(input, "Open URL…", () => OpenUrl());
+        Add(input, "Paste input", () =>
+        {
+            try { var text = Clipboard.GetText().Trim(); if (text.Length > 0) OpenInput(text); }
+            catch (Exception ex) { MenuError(ex); }
+        });
+        Separator(input);
+        Add(input, "Copy original input", !string.IsNullOrEmpty(target?.Playlist.Url) ? () =>
+        {
+            if (CurrentInput()) { try { target!.CopyToClipboard(); } catch (Exception ex) { MenuError(ex); } }
+        } : null);
+        Add(input, "Copy current item", !string.IsNullOrEmpty(source?.DirectUrl) ? () =>
+        {
+            if (CurrentInput()) { try { target!.CopyItemToClipboard(); } catch (Exception ex) { MenuError(ex); } }
+        } : null);
+        Separator(input);
+        Add(input, "Close input", Current() && (target!.CanPlay || target.Status == Status.Opening || target.Playlist.Url != null || target.Playlist.IOStream != null)
+            ? () => RunMenuAction(target!, p => p.Stop()) : null);
+
+        var queue = Group(menu, "Queue");
+        if (HasPlaylistActionHandler)
+        {
+            Add(queue, "Add files or playlists…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.Add) : null);
+            AddFolderMenuItem(queue);
+            Add(queue, "Add URL…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.AddUrl) : null);
+            Separator(queue);
+        }
+        Add(queue, "Previous queue item", Queue.CanPrevious ? () => Queue.Previous() : null);
+        Add(queue, "Next queue item", Queue.CanNext ? () => Queue.Next() : null);
+        Separator(queue);
+        Add(queue, "Auto-next", () => Queue.AutoAdvance = !Queue.AutoAdvance, Queue.AutoAdvance);
+        Add(queue, "Repeat queue", () => Queue.Repeat = !Queue.Repeat, Queue.Repeat);
+        Add(queue, "Shuffle queue", () => { Queue.ShuffleItems(); ShowOSD("Queue shuffled"); });
+        Separator(queue);
+        if (HasPlaylistActionHandler)
+        {
+            var playlist = Group(queue, "Playlist document");
+            Add(playlist, "New queue", () => RequestPlaylistAction(FlyleafPlaylistAction.New));
+            Separator(playlist);
+            Add(playlist, "Save playlist", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.Save) : null);
+            Add(playlist, "Save playlist as…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.SaveAs) : null);
+            Add(playlist, "Export playlist…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.Export) : null);
+        }
+        else Add(queue, "New queue", () => Queue.Clear());
+        if (panelDefinitions.TryGetValue("queue", out var queueDefinition)) PanelLink(queue, "queue", "Open " + queueDefinition.Title + "…");
+
+        var playback = Group(menu, "Playback");
+        var speeds = Group(playback, "Speed");
+        speeds.IsEnabled = FlyleafPlaybackActions.CanPlay(target);
+        if (target != null)
+        {
+            FlyleafMenuItems.Speed(speeds, target, Current);
+            FlyleafMenuItems.Modes(playback, target, Current);
+        }
+        Separator(playback);
+        var chapters = Group(playback, "Chapters");
+        if (FlyleafPlaybackActions.CanPlay(target) && target?.Chapters is { Count: > 0 } choices)
+            foreach (var chapter in choices)
+                Add(chapters, $"{FlyleafPlaybackBar.FormatTime(Math.Max(0, chapter.StartTime))} · {chapter.Title}", () =>
+                {
+                    if (CurrentInput()) RunMenuAction(target, p => { if (p.Chapters.Contains(chapter)) p.SeekToChapter(chapter); });
+                });
+        else chapters.IsEnabled = false;
+        var frames = Group(playback, "Frame stepping");
+        frames.IsEnabled = FlyleafPlaybackActions.CanStep(target);
+        Add(frames, "Previous frame", () => RunMenuAction(target!, p => { if (FlyleafPlaybackActions.CanStep(p)) p.ShowFramePrev(); }));
+        Add(frames, "Next frame", () => RunMenuAction(target!, p => { if (FlyleafPlaybackActions.CanStep(p)) p.ShowFrameNext(); }));
+        PanelLink(playback, "playback", "Open playback panel…");
+
+        var video = Group(menu, "Video");
+        Add(video, "Enabled", Current() ? () => RunMenuAction(target!, p => p.Video.Toggle()) : null, target?.Video.Enabled == true);
+        var renderer = target?.Renderer;
+        bool canFrame = Current() && target!.Video.IsOpened && renderer is { Disposed: false };
+        void ChangeFraming(Action<Renderer> change)
+        {
+            if (!CurrentInput() || !target!.Video.IsOpened || renderer is not { Disposed: false } || !ReferenceEquals(renderer, target.Renderer)) return;
+            try { change(renderer); }
+            catch (Exception ex) { MenuError(ex); }
+        }
+
+        if (CurrentInput() && target is { Video.IsOpened: true })
+        {
+            var config = target.Config.Video;
+            Add(video, "Super Resolution", () =>
+            {
+                if (!CurrentInput() || !target.Video.IsOpened) return;
+                try
+                {
+                    config.SuperResolution = !config.SuperResolution;
+                    NotifySettingsEdited(target);
+                }
+                catch (Exception ex) { MenuError(ex); }
+            }, config.SuperResolution);
+        }
+        Separator(video);
+        var size = Group(video, "Size");
+        size.IsEnabled = canFrame;
+        Add(size, "Fit to window", canFrame ? () => ChangeFraming(r => r.SetOriginalSize(false)) : null, renderer?.OriginalSize == false);
+        Add(size, "Original size", canFrame ? () => ChangeFraming(r => r.SetOriginalSize(true)) : null, renderer?.OriginalSize == true);
+        var aspect = Group(video, "Aspect ratio");
+        aspect.IsEnabled = canFrame && renderer?.OriginalSize == false;
+        foreach (var ratio in AspectRatio.AspectRatios.Where(ratio => ratio != AspectRatio.Custom))
+            Add(aspect, ratio.ToString(), canFrame ? () => ChangeFraming(r => r.AspectRatio = ratio) : null, renderer?.AspectRatio == ratio);
+        Add(video, "Rotate left 90°", canFrame ? () => ChangeFraming(r => r.RotateLeft()) : null);
+        Add(video, "Rotate right 90°", canFrame ? () => ChangeFraming(r => r.RotateRight()) : null);
+        Add(video, "Reset framing", canFrame ? () => ChangeFraming(r => r.ResetViewport()) : null);
+        Separator(video);
+        Add(video, "Take snapshot", canFrame && target!.CanPlay ? () =>
+        {
+            if (CurrentInput()) RunMenuAction(target, p => { if (p.Video.IsOpened) p.TakeSnapshotToFile(); });
+        } : null);
+        if (Current()) FlyleafTrackMenus.AddVideoTracks(video, target!, Current);
+        PanelLink(video, "video", "Open video panel…");
+
+        var audio = Group(menu, "Audio");
+        Add(audio, "Enabled", Current() ? () => { if (Current()) RunMenuAction(target!, p => p.Audio.Toggle()); } : null, target?.Audio.Enabled == true);
+        Add(audio, "Mute", Current() ? () => { if (Current()) target!.Audio.Mute = !target.Audio.Mute; } : null, target?.Audio.Mute == true);
+        Separator(audio);
+        var devices = Group(audio, "Output device");
+        if (Current())
+            foreach (var endpoint in Engine.Audio.Devices)
+                Add(devices, endpoint.Name, () => { if (Current()) target!.Audio.Device = endpoint; }, endpoint.Id == target!.Audio.Device?.Id);
+        else devices.IsEnabled = false;
+        Add(audio, "Reset delay", target?.Audio.IsOpened == true ? () => RunMenuAction(target, p => p.Audio.Delay = 0) : null);
+        if (Current()) FlyleafTrackMenus.AddAudioTracks(audio, target!, Current);
+        PanelLink(audio, "audio", "Open audio panel…");
+
+        var subtitles = Group(menu, "Subtitles");
+        Add(subtitles, "Enabled", Current() ? () => RunMenuAction(target!, p => p.Subtitles.Toggle()) : null, target?.Subtitles.Enabled == true);
+        Add(subtitles, "Reset delay", target?.Subtitles.IsOpened == true ? () => RunMenuAction(target, p => p.Subtitles.Delay = 0) : null);
+        if (Current()) FlyleafTrackMenus.AddSubtitleTracks(subtitles, target!, Current);
+        PanelLink(subtitles, "subtitles", "Open subtitles panel…");
+
+        var information = Group(menu, "Media information");
+        Add(information, "Show statistics overlay", () => Information.ShowStatisticsOverlay = !Information.ShowStatisticsOverlay, Information.ShowStatisticsOverlay);
+        PanelLink(information, "information", "Open panel…");
+        MenuBuilding?.Invoke(this, new FlyleafMenuBuildingEventArgs(menu));
+        Separator(menu);
+        Add(menu, IsFullScreen ? "Exit fullscreen" : "Fullscreen", () => SetCurrentValue(IsFullScreenProperty, !IsFullScreen));
+        if (panelDefinitions.ContainsKey("settings")) Add(menu, "Settings…", () => ShowPanel("settings"));
+        else if (SettingsRequested != null) Add(menu, "Settings…", () => SettingsRequested?.Invoke(this, EventArgs.Empty));
+        return menu;
+    }
+    void PanelLink(ItemsControl menu, string id, string label)
+    {
+        if (!panelDefinitions.ContainsKey(id)) return;
+        if (menu.Items.Count > 0) Separator(menu);
+        Add(menu, label, () => Dispatcher.BeginInvoke(new Action(() => { if (!disposed && IsLoaded && panelDefinitions.ContainsKey(id)) ShowPanel(id); })));
+    }
+    async void RunMenuAction(Player target, Action<Player> action)
+    {
+        if (disposed || target.IsDisposed || !ReferenceEquals(Player, target)) return;
+        var source = target.Playlist.Selected;
+        var generation = Volatile.Read(ref menuActionGeneration);
+        using var activity = FlyleafPopupActivity.Hold(target);
+        // Player is a WPF dependency property: validate ownership on the UI thread,
+        // and use a plain generation value to cancel stale work on the worker.
+        try { await Task.Run(() => { if (!target.IsDisposed && Volatile.Read(ref menuActionGeneration) == generation && ReferenceEquals(source, target.Playlist.Selected)) action(target); }); }
+        catch (Exception ex) { if (!disposed && ReferenceEquals(Player, target)) MenuError(ex); }
+    }
+    void MenuError(Exception error) => MessageBox.Show(Window.GetWindow(this), error.Message, "Media action", MessageBoxButton.OK, MessageBoxImage.Error);
+    /// <summary>Shows a file picker and routes single inputs or batches through the corresponding open event.</summary>
+    public void OpenFile()
+    {
+        Dispatcher.VerifyAccess(); ObjectDisposedException.ThrowIf(disposed, this);
+        var openFiles = OpenFilesRequested;
+        var dialog = new OpenFileDialog { Title = "Open media", Filter = "All files|*.*", Multiselect = openFiles != null };
+        using var activity = FlyleafPopupActivity.Hold(Player);
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true || disposed) return;
+        try
+        {
+            var files = dialog.FileNames;
+            if (files.Length > 1) openFiles?.Invoke(this, files);
+            else OpenInput(dialog.FileName);
+        }
+        catch (Exception ex) { MenuError(ex); }
+    }
+    void OpenUrl()
+    {
+        var input = PromptForInput("Open URL", "Media URL");
+        if (input != null) try { OpenInput(input); } catch (Exception ex) { MenuError(ex); }
+    }
+    public string? PromptForInput(string title, string label, string acceptLabel = "Open")
+    {
+        Dispatcher.VerifyAccess(); ObjectDisposedException.ThrowIf(disposed, this);
+        using var activity = FlyleafPopupActivity.Hold(Player);
+        var dialog = new FlyleafInputDialog(title, label, acceptLabel) { Owner = Window.GetWindow(this) };
+        dialog.Resources.MergedDictionaries.Add(Resources);
+        return dialog.ShowDialog() == true && !disposed ? dialog.Input.Text.Trim() : null;
+    }
+    bool IsGeneralMenuTarget(object original)
+    {
+        if (original is not DependencyObject source) return true;
+        for (DependencyObject? item = source; item != null; item = item is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(item) : LogicalTreeHelper.GetParent(item))
+            if (item is ButtonBase or TextBoxBase or Slider or ComboBox or FlyleafPanel || ReferenceEquals(item, overlayHeader) || item is FrameworkElement { ContextMenu: not null }) return false;
+        return true;
+    }
+    void HostRightClick(object sender, MouseButtonEventArgs e)
+    {
+        if (e.Handled || !IsGeneralMenuTarget(e.OriginalSource)) return;
+        ShowContextMenu(); e.Handled = true;
+    }
+    void HostMenuKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled || !(e.Key == Key.Apps || e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.Shift) || !IsGeneralMenuTarget(e.OriginalSource)) return;
+        ShowContextMenu(e.OriginalSource as FrameworkElement, PlacementMode.Bottom); e.Handled = true;
+    }
+}

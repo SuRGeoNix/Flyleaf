@@ -8,7 +8,7 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
-    const string dHDRDetect = "dHDRDetect";
+    internal const string dHDRDetect = "dHDRDetect";
 
     const int   hdrBuffers          = 3;
     const int   hdrHistogramBins    = 4096;

@@ -166,7 +166,7 @@ public unsafe partial class Renderer
 
             if (!SwapChain.CanPresent)
             {
-                if (Config.Player.SnapshotAlways)
+                if (Config.Playback.SnapshotAlways)
                     lock (lockRenderLoops)
                     {
                         if (VideoProcessor == VideoProcessors.D3D11)

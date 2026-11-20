@@ -689,8 +689,8 @@
         <Separator />
 
         <MenuItem Header="Audio" Icon="{materialDesign:PackIcon Kind=VolumeLow}">
-            <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Config.Audio.Enabled}"/>
-            <MenuItem Header="{Binding Config.Audio.Delay, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
+            <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Player.Audio.Enabled}"/>
+            <MenuItem Header="{Binding Player.Audio.Delay, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
                 <MenuItem Header="Reset..." CommandParameter="0" Command="{Binding Player.Commands.AudioDelaySet}"/>
                 <Separator />
                 <MenuItem Header="-   10"   CommandParameter="-10"      Command="{Binding Player.Commands.AudioDelaySet2}"/>
@@ -722,9 +722,9 @@
         </MenuItem>
 
         <MenuItem Header="Subtitles" Icon="{materialDesign:PackIcon Kind=CcOutline}">
-            <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Config.Subtitles.Enabled}"/>
+            <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Player.Subtitles.Enabled}"/>
             <MenuItem Header="Fonts..." Command="{Binding SetSubtitlesFont}"/>
-            <MenuItem Header="{Binding Config.Subtitles.Delay, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
+            <MenuItem Header="{Binding Player.Subtitles.Delay, Converter={StaticResource TicksToMilliSeconds}}" HeaderStringFormat="Delay ({0})">
                 <MenuItem Header="Reset..." CommandParameter="0" Command="{Binding Player.Commands.SubtitlesDelaySet}"/>
                 <Separator />
                 <MenuItem Header="-   10"   CommandParameter="-10"      Command="{Binding Player.Commands.SubtitlesDelaySet2}"/>
@@ -751,7 +751,7 @@
         </MenuItem>
 
         <MenuItem Header="Video" Icon="{materialDesign:PackIcon VideoOutline}">
-            <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Config.Video.Enabled}"/>
+            <MenuItem Header="Enabled" IsCheckable="True" IsChecked="{Binding Player.Video.Enabled}"/>
             <MenuItem Header="Aspect Ratio">
                 <MenuItem.ItemContainerStyle>
                     <Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
@@ -795,9 +795,9 @@
                     </Style>
                 </MenuItem.Style>
             </MenuItem>
-            <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Config.Video.VideoAcceleration}"/>
+            <MenuItem Header="HW Acceleration" IsCheckable="True" IsChecked="{Binding Config.Video.HWAcceleration}"/>
             <MenuItem Header="Record" IsCheckable="True" IsChecked="{Binding Player.IsRecording, Mode=OneWay}" Command="{Binding Player.Commands.ToggleRecording}"/>
-            <MenuItem Header="{Binding Config.Video.Rotation}" HeaderStringFormat="Rotation ({0}°)">
+            <MenuItem Header="{Binding Player.Renderer.Rotation}" HeaderStringFormat="Rotation ({0}°)">
                 <MenuItem Header="0°"       CommandParameter="0"    Command="{Binding Player.Commands.RotationSet}"/>
                 <MenuItem Header="90°"      CommandParameter="90"   Command="{Binding Player.Commands.RotationSet}"/>
                 <MenuItem Header="180°"     CommandParameter="180"  Command="{Binding Player.Commands.RotationSet}"/>
@@ -820,7 +820,7 @@
 
             <MenuItem Header="Take a Snapshot" Command="{Binding Player.Commands.TakeSnapshot}" Icon="{materialDesign:PackIcon Kind=PhotoCamera}"/>
             <MenuItem Header="V.Sync" IsCheckable="True" IsChecked="{Binding Config.Video.VSync}"/>
-            <MenuItem Header="{Binding Config.Video.Zoom}" HeaderStringFormat="Zoom ({0}%)">
+            <MenuItem Header="{Binding Player.Renderer.Zoom}" HeaderStringFormat="Zoom ({0}%)">
                 <MenuItem Header="Reset ..." Command="{Binding Player.Commands.ResetAll}"/>
                 <MenuItem Header="Zoom In"   Command="{Binding Player.Commands.ZoomIn}" Icon="{materialDesign:PackIcon Kind=ZoomIn}"/>
                 <MenuItem Header="Zoom out"  Command="{Binding Player.Commands.ZoomOut}" Icon="{materialDesign:PackIcon Kind=ZoomOut}"/>

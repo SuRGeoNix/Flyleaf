@@ -7,11 +7,14 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
+    bool flFiltersFilled;
+    bool hasFLFilters;
+
     void FLFiltersSetup()
     {
-        if (!ucfg.flFiltersFilled)
+        if (!flFiltersFilled)
         {
-            ucfg.flFiltersFilled = true;
+            flFiltersFilled = true;
 
             foreach(var filterSpec in FLFilter.FLFilterSpecs)
             {
@@ -19,7 +22,7 @@ public unsafe partial class Renderer
                 {
                     userFilter.Initialize(this);
                     if (userFilter.Value != userFilter.Default)
-                        { ucfg.hasFLFilters = true; FLSetFilter(userFilter); }
+                        { hasFLFilters = true; FLSetFilter(userFilter); }
                 }
                 else
                 {
@@ -30,18 +33,18 @@ public unsafe partial class Renderer
         }
         else
         {   // NOTE: psData will not be reset on each setup so make sure we set all
-            ucfg.hasFLFilters = false;
+            hasFLFilters = false;
             foreach(var userFilter in ucfg.FLFilters.Values)
                 if (userFilter.Value != userFilter.Default)
-                    { ucfg.hasFLFilters = true; FLSetFilter(userFilter); }
+                    { hasFLFilters = true; FLSetFilter(userFilter); }
         }
     }
     void FLFiltersSync()
     {
-        if (!ucfg.SyncVPFilters || (!ucfg.hasD3Filters && !ucfg.hasFLFilters))
+        if (!ucfg.SyncVPFilters || (!hasD3Filters && !hasFLFilters))
             return;
 
-        ucfg.hasFLFilters = false;
+        hasFLFilters = false;
 
         foreach(var flFilter in ucfg.FLFilters.Values)
             if (ucfg.D3Filters.TryGetValue(ToVideoProcessorFilter(flFilter.Filter), out var d3Filter) && d3Filter.Available)
@@ -49,12 +52,12 @@ public unsafe partial class Renderer
                 flFilter.Value = d3Filter.Minimum == d3Filter.Maximum ? flFilter.Default :
                     Math.Clamp((int)Math.Round(Scale(d3Filter.Value, d3Filter.Minimum, d3Filter.Maximum, flFilter.Minimum, flFilter.Maximum)), flFilter.Minimum, flFilter.Maximum);
                 if (flFilter.Value != flFilter.Default)
-                    ucfg.hasFLFilters = true;
+                    hasFLFilters = true;
 
                 FLSetFilter(flFilter);
             }
             else if (flFilter.Value != flFilter.Default)
-                ucfg.hasFLFilters = true;
+                hasFLFilters = true;
     }
     internal void FLSetFilter(FLFilter cfgFilter, bool request = false)
     {   // Direct Call From Config
@@ -83,18 +86,18 @@ public unsafe partial class Renderer
 
         if (request)
         {
-            if (!ucfg.hasFLFilters)
+            if (!hasFLFilters)
             {
                 if (cfgFilter.Value != cfgFilter.Default)
                 {
-                    ucfg.hasFLFilters = true;
+                    hasFLFilters = true;
                     if (VideoProcessor != VideoProcessors.D3D11)
                         vpRequests |= VPRequestType.ReConfigVP;
                 }
             }
             else if (!ucfg.FLFilters.Where(f => f.Value.Value != f.Value.Default).Any())
             {
-                ucfg.hasFLFilters = false;
+                hasFLFilters = false;
                 if (VideoProcessor != VideoProcessors.D3D11)
                     vpRequests |= VPRequestType.ReConfigVP;
             }
@@ -102,7 +105,7 @@ public unsafe partial class Renderer
             VPRequest(vpRequests);
         }
         else
-            vpRequestsIn |= vpRequests; // during initialization (TBR which is actually the current VP?)
+            VPRequest(vpRequests, execute: false); // during initialization (TBR which is actually the current VP?)
     }
 
     static VideoProcessorFilter ToVideoProcessorFilter(FLFilters filter) => filter switch

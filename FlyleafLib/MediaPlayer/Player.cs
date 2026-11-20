@@ -75,10 +75,9 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     VideoCache vFrames;
 
     /// <summary>
-    /// Player's Renderer
-    /// (Normally you should not access this directly)
+    /// Video presentation, runtime adjustments and renderer feedback
     /// </summary>
-    public Renderer            Renderer            { get; private set; }
+    public Renderer             Renderer            { get; private set; }
 
     /// <summary>
     /// Subtitles Decoder
@@ -146,9 +145,14 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     /// </summary>
     public int          PlayerId            { get; private set; }
 
-    /// <summary>
-    /// Player's configuration (set once in the constructor)
-    /// </summary>
+    /// <summary>Player role selected at construction.</summary>
+    public Usage Usage { get; }
+
+    /// <summary>Whether to collect and refresh bitrate, frame-rate and drop statistics.</summary>
+    public bool Stats { get => _Stats; set => Set(ref _Stats, value); }
+    bool _Stats;
+
+    /// <summary>Player's configuration (set once in the constructor).</summary>
     public Config       Config              { get; protected set; }
 
     /// <summary>
@@ -197,7 +201,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         get => curTime;
         set
         {
-            if (Config.Player.SeekAccurate)
+            if (Config.Playback.SeekAccurate)
                 SeekAccurate((int) (value/10000));
             else
                 // Note: forward seeking casues issues to some formats and can have serious delays (eg. dash with h264, dash with vp9 works fine)
@@ -223,8 +227,8 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             }
 
             if (skipRefreshType
-                || Config.Player.UICurTime == UIRefreshType.PerFrame
-                ||(Config.Player.UICurTime == UIRefreshType.PerFrameSecond && _CurTime / 1_000_0000 != ts / 1_000_0000))
+                || Config.Playback.UICurTime == UIRefreshType.PerFrame
+                ||(Config.Playback.UICurTime == UIRefreshType.PerFrameSecond && _CurTime / 1_000_0000 != ts / 1_000_0000))
                 UI(SetCurTime);
         }
     }
@@ -238,8 +242,8 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             curTime = ts;
         }
 
-        if (   Config.Player.UICurTime == UIRefreshType.PerFrame
-            ||(Config.Player.UICurTime == UIRefreshType.PerFrameSecond && _CurTime / 1_000_0000 != ts / 1_000_0000))
+        if (   Config.Playback.UICurTime == UIRefreshType.PerFrame
+            ||(Config.Playback.UICurTime == UIRefreshType.PerFrameSecond && _CurTime / 1_000_0000 != ts / 1_000_0000))
             UI(SetCurTime);
     }
 
@@ -324,7 +328,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             decoder.RequiresResync  = true;
             requiresBuffering       = true;
             Subtitles.subsText      = "";
-            Renderer.SubsDispose();
+            Renderer?.SubsDispose();
             UI(() =>
             {
                 Subtitles.SubsText = Subtitles.subsText;
@@ -354,7 +358,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
 
             lock (lockActions)
             {
-                bool shouldPlay = status == Status.Playing || (status == Status.Ended && Config.Player.AutoPlay);
+                bool shouldPlay = status == Status.Playing || (status == Status.Ended && Config.Playback.AutoPlay);
                 Pause();
                 dFrame = null;
                 sFrame = null;
@@ -428,11 +432,11 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     volatile bool isDataSwitch;
     #endregion
 
-    public Player(Config config = null)
+    public Player(Config config = null, Usage usage = Usage.AVS)
     {
         if (config != null)
         {
-            if (config.Player.player != null)
+            if (config.Playback.player != null)
                 throw new("Player's configuration is already assigned to another player");
 
             Config = config;
@@ -440,9 +444,10 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         else
             Config = new Config();
 
+        Usage       = usage;
         PlayerId    = GetUniqueId();
         Log         = new(("[#" + PlayerId + "]").PadRight(8, ' ') + " [Player        ] ");
-        Log.Debug($"Creating Player (Usage = {Config.Player.Usage})");
+        Log.Debug($"Creating Player (Usage = {Usage})");
 
         Activity    = new(this);
         Audio       = new(this);
@@ -464,10 +469,10 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         DataDemuxer     = decoder.DataDemuxer;
         Playlist        = decoder.Playlist;
 
-        if (Config.Player.Usage == Usage.Audio)
+        if (Usage == Usage.Audio)
         {
-            Config.Video.Enabled = false;
-            Config.Subtitles.Enabled = false;
+            Video.Enabled = false;
+            Subtitles.Enabled = false;
         }
         else
         {
@@ -491,7 +496,12 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         AudioDecoder.CodecChanged   = Decoder_AudioCodecChanged;
         AudioDecoder.FormatChanged  = Decoder_AudioFormatChanged;
         VideoDecoder.CodecChanged   = Decoder_VideoCodecChanged;
-        VideoDecoder.OpeningCodec   = () => { OnOpeningVideoStream(new() { Player = this, VideoStream = VideoDecoder.VideoStream, VideoAcceleration = VideoDecoder.VideoAccelerated }); };
+        VideoDecoder.OpeningCodec   = () =>
+        {
+            var args = new OpeningVideoStreamArgs { Player = this, VideoStream = VideoDecoder.VideoStream, HWAcceleration = VideoDecoder.HWAccelerated };
+            OnOpeningVideoStream(args);
+            VideoDecoder.PreferredDecoder = args.PreferredDecoder;
+        };
         decoder.RecordingCompleted += (o, e) => { IsRecording = false; };
         Chapters.CollectionChanged += (o, e) => { RaiseUI(nameof(Chapters)); };
 

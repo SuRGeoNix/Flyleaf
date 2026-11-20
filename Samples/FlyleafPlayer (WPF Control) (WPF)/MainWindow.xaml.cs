@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -248,20 +247,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         // Testing misc
         //playerConfig.Demuxer.AllowFindStreamInfo = false;
-        //playerConfig.Player.ZeroLatency = true;
+        //playerConfig.Playback.ZeroLatency = true;
         //playerConfig.Video.ClearScreen = false;
-        //playerConfig.Player.UICurTime = UIRefreshType.PerFrame;
-        //playerConfig.Decoder.VideoCodec = "libvpx-vp9";
-        //playerConfig.Player.MaxLatency = TimeSpan.FromMilliseconds(75).Ticks;
-        //playerConfig.Decoder.MaxAudioFrames = 5;
+        //playerConfig.Playback.UICurTime = UIRefreshType.PerFrame;
+        //playerConfig.Video.Codec = "libvpx-vp9";
+        //playerConfig.Playback.MaxLatency = TimeSpan.FromMilliseconds(75).Ticks;
+        //playerConfig.Audio.MaxFrames = 5;
         //playerConfig.Demuxer.AllowFindStreamInfo = false;
-        //playerConfig.Video.VideoAcceleration = false;
-        //playerConfig.Video.VideoProcessor = VideoProcessors.Flyleaf;
-        //playerConfig.Video.SplitFrameAlphaPosition = SplitFrameAlphaPosition.Bottom;
+        //playerConfig.Video.HWAcceleration = false;
         #endif
         
         // Initializes the Player
         Player = new Player(playerConfig);
+
+        // Testing runtime
+        //Player.Renderer.PreferredVideoProcessor = VideoProcessors.Flyleaf;
+        //Player.Renderer.SplitFrameAlphaPosition = SplitFrameAlphaPosition.Bottom;
 
         Player.Opening          += Player_Opening;
         Player.OpenCompleted    += Player_OpenCompleted;
@@ -269,14 +270,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (GeneralConfig.AllowTransparency)
             Player.OpeningVideoStream += (o, e) =>
             {
-                e.Player.Config.Decoder.VideoCodec = "";
+                e.Player.Config.Video.Codec = "";
 
                 if (e.Player.VideoDemuxer.Name.Contains("webm"))
                 {
                     if (e.VideoStream.CodecID == AVCodecID.Vp8)
-                        e.Player.Config.Decoder.VideoCodec = "libvpx";
+                        e.Player.Config.Video.Codec = "libvpx";
                     else if (e.VideoStream.CodecID == AVCodecID.Vp9)
-                        e.Player.Config.Decoder.VideoCodec = "libvpx-vp9";
+                        e.Player.Config.Video.Codec = "libvpx-vp9";
                 }
             };
 
@@ -285,8 +286,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (e.PropertyName == "ReversePlayback" && !GetWindowFromPlayer(Player).ReversePlaybackChecked)
             {
-                if (playerConfig.Decoder.MaxVideoFrames < 80)
-                    playerConfig.Decoder.MaxVideoFrames = 80;
+                if (playerConfig.Video.MaxFrames < 80)
+                    playerConfig.Video.MaxFrames = 80;
                 
                 GetWindowFromPlayer(Player).ReversePlaybackChecked = true;
             }
@@ -296,12 +297,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 Player.Activity.ForceActive();
         };
 
-        Player.Config.Video.PropertyChanged += (o, e) =>
+        Player.Renderer.PropertyChanged += (o, e) =>
         {
-            if (e.PropertyName == nameof(Player.Config.Video.Rotation))
-                GetWindowFromPlayer(Player).Msg = $"Rotation {Player.Config.Video.Rotation}°";
-            else if (e.PropertyName == nameof(Player.Config.Video.Zoom))
-                GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Config.Video.Zoom}%";
+            if (e.PropertyName == nameof(Player.Renderer.Rotation))
+                GetWindowFromPlayer(Player).Msg = $"Rotation {Player.Renderer.Rotation}°";
+            else if (e.PropertyName == nameof(Player.Renderer.Zoom))
+                GetWindowFromPlayer(Player).Msg = $"Zoom {Player.Renderer.Zoom}%";
         };
 
         Player.Audio.PropertyChanged += (o, e) =>
@@ -312,20 +313,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 GetWindowFromPlayer(Player).Msg = Player.Audio.Mute ? "Muted" : "Unmuted";
         };
 
-        Player.Config.Audio.PropertyChanged += (o, e) =>
+        Player.Audio.PropertyChanged += (o, e) =>
         {
-            if (e.PropertyName == nameof(Player.Config.Audio.Delay))
-                GetWindowFromPlayer(Player).Msg = $"Audio Delay {Player.Config.Audio.Delay / 10000}ms";
+            if (e.PropertyName == nameof(Player.Audio.Delay))
+                GetWindowFromPlayer(Player).Msg = $"Audio Delay {Player.Audio.Delay / 10000}ms";
         };
 
-        Player.Config.Subtitles.PropertyChanged += (o, e) =>
+        Player.Subtitles.PropertyChanged += (o, e) =>
         {
-            if (e.PropertyName == nameof(Player.Config.Subtitles.Delay))
-                GetWindowFromPlayer(Player).Msg = $"Subs Delay {Player.Config.Subtitles.Delay / 10000}ms";
+            if (e.PropertyName == nameof(Player.Subtitles.Delay))
+                GetWindowFromPlayer(Player).Msg = $"Subs Delay {Player.Subtitles.Delay / 10000}ms";
         };
 
         // Ctrl+ N / Ctrl + W (Open New/Close Window)
-        var keys = playerConfig.Player.KeyBindings;
+        var keys = playerConfig.Playback.KeyBindings;
         keys.AddCustom(Key.N, true, () => CreateNewWindow(GetWindowFromPlayer(Player)), "New Window", false, true, false);
         keys.AddCustom(Key.W, true, () => GetWindowFromPlayer(Player).BtnClose_Click(null, null), "Close Window", false, true, false);
 
@@ -421,14 +422,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     string              imageFolder;
     int                 folderId;
 
-    [GeneratedRegex("\\.(apng|avif|bmp|jpg|jpeg|gif|ico|png|svg|tiff|webp|jfif)$", RegexOptions.IgnoreCase, "en-US")]
-    private static partial Regex RegexImages();
-
     void Player_Opening(object sender, OpeningArgs e)
     {
         if (slideShowOpening)
             ImageTitle = ImageFiles[ImageIndex];
-        else if (!RegexImages().IsMatch(e.Url))
+        else if (!MediaExtensions.IsImagePath(e.Url))
         {
             if (mediaViewer != MediaViewer.Video)
                 MediaViewer = MediaViewer.Video;
@@ -507,7 +505,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     bool userClearScreen;
     void SwitchMediaViewer()
     {
-        var keys = playerConfig.Player.KeyBindings;
+        var keys = playerConfig.Playback.KeyBindings;
 
         switch (prevMediaViewer)
         {
@@ -591,7 +589,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (curId != folderId)
                     return;
 
-                if (!RegexImages().IsMatch(file))
+                if (!MediaExtensions.IsImagePath(file))
                     continue;
 
                 imageFiles.Add(Path.GetFileName(file));
@@ -645,19 +643,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
                             slideShowWatcher.Renamed += (o, e) =>
                             {
-                                if (RegexImages().IsMatch(e.Name))
+                                if (MediaExtensions.IsImagePath(e.Name))
                                     RefreshFolder(false);
                             };
 
                             slideShowWatcher.Deleted += (o, e) =>
                             {
-                                if (RegexImages().IsMatch(e.Name))
+                                if (MediaExtensions.IsImagePath(e.Name))
                                     RefreshFolder(false);
                             };
 
                             slideShowWatcher.Created += (o, e) =>
                             {
-                                if (RegexImages().IsMatch(e.Name))
+                                if (MediaExtensions.IsImagePath(e.Name))
                                     RefreshFolder(false);
                             };
                         }
@@ -794,7 +792,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     void ImageKeysRemove()
     {
-        var keys = playerConfig.Player.KeyBindings;
+        var keys = playerConfig.Playback.KeyBindings;
         keys.Remove(Key.Delete);
         keys.Remove(Key.C, false, true);
         keys.Remove(Key.X, false, true);
@@ -803,7 +801,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     void SlideKeysRemove()
     {
-        var keys = playerConfig.Player.KeyBindings;
+        var keys = playerConfig.Playback.KeyBindings;
 
         keys.Remove(Key.Right);
         keys.Remove(Key.Left);
@@ -819,7 +817,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     void ImageKeysAdd()
     {
-        var keys = playerConfig.Player.KeyBindings;
+        var keys = playerConfig.Playback.KeyBindings;
         keys.AddCustom(Key.Delete,  true,   ImageDelete, "ImageDelete");
         keys.AddCustom(Key.C,       true,   () => ImageCutCopy(), "ImageCopy", false, true, false);
         keys.AddCustom(Key.X,       true,   () => ImageCutCopy(false), "ImageCut", false, true, false);
@@ -828,7 +826,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     void SlideKeysAdd()
     {
-        var keys = playerConfig.Player.KeyBindings;
+        var keys = playerConfig.Playback.KeyBindings;
         keys.AddCustom(Key.Right,   false,  () => SlideShowGoTo(SlidePosition.Next), "SlideNext");
         keys.AddCustom(Key.Left,    false,  () => SlideShowGoTo(SlidePosition.Prev), "SlidePrev");
         keys.AddCustom(Key.Space,   true,   SlideShowToggleAction, "SlideToggle");
@@ -842,7 +840,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
     void VideoKeysAdd()
     {
-        var keys = playerConfig.Player.KeyBindings;
+        var keys = playerConfig.Playback.KeyBindings;
         keys.Add(Key.Left,      KeyBindingAction.SeekBackward);
         keys.Add(Key.Right,     KeyBindingAction.SeekForward);
         keys.Add(Key.Space,     KeyBindingAction.TogglePlayPause);

@@ -52,8 +52,8 @@ namespace FlyleafMultiPlayer__WPF_
                 var config = new Config();
 
                 config.Demuxer.BufferDuration = TimeSpan.FromSeconds(5).Ticks; // Reduces RAM as the demuxer will not buffer large number of packets
-                config.Decoder.MaxVideoFrames = 2; // Reduces VRAM as video decoder will not keep large queues in VRAM (should be tested for smooth video playback, especially for 4K)
-                config.Decoder.VideoThreads = 2; // Reduces VRAM/GPU (should be tested for smooth video playback, especially for 4K)
+                config.Video.MaxFrames = 2; // Reduces VRAM as video decoder will not keep large queues in VRAM (should be tested for smooth video playback, especially for 4K)
+                config.Video.DecoderThreads = 2; // Reduces VRAM/GPU (should be tested for smooth video playback, especially for 4K)
                 // Consider using lower quality streams on normal screen and higher quality on fullscreen (if available)
 
                 Players.Add(new Player(config));

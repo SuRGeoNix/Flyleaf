@@ -32,7 +32,7 @@ public unsafe partial class Renderer
         {
             width   = codecCtx->coded_width > 0 ? codecCtx->coded_width : codecCtx->width;
             height  = codecCtx->coded_height > 0 ? codecCtx->coded_height : codecCtx->height;
-            format  = VideoDecoder.VideoAccelerated ? ((AVHWFramesContext*)ffFrames->data)->sw_format : codecCtx->pix_fmt;
+            format  = VideoDecoder.HWAccelerated ? ((AVHWFramesContext*)ffFrames->data)->sw_format : codecCtx->pix_fmt;
         }
 
         swsWidth    = (uint)width;
@@ -107,7 +107,7 @@ public unsafe partial class Renderer
             return false;
         }
         
-        FillPlanes  = VideoDecoder.VideoAccelerated ? SwsHWFillPlanes : SwsSWFillPlanes;
+        FillPlanes  = VideoDecoder.HWAccelerated ? SwsHWFillPlanes : SwsSWFillPlanes;
         psCase      = PSCase.SwsScale;
 
         txtDesc[0].Width   = (uint)swsFrame->width;
@@ -120,11 +120,11 @@ public unsafe partial class Renderer
 
         psId += "rgb";
 
-        if (ucfg._SplitFrameAlphaPosition == SplitFrameAlphaPosition.None || scfg.ColorType != ColorType.YUV || scfg.PixelPlanes > 3)
+        if (splitFrameAlphaPosition == SplitFrameAlphaPosition.None || scfg.ColorType != ColorType.YUV || scfg.PixelPlanes > 3)
             SetPS(@"color = Texture1.Sample(Sampler, input.Texture);", defines);
         else
         {   // Split Frame Alpha: Ensure we have YUV (w/o Alpha) | SwsScale will do the YUVtoRGB for embedded alpha
-            switch (ucfg._SplitFrameAlphaPosition)
+            switch (splitFrameAlphaPosition)
             {
                 case SplitFrameAlphaPosition.Left:
                     psId += "l";

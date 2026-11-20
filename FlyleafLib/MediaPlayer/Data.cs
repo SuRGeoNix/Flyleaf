@@ -5,6 +5,19 @@ namespace FlyleafLib.MediaPlayer;
 
 public class Data : NotifyPropertyChanged
 {
+    /// <summary>Whether data processing is enabled for this player.</summary>
+    public bool Enabled
+    {
+        get => decoder.dataEnabled;
+        set
+        {
+            if (!Set(ref decoder.dataEnabled, value)) return;
+            if (value) Enable(); else Disable();
+        }
+    }
+    internal void SetEnabled(bool enabled) => Set(ref decoder.dataEnabled, enabled, true, nameof(Enabled));
+    public void Toggle() => Enabled = !Enabled;
+
     /// <summary>
     /// Embedded Streams
     /// </summary>
@@ -20,7 +33,6 @@ public class Data : NotifyPropertyChanged
     Action uiAction;
     Player player;
     DecoderContext decoder => player.decoder;
-    Config Config => player.Config;
 
     public Data(Player player)
     {

@@ -193,8 +193,10 @@ inline float3 ApplyICC(float3 c)
 #if defined(dPano360)
 struct PanoData
 {
-    float4 panoParams;   // rotationX, rotationY, zoom, fov
+    float4 panoParams;   // yaw degrees, pitch degrees, zoom, fov degrees
     float  aspectRatio;
+    float3 padding;
+    float4 sourceRegion;
 };
 
 cbuffer PanoConfig : register(b3)
@@ -224,13 +226,35 @@ inline float2 PanoProject(float2 uv)
          Pano.panoParams.z));
 
     float3 camRot = float3(
-        (Pano.panoParams.x - 0.5) * 2.0 * PI_PANO,
-        (Pano.panoParams.y - 0.5) * PI_PANO, 0.0);
+        Pano.panoParams.x * DEG2RAD_PANO,
+        Pano.panoParams.y * DEG2RAD_PANO, 0.0);
 
     float3 rd = normalize(PanoRotateXY(camDir, camRot.yx));
 
-    return float2(atan2(rd.z, rd.x) + PI_PANO, acos(-rd.y)) / float2(2.0 * PI_PANO, PI_PANO);
+    return float2(atan2(rd.z, rd.x) + PI_PANO, acos(clamp(-rd.y, -1.0, 1.0))) / float2(2.0 * PI_PANO, PI_PANO);
 }
+
+#if defined(dPanoWrap) && !defined(dHDRDetect)
+// Bilinear longitude sampling wraps within the valid source region, including padded textures.
+inline float4 PanoSample(Texture2D tex, float2 uv)
+{
+    uint width, height;
+    tex.GetDimensions(width, height);
+    float2 dimensions = float2(width, height);
+    // Tolerate rounding of normalized integer crop boundaries.
+    float2 first = ceil(Pano.sourceRegion.xy * dimensions - 0.01);
+    float2 end = floor(Pano.sourceRegion.zw * dimensions + 0.01);
+    float2 size = max(end - first, float2(1.0, 1.0));
+    float x = (uv.x * width - first.x) - 0.5;
+    float left = floor(x);
+    float blend = frac(x);
+    float x0 = first.x + (left - floor(left / size.x) * size.x) + 0.5;
+    float x1 = first.x + ((left + 1.0) - floor((left + 1.0) / size.x) * size.x) + 0.5;
+    float y = clamp(uv.y * height, first.y + 0.5, first.y + size.y - 0.5) / height;
+    return lerp(tex.SampleLevel(Sampler, float2(x0 / width, y), 0),
+                tex.SampleLevel(Sampler, float2(x1 / width, y), 0), blend);
+}
+#endif
 #endif
 
 "u8;
@@ -240,14 +264,15 @@ struct PSInput
 {
     float4 Position : SV_POSITION;
     float2 Texture  : TEXCOORD0;
+    float2 ViewTexture : TEXCOORD1;
 };
 
 float4 main(PSInput input) : SV_TARGET
 {
     float4 color;
 
-#if defined(dPano360)
-    input.Texture = PanoProject(input.Texture);
+#if defined(dPano360) && !defined(dHDRDetect)
+    input.Texture = lerp(Pano.sourceRegion.xy, Pano.sourceRegion.zw, PanoProject(input.ViewTexture));
 #endif
 
 "u8;

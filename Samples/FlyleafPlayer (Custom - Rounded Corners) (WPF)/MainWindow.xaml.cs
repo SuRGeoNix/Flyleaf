@@ -64,11 +64,10 @@ namespace FlyleafPlayer__Custom___Rounded_Corners___WPF_
 
             Config = new Config();
 
-            // Inform the lib to refresh stats
-            Config.Player.Stats = true;
-            Config.Player.UICurTime = UIRefreshType.PerFrame;
+            // Refresh time on each frame
+            Config.Playback.UICurTime = UIRefreshType.PerFrame;
 
-            Player = new Player(Config);
+            Player = new Player(Config) { Stats = true };
             FlyleafHost.Player = Player;
 
             DataContext = this;

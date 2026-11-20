@@ -37,7 +37,7 @@ public unsafe partial class AudioDecoder
         AVFilterContext* filterCtx = null;
 
         if (filter == null)
-            throw new Exception($"[Filter {BytePtrToStringUTF8(filter->name)}] not found");
+            throw new Exception("Audio filter not found");
         
         ret = avfilter_graph_create_filter(ref filterCtx, filter, id, args, null, filterGraph);
         if (ret < 0)
@@ -312,14 +312,14 @@ public unsafe partial class AudioDecoder
             ProcessFilter();
 
             // Wait until Queue not Full or Stopped
-            if (Frames.Count >= Config.Decoder.MaxAudioFrames * cBufTimesCur)
+            if (Frames.Count >= Config.Audio.MaxFrames * cBufTimesCur)
             {
                 Monitor.Exit(lockCodecCtx);
                 lock (lockStatus)
                     if (Status == Status.Running)
                         Status = Status.QueueFull;
 
-                while (Frames.Count >= Config.Decoder.MaxAudioFrames * cBufTimesCur && (Status == Status.QueueFull || Status == Status.Draining))
+                while (Frames.Count >= Config.Audio.MaxFrames * cBufTimesCur && (Status == Status.QueueFull || Status == Status.Draining))
                     Thread.Sleep(20);
 
                 Monitor.Enter(lockCodecCtx);
@@ -374,7 +374,7 @@ public unsafe partial class AudioDecoder
         AudioFrame mFrame = new()
         {
             dataLen     = curLen,
-            Timestamp   = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Config.Audio.Delay),
+            Timestamp   = (long)((newPts * AudioStream.Timebase) - demuxer.StartTime + Delay),
             speed       = speed
         };
 

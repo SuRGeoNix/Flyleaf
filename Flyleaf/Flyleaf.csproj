@@ -1,0 +1,61 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>Flyleaf</RootNamespace>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\Images\Flyleaf.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+	<Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <FlyleafFFmpegDirectory Condition="'$(FlyleafFFmpegDirectory)' == '' And Exists('$(MSBuildProjectDirectory)\..\FFmpeg')">$(MSBuildProjectDirectory)\..\FFmpeg</FlyleafFFmpegDirectory>
+    <FlyleafFFmpegDirectory Condition="'$(FlyleafFFmpegDirectory)' == ''">$(MSBuildProjectDirectory)\..\..\FFmpeg</FlyleafFFmpegDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="$(FlyleafFFmpegDirectory)\**\*.dll" Link="FFmpeg\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FlyleafME\FlyleafME.csproj" />
+    <PackageReference Include="FlyleafLib.Plugins.OpenSubtitlesOrg" Version="1.3.0" />
+    <PackageReference Include="FlyleafLib.Plugins.SubtitlesConverter" Version="1.0.0" />
+    <PackageReference Include="FlyleafLib.Plugins.YTDLP" Version="2.0.1" />
+    <PackageReference Include="FlyleafLib.Plugins.BitSwarm" Version="1.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Update="Properties\Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+</Project>

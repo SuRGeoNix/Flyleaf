@@ -6,4 +6,15 @@
 		</ItemGroup>
 		<Delete Files="@(WpfTempFiles)" TreatErrorsAsWarnings="true" />
 	</Target>
+	<Target Name="SetFlyleafLibPackDependencyRange" AfterTargets="_GetProjectReferenceVersions" Condition="'$(FlyleafLibPackageVersionRange)' != ''">
+		<!-- Update NuGet's package dependency metadata while building against the local project. -->
+		<PropertyGroup>
+			<_FlyleafLibProjectPath>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', 'FlyleafLib\FlyleafLib.csproj'))</_FlyleafLibProjectPath>
+		</PropertyGroup>
+		<ItemGroup>
+			<_ProjectReferencesWithVersions Condition="'%(_ProjectReferencesWithVersions.FullPath)' == '$(_FlyleafLibProjectPath)'">
+				<ProjectVersion>$(FlyleafLibPackageVersionRange)</ProjectVersion>
+			</_ProjectReferencesWithVersions>
+		</ItemGroup>
+	</Target>
 </Project>

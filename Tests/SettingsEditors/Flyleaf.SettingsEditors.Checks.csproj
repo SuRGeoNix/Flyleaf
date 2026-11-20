@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Flyleaf/AppConfig.cs" Link="AppConfig.cs" />
+    <Compile Include="../../Flyleaf/PlayerProfiles.cs" Link="PlayerProfiles.cs" />
+    <Compile Include="../../Flyleaf/ConfigStore.cs" Link="ConfigStore.cs" />
+    <Compile Include="../../Flyleaf/SettingsFile.cs" Link="SettingsFile.cs" />
+    <Compile Include="../../Flyleaf/SingleInstance.cs" Link="SingleInstance.cs" />
+    <Compile Include="../../Flyleaf/WindowRatioSizing.cs" Link="WindowRatioSizing.cs" />
+    <Compile Include="../../Flyleaf/FolderQueueImport.cs" Link="FolderQueueImport.cs" />
+    <Compile Include="../../Flyleaf/FolderImportDialog.cs" Link="FolderImportDialog.cs" />
+    <Compile Include="../../Flyleaf/ExplorerFolderOrder.cs" Link="ExplorerFolderOrder.cs" />
+    <Compile Include="../../Flyleaf/FileAssociations.cs" Link="FileAssociations.cs" />
+    <Compile Include="../../Flyleaf/FlyleafPlaylistDocument.cs" Link="FlyleafPlaylistDocument.cs" />
+    <ProjectReference Include="../../FlyleafME/FlyleafME.csproj" />
+  </ItemGroup>
+</Project>

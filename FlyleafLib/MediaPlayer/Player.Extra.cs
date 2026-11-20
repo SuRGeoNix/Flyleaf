@@ -12,9 +12,9 @@ unsafe partial class Player
     public bool IsOpenFileDialogOpen    { get; private set; }
     readonly object stepSeekLock = new();
 
-    public void SeekBackward()  => SeekBackward_(Config.Player.SeekOffset);
-    public void SeekBackward2() => SeekBackward_(Config.Player.SeekOffset2);
-    public void SeekBackward3() => SeekBackward_(Config.Player.SeekOffset3);
+    public void SeekBackward()  => SeekBackward_(Config.Playback.SeekOffset);
+    public void SeekBackward2() => SeekBackward_(Config.Playback.SeekOffset2);
+    public void SeekBackward3() => SeekBackward_(Config.Playback.SeekOffset3);
     public void SeekBackward_(long offset)
     {
         if (!CanPlay)
@@ -22,15 +22,15 @@ unsafe partial class Player
 
         long seekTs = curTime - (curTime % offset) - offset;
 
-        if (Config.Player.SeekAccurate)
+        if (Config.Playback.SeekAccurate)
             SeekAccurate(Math.Max((int) (seekTs / 10000), 0));
         else
             Seek(Math.Max((int) (seekTs / 10000), 0), false);
     }
 
-    public void SeekForward()   => SeekForward_(Config.Player.SeekOffset);
-    public void SeekForward2()  => SeekForward_(Config.Player.SeekOffset2);
-    public void SeekForward3()  => SeekForward_(Config.Player.SeekOffset3);
+    public void SeekForward()   => SeekForward_(Config.Playback.SeekOffset);
+    public void SeekForward2()  => SeekForward_(Config.Playback.SeekOffset2);
+    public void SeekForward3()  => SeekForward_(Config.Playback.SeekOffset3);
     public void SeekForward_(long offset)
     {
         if (!CanPlay)
@@ -41,7 +41,7 @@ unsafe partial class Player
         if (seekTs > duration && !isLive)
             return;
 
-        if (Config.Player.SeekAccurate)
+        if (Config.Playback.SeekAccurate)
             SeekAccurate((int)(seekTs / 10000));
         else
             Seek((int)(seekTs / 10000), true);
@@ -218,10 +218,10 @@ unsafe partial class Player
         }
     }
 
-    public void SpeedUp()       => Speed += Config.Player.SpeedOffset;
-    public void SpeedUp2()      => Speed += Config.Player.SpeedOffset2;
-    public void SpeedDown()     => Speed -= Config.Player.SpeedOffset;
-    public void SpeedDown2()    => Speed -= Config.Player.SpeedOffset2;
+    public void SpeedUp()       => Speed += Config.Playback.SpeedOffset;
+    public void SpeedUp2()      => Speed += Config.Playback.SpeedOffset2;
+    public void SpeedDown()     => Speed -= Config.Playback.SpeedOffset;
+    public void SpeedDown2()    => Speed -= Config.Playback.SpeedOffset2;
 
     public void FullScreen()    => Host?.Player_SetFullScreen(true);
     public void NormalScreen()  => Host?.Player_SetFullScreen(false);
@@ -236,8 +236,11 @@ unsafe partial class Player
             Host.Player_SetFullScreen(true);
     }
 
+    /// <summary>Path of the most recent recording finalized by this player, or null.</summary>
+    public string LastRecordingFilename => decoder?.LastRecordingFilename;
+
     /// <summary>
-    /// Starts recording (uses Config.Player.FolderRecordings and default filename title_curTime)
+    /// Starts recording (uses Config.Playback.FolderRecordings and default filename title_curTime)
     /// </summary>
     public void StartRecording()
     {
@@ -245,11 +248,11 @@ unsafe partial class Player
             return;
         try
         {
-            if (!Directory.Exists(Config.Player.FolderRecordings))
-                Directory.CreateDirectory(Config.Player.FolderRecordings);
+            if (!Directory.Exists(Config.Playback.FolderRecordings))
+                Directory.CreateDirectory(Config.Playback.FolderRecordings);
 
             string filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Record" : Playlist.Selected.Title) + $"_{new TimeSpan(CurTime):hhmmss}." + decoder.Extension;
-            filename = FindNextAvailableFile(Path.Combine(Config.Player.FolderRecordings, filename));
+            filename = FindNextAvailableFile(Path.Combine(Config.Playback.FolderRecordings, filename));
             StartRecording(ref filename, false);
         } catch { }
     }
@@ -288,11 +291,11 @@ unsafe partial class Player
 
     /// <summary>
     /// <para>Saves the current video frame (encoding based on file extention .bmp, .png, .jpg)</para>
-    /// <para>If filename not specified will use Config.Player.FolderSnapshots and with default filename title_frameNumber.ext (ext from Config.Player.SnapshotFormat)</para>
+    /// <para>If filename not specified will use Config.Playback.FolderSnapshots and with default filename title_frameNumber.ext (ext from Config.Playback.SnapshotFormat)</para>
     /// <para>If width/height not specified will use the original size. If one of them will be set, the other one will be set based on original ratio</para>
     /// <para>If frame not specified will use the current/last frame</para>
     /// </summary>
-    /// <param name="filename">Specify the filename (null: will use Config.Player.FolderSnapshots and with default filename title_frameNumber.ext (ext from Config.Player.SnapshotFormat)</param>
+    /// <param name="filename">Specify the filename (null: will use Config.Playback.FolderSnapshots and with default filename title_frameNumber.ext (ext from Config.Playback.SnapshotFormat)</param>
     /// <param name="width">Specify the width (0: will keep the ratio based on height)</param>
     /// <param name="height">Specify the height (0: will keep the ratio based on width)</param>
     /// <exception cref="Exception"></exception>
@@ -305,38 +308,37 @@ unsafe partial class Player
         {
             try
             {
-                if (!Directory.Exists(Config.Player.FolderSnapshots))
-                    Directory.CreateDirectory(Config.Player.FolderSnapshots);
+                if (!Directory.Exists(Config.Playback.FolderSnapshots))
+                    Directory.CreateDirectory(Config.Playback.FolderSnapshots);
 
                 // TBR: if frame is specified we don't know the frame's number
-                filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Snapshot" : Playlist.Selected.Title) + $"_{VideoDecoder.GetFrameNumber(CurTime).ToString()}.{Config.Player.SnapshotFormat}";
-                filename = FindNextAvailableFile(Path.Combine(Config.Player.FolderSnapshots, filename));
-            } catch { return; }
+                filename = GetValidFileName(string.IsNullOrEmpty(Playlist.Selected.Title) ? "Snapshot" : Playlist.Selected.Title) + $"_{VideoDecoder.GetFrameNumber(CurTime).ToString()}.{Config.Playback.SnapshotFormat}";
+                filename = FindNextAvailableFile(Path.Combine(Config.Playback.FolderSnapshots, filename));
+            } catch (Exception ex) { SnapshotCompleted?.Invoke(this, new(filename, ex.Message)); return; }
         }
 
-        string ext = GetUrlExtention(filename);
-
-        var imageFormat = ext switch
-        {
-            "bmp"           => ImageFormat.Bmp,
-            "png"           => ImageFormat.Png,
-            "jpg" or "jpeg" => ImageFormat.Jpeg,
-            _ => throw new($"Invalid snapshot extention '{ext}' (valid .bmp, .png, .jpeg, .jpg"),
-        };
-
-        var snapshotBitmap = Renderer.TakeSnapshot(width, height);
-        if (snapshotBitmap == null)
-            return;
-
+        string snapshotError = null;
         try
         {
-            snapshotBitmap.Save(filename, imageFormat);
+            string ext = GetUrlExtention(filename);
+            var imageFormat = ext switch
+            {
+                "bmp"           => ImageFormat.Bmp,
+                "png"           => ImageFormat.Png,
+                "jpg" or "jpeg" => ImageFormat.Jpeg,
+                _ => throw new($"Invalid snapshot extention '{ext}' (valid .bmp, .png, .jpeg, .jpg"),
+            };
+
+            using var snapshotBitmap = Renderer.TakeSnapshot(width, height);
+            if (snapshotBitmap == null) snapshotError = "No video frame is available for a snapshot.";
+            else snapshotBitmap.Save(filename, imageFormat);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            snapshotBitmap.Dispose();
+            SnapshotCompleted?.Invoke(this, new(filename, ex.Message));
             throw;
         }
+        SnapshotCompleted?.Invoke(this, new(filename, snapshotError));
     }
 
     /// <summary>
@@ -366,7 +368,7 @@ unsafe partial class Player
     {
         ReversePlayback = false;
         Speed = 1;
-        Config.Audio.Delay = Config.Subtitles.Delay = 0;
-        Config.Video.ResetViewport();
+        Audio.Delay = Subtitles.Delay = 0;
+        Renderer?.ResetViewport();
     }
 }

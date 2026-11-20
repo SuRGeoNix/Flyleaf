@@ -216,16 +216,16 @@
                                 <TextBox   Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.ReadTimeout, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
                                 <TextBlock Grid.Row="2" Text="Buffer Duration Min. (ms)" VerticalAlignment="Center"/>
-                                <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Player.MinBufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                                <TextBox   Grid.Row="2" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Playback.MinBufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
                                 <TextBlock Grid.Row="3" Text="Buffer Duration Max. (ms)" VerticalAlignment="Center"/>
                                 <TextBox   Grid.Row="3" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Demuxer.BufferDuration, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
                                 <TextBlock Grid.Row="4" Text="Audio Frames Max." VerticalAlignment="Center"/>
-                                <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxAudioFrames, UpdateSourceTrigger=Explicit}"/>
+                                <TextBox   Grid.Row="4" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Audio.MaxFrames, UpdateSourceTrigger=Explicit}"/>
 
                                 <TextBlock Grid.Row="5" Text="Video Frames Max." VerticalAlignment="Center"/>
-                                <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.MaxVideoFrames, UpdateSourceTrigger=Explicit}"/>
+                                <TextBox   Grid.Row="5" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Video.MaxFrames, UpdateSourceTrigger=Explicit}"/>
 
                                 <TextBlock Grid.Row="6" Text="Vertical Resolution Max." VerticalAlignment="Center"/>
                                 <TextBox   Grid.Row="6" Grid.Column="1" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Video.MaxVerticalResolutionCustom, UpdateSourceTrigger=Explicit}" ToolTip="0 for Auto"/>
@@ -272,10 +272,10 @@
                             </Grid.RowDefinitions>
 
                             <TextBlock Text="Enabled" VerticalAlignment="Center"/>
-                            <ToggleButton Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Audio.Enabled, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                            <ToggleButton Grid.Column="1" Tag="_save" IsChecked="{Binding Player.Audio.Enabled, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
                             
                             <TextBlock Grid.Row="1" Text="Delay (ms)" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxN}" HorizontalAlignment="Left" Text="{Binding Config.Audio.Delay, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FLTextboxN}" HorizontalAlignment="Left" Text="{Binding Player.Audio.Delay, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
                             <Separator Grid.Row="2" Grid.ColumnSpan="3"/>
 
@@ -315,7 +315,7 @@
                             </Grid.RowDefinitions>
 
                             <TextBlock Text="Enabled" VerticalAlignment="Center"/>
-                            <ToggleButton Grid.Column="1" Tag="_save" HorizontalAlignment="Left" IsChecked="{Binding Config.Subtitles.Enabled, UpdateSourceTrigger=Explicit}" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                            <ToggleButton Grid.Column="1" Tag="_save" HorizontalAlignment="Left" IsChecked="{Binding Player.Subtitles.Enabled, UpdateSourceTrigger=Explicit}" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                             <TextBlock Grid.Row="1" Text="Search Local" VerticalAlignment="Center"/>
                             <ToggleButton Grid.Row="1" Grid.Column="1" Tag="_save" HorizontalAlignment="Left" IsChecked="{Binding Config.Subtitles.SearchLocal, UpdateSourceTrigger=Explicit}" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
@@ -324,7 +324,7 @@
                             <ToggleButton Grid.Row="2" Grid.Column="1" Tag="_save" HorizontalAlignment="Left" IsChecked="{Binding Config.Subtitles.SearchOnline, UpdateSourceTrigger=Explicit}" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                             <TextBlock Grid.Row="3" Text="Delay (ms)" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Subtitles.Delay, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Style="{StaticResource FLTextboxN}" Text="{Binding Player.Subtitles.Delay, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
                             <TextBlock Grid.Row="4" Text="Fonts" VerticalAlignment="Center"/>
                             <Button Margin=" 0 15 0 0" Grid.Row="4" Grid.Column="1" Height="auto" MaxHeight="100" Command="{Binding SetSubtitlesFont}">
@@ -385,9 +385,9 @@
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Text="Aspect Ratio" VerticalAlignment="Center"/>
-                                <ComboBox x:Name="cmbAspectRatio" Tag="_save" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{x:Static fl:AspectRatio.AspectRatios}" SelectedItem="{Binding Config.Video.AspectRatio, UpdateSourceTrigger=Explicit}"/>
+                                <ComboBox x:Name="cmbAspectRatio" Tag="_save" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{x:Static fl:AspectRatio.AspectRatios}" SelectedItem="{Binding Player.Renderer.AspectRatio, UpdateSourceTrigger=Explicit}"/>
 
-                                <TextBox Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Width="80" Text="{Binding Config.Video.AspectRatioCustom, UpdateSourceTrigger=Explicit, Converter={StaticResource StringToRational}}">
+                                <TextBox Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Width="80" Text="{Binding Player.Renderer.AspectRatioCustom, UpdateSourceTrigger=Explicit, Converter={StaticResource StringToRational}}">
                                     <TextBox.Resources>
                                         <Style TargetType="{x:Type TextBox}" BasedOn="{StaticResource FLTextbox}">
                                             <Setter Property="TextBox.Visibility" Value="Collapsed"></Setter>
@@ -402,7 +402,7 @@
                                 </TextBox>
 
                                 <TextBlock Grid.Row="1" Text="Deinterlace" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="1" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource DeInterlaceEnum}}" SelectedItem="{Binding Config.Video.DeInterlace}"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource DeInterlaceEnum}}" SelectedItem="{Binding Player.Renderer.DeInterlace}"/>
                                 <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="-30 0 0 0">
                                     <TextBlock Text="Double Rate" VerticalAlignment="Center" Margin="0 0 20 0"/>
                                     <ToggleButton Tag="_save" IsChecked="{Binding Config.Video.DoubleRate, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
@@ -412,28 +412,28 @@
                                 <ToggleButton Grid.Row="2" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.SuperResolution, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                                 <TextBlock Grid.Row="3" Text="Profile Mismatch" VerticalAlignment="Center"/>
-                                <ToggleButton Grid.Row="3" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Decoder.AllowProfileMismatch, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                                <ToggleButton Grid.Row="3" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.AllowProfileMismatch, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                                 <TextBlock Grid.Row="4" Text="V. Sync" VerticalAlignment="Center"/>
                                 <ToggleButton Grid.Row="4" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.VSync, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                                 <TextBlock Grid.Row="5" Text="Video Acceleration" VerticalAlignment="Center"/>
-                                <ToggleButton Grid.Row="5" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.VideoAcceleration, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                                <ToggleButton Grid.Row="5" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Video.HWAcceleration, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                                 <TextBlock Grid.Row="6" Text="Video Processor" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="6" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource VideoProcessorEnum}}" SelectedItem="{Binding Config.Video.VideoProcessor}"/>
+                                <ComboBox Grid.Row="6" Grid.Column="1" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center" ItemsSource="{Binding Source={StaticResource VideoProcessorEnum}}" SelectedItem="{Binding Player.Renderer.PreferredVideoProcessor}"/>
 
                                 <TextBlock Grid.Row="7" Text="Decoder Threads" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="7" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Decoder.VideoThreads, UpdateSourceTrigger=Explicit}"/>
+                                <TextBox Grid.Row="7" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxNP}" Text="{Binding Config.Video.DecoderThreads, UpdateSourceTrigger=Explicit}"/>
 
                                 <TextBlock Grid.Row="8" Text="Zoom Offset" VerticalAlignment="Center"/>
                                 <TextBox Grid.Row="8" Grid.Column="1" Width="80" Style="{StaticResource FLTextbox}" Text="{Binding Config.Video.ZoomOffset, UpdateSourceTrigger=LostFocus}"/>
 
                                 <TextBlock Grid.Row="9" Text="Max Latency (ms)" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="9" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Player.MaxLatency, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
+                                <TextBox Grid.Row="9" Grid.Column="1" Width="80" Style="{StaticResource FLTextboxN}" Text="{Binding Config.Playback.MaxLatency, UpdateSourceTrigger=Explicit, Converter={StaticResource TicksToMilliSeconds}}"/>
 
                                 <TextBlock Grid.Row="10" Text="Zero Latency" VerticalAlignment="Center"/>
-                                <ToggleButton Grid.Row="10" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Player.ZeroLatency, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
+                                <ToggleButton Grid.Row="10" Grid.Column="1" Tag="_save" IsChecked="{Binding Config.Playback.ZeroLatency, UpdateSourceTrigger=Explicit}" HorizontalAlignment="Left" Style="{StaticResource MaterialDesignSwitchDarkToggleButton}"/>
 
                                 <Separator Grid.Row="11" Grid.ColumnSpan="3"/>
 
@@ -445,7 +445,7 @@
                                             <Style TargetType="ItemsControl">
                                                 <Setter Property="ItemsSource" Value="{Binding Config.Video.FLFilters.Values}"/>
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Config.Video.VideoProcessor}" Value="{x:Static fl:VideoProcessors.D3D11}">
+                                                    <DataTrigger Binding="{Binding Player.Renderer.PreferredVideoProcessor}" Value="{x:Static fl:VideoProcessors.D3D11}">
                                                         <Setter Property="ItemsSource" Value="{Binding Config.Video.D3Filters.Values}"/>
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding Player.Renderer.VideoProcessor}" Value="{x:Static fl:VideoProcessors.D3D11}">

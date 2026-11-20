@@ -1,0 +1,31 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="FlyleafME.BackgroundBrush" Color="#101216"/>
+    <SolidColorBrush x:Key="FlyleafME.SurfaceBrush" Color="#20242C"/>
+    <SolidColorBrush x:Key="FlyleafME.BorderBrush" Color="#39404A"/>
+    <SolidColorBrush x:Key="FlyleafME.TextBrush" Color="#F2F4F7"/>
+    <SolidColorBrush x:Key="FlyleafME.SecondaryTextBrush" Color="#A3ADBA"/>
+    <SolidColorBrush x:Key="FlyleafME.AccentBrush" Color="#B22222"/>
+
+    <SolidColorBrush x:Key="FlyleafME.RaisedSurfaceBrush" Color="#2B313C"/>
+    <SolidColorBrush x:Key="FlyleafME.HoverBrush" Color="#353D49"/>
+    <SolidColorBrush x:Key="FlyleafME.AccentHoverBrush" Color="#CA3939"/>
+    <SolidColorBrush x:Key="FlyleafME.OnAccentBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="FlyleafME.SelectionBrush" Color="#3D232A"/>
+    <SolidColorBrush x:Key="FlyleafME.ErrorBrush" Color="#FF9292"/>
+    <SolidColorBrush x:Key="FlyleafME.LogoMarkBrush" Color="#B22222"/>
+    <SolidColorBrush x:Key="FlyleafME.LogoFoldBrush" Color="#791717"/>
+    <SolidColorBrush x:Key="FlyleafME.LogoPlayBrush" Color="#F5F7FA"/>
+    <SolidColorBrush x:Key="FlyleafME.LogoOutlineBrush" Color="#18202C"/>
+    <SolidColorBrush x:Key="FlyleafME.VideoBackgroundBrush" Color="#080A0D"/>
+
+    <!-- Overlay contrast is defined separately from normal application surfaces. -->
+    <SolidColorBrush x:Key="FlyleafME.OverlayBrush" Color="#D41A1F28"/>
+    <SolidColorBrush x:Key="FlyleafME.OverlayBorderBrush" Color="#425B687C"/>
+    <SolidColorBrush x:Key="FlyleafME.OverlayHoverBrush" Color="#70445161"/>
+    <SolidColorBrush x:Key="FlyleafME.OverlayPressedBrush" Color="#9A566577"/>
+    <SolidColorBrush x:Key="FlyleafME.OverlayTextBrush" Color="#F5F7FA"/>
+    <SolidColorBrush x:Key="FlyleafME.OverlaySecondaryTextBrush" Color="#B8C4D2"/>
+
+</ResourceDictionary>

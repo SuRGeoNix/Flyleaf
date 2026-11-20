@@ -16,61 +16,14 @@ public static partial class Utils
     public static readonly Rect         RectZero            = new(); // Rect.Empty has infinity values
     public static readonly Point        PointEmpty          = new();
     public static readonly CornerRadius CornerRadiusEmpty   = new();
+    // Keep the original list APIs backed by the shared catalog.
+    public static readonly List<string> ExtensionsAudio = MediaExtensions.AudioList;
+    public static readonly List<string> ExtensionsPictures = MediaExtensions.ImageList;
+    public static readonly List<string> ExtensionsSubtitlesText = MediaExtensions.SubtitlesTextList;
+    public static readonly List<string> ExtensionsSubtitlesBitmap = MediaExtensions.SubtitlesBitmapList;
+    public static readonly List<string> ExtensionsSubtitles = MediaExtensions.SubtitlesList;
+    public static readonly List<string> ExtensionsVideo = MediaExtensions.VideoList;
 
-    // VLC : https://github.com/videolan/vlc/blob/master/modules/gui/qt/dialogs/preferences/simple_preferences.cpp
-    // Kodi: https://github.com/xbmc/xbmc/blob/master/xbmc/settings/AdvancedSettings.cpp
-
-    public static readonly List<string> ExtensionsAudio =
-    [
-        // VLC
-          "3ga" , "669" , "a52" , "aac" , "ac3"
-        , "adt" , "adts", "aif" , "aifc", "aiff"
-        , "au"  , "amr" , "aob" , "ape" , "caf"
-        , "cda" , "dts" , "flac", "it"  , "m4a"
-        , "m4p" , "mid" , "mka" , "mlp" , "mod"
-        , "mp1" , "mp2" , "mp3" , "mpc" , "mpga"
-        , "oga" , "oma" , "opus", "qcp" , "ra"
-        , "rmi" , "snd" , "s3m" , "spx" , "tta"
-        , "voc" , "vqf" , "w64" , "wav" , "wma"
-        , "wv"  , "xa"  , "xm"
-    ];
-
-    public static readonly List<string> ExtensionsPictures =
-    [
-        "apng", "bmp", "gif", "jpg", "jpeg", "png", "ico", "tif", "tiff", "tga","jfif"
-    ];
-
-    public static readonly List<string> ExtensionsSubtitlesText =
-    [
-        "ass", "ssa", "srt", "text", "vtt"
-    ];
-
-    public static readonly List<string> ExtensionsSubtitlesBitmap =
-    [
-        "sub", "sup"
-    ];
-
-    public static readonly List<string> ExtensionsSubtitles = [..ExtensionsSubtitlesText, ..ExtensionsSubtitlesBitmap];
-
-    public static readonly List<string> ExtensionsVideo =
-    [
-        // VLC
-          "3g2" , "3gp" , "3gp2", "3gpp", "amrec"
-        , "amv" , "asf" , "avi" , "bik" , "divx"
-        , "drc" , "dv"  , "f4v" , "flv" , "gvi"
-        , "gxf" , "m1v" , "m2t" , "m2v" , "m2ts"
-        , "m4v" , "mkv" , "mov" , "mp2v", "mp4"
-        , "mp4v", "mpa" , "mpe" , "mpeg", "mpeg1"
-        , "mpeg2","mpeg4","mpg" , "mpv2", "mts"
-        , "mtv" , "mxf" , "nsv" , "nuv" , "ogg"
-        , "ogm" , "ogx" , "ogv" , "rec" , "rm"
-        , "rmvb", "rpl" , "thp" , "tod" , "ts"
-        , "tts" , "vob" , "vro" , "webm", "wmv"
-        , "xesc"
-
-        // Additional
-        , "dav"
-    ];
 
     private static int uniqueId;
     public static int GetUniqueId() { Interlocked.Increment(ref uniqueId); return uniqueId; }

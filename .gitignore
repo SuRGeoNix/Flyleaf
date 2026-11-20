@@ -345,3 +345,6 @@ FlyleafLib/FlyleafLib.xml
 
 # NuGet Pack
 *.nuspec
+
+# FlyleafME temp docs
+FlyleafME/docs

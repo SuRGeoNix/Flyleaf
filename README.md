@@ -1,6 +1,6 @@
-﻿# <img src="Images/Flyleaf_TitleBar_128.png" width="32">*lyleaf v3.11*: Media Player .NET Library
+﻿# <img src="Images/Flyleaf_TitleBar_128.png" width="32">*lyleaf*: Media Player .NET Library
 
-![alt text](Images/Flyleafv3.11.png)
+![alt text](Images/Flyleafv3.12.png)
 
 ---
 
@@ -25,7 +25,7 @@
 
 - *Provides a DPI aware, hardware accelerated Direct3D Surface (FlyleafHost) which can be hosted as normal control to your application and easily develop above it your own transparent overlay content*
 - *All the implementation uses UI notifications (PropertyChanged / ObservableCollection etc.) so you can use it as a ViewModel directly*    
-- *For WPF provides a Control (FlyleafME) with all the basic UI sub-controls (Bar, Settings, Popup menu) and can be customized with style / control template overrides*
+- *For WPF, FlyleafME provides a composable playback UI with customizable controls and panels. [FlyleafME quick start](FlyleafME/README.md)*
 
 # [Features]
 
@@ -84,7 +84,20 @@
 - *Resize / Resize & Keep Ratio*
 - *Z-Order*
 
-### **UI Control (FlyleafME)** <sub>*WPF Only*</sub>
+### **UI Control (FlyleafME)** <sub>*WPF / .NET 10*</sub>
+
+`FlyleafME` package · [Quick start](FlyleafME/README.md)
+
+- *Customizable Playback Bar / Seek Bar / Context Menu*
+- *Media Queue / Slideshow*
+- *Docked / Floating / Overlay Panels <sub>(Playback, Video, Audio, Subtitles, Media Information, Queue, Settings)</sub>*
+- *Customizable Subtitle Text / On-Screen Display*
+- *Dark / Light / System Themes with Accent Colors*
+
+### **UI Control (FlyleafME Legacy)** <sub>*WPF / .NET 8 and .NET 10*</sub>
+
+`FlyleafLib.Controls.WPF` package
+
 - *Flyleaf Bar Control / Slider*
 - *Flyleaf Popup Menu*
 - *Flyleaf Settings Dialog*

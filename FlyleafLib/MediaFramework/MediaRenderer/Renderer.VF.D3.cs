@@ -7,6 +7,8 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
+    bool hasD3Filters;
+
     void D3FiltersSetup(D3CacheEntry d3CacheEntry, bool needsFillUnlock)
     {
         if (needsFillUnlock)
@@ -31,8 +33,7 @@ public unsafe partial class Renderer
 
         superResNvidiaAvailable = d3CacheEntry.SuperResNvidiaAvailable == 1;
 
-        ucfg.d3FiltersFilled = true;
-        ucfg.hasD3Filters = false;
+        hasD3Filters = false;
         foreach (var filter in D3CacheEntry.AllFilters)
             if (d3CacheEntry.Filters.TryGetValue(filter, out var filterSpec))
             {
@@ -46,7 +47,7 @@ public unsafe partial class Renderer
                 }
                 if (userFilter.Value != userFilter.Default)
                 {
-                    ucfg.hasD3Filters = true;
+                    hasD3Filters = true;
                     vc.VideoProcessorSetStreamFilter(vp, 0, filter, true, userFilter.Value);
                 }
             }
@@ -56,10 +57,10 @@ public unsafe partial class Renderer
     }
     void D3FiltersSync()
     {
-        if (!ucfg.SyncVPFilters || (!ucfg.hasD3Filters && !ucfg.hasFLFilters))
+        if (!ucfg.SyncVPFilters || (!hasD3Filters && !hasFLFilters))
             return;
 
-        ucfg.hasD3Filters = false;
+        hasD3Filters = false;
 
         foreach(var flFilter in ucfg.FLFilters.Values)
             if (ucfg.D3Filters.TryGetValue(ToVideoProcessorFilter(flFilter.Filter), out var d3Filter) && d3Filter.Available)
@@ -67,19 +68,19 @@ public unsafe partial class Renderer
                 d3Filter.Value = flFilter.Minimum == flFilter.Maximum ? d3Filter.Default :
                     Math.Clamp((int)Math.Round(Scale(flFilter.Value, flFilter.Minimum, flFilter.Maximum, d3Filter.Minimum, d3Filter.Maximum)), d3Filter.Minimum, d3Filter.Maximum);
                 if (d3Filter.Value != d3Filter.Default)
-                    ucfg.hasD3Filters = true;
+                    hasD3Filters = true;
 
                 vc.VideoProcessorSetStreamFilter(vp, 0, d3Filter.Filter, true, d3Filter.Value);
             }
         // Include device-specific filters that have no Flyleaf counterpart.
-        ucfg.hasD3Filters = ucfg.D3Filters.Values.Any(filter => filter.Available && filter.Value != filter.Default);
+        hasD3Filters = ucfg.D3Filters.Values.Any(filter => filter.Available && filter.Value != filter.Default);
     }
     internal void D3SetFilter(D3Filter filter)
     {   // Direct Call from Config
         if (filter.Value != filter.Default)
-            ucfg.hasD3Filters = true;
+            hasD3Filters = true;
         else
-            ucfg.hasD3Filters = ucfg.D3Filters.Values.Any(f => f.Available && f.Value != f.Default);
+            hasD3Filters = ucfg.D3Filters.Values.Any(f => f.Available && f.Value != f.Default);
 
         if (vc != null && vp != null)
         {
