@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 
 namespace FlyleafLib.MediaFramework.MediaPlaylist;
 
@@ -37,6 +37,42 @@ public class PLSPlaylist
         }
 
         return items;
+    }
+
+    public static List<PLSPlaylistItem> ParseFromString(string text)
+    {
+        using StringReader reader = new(text);
+        Dictionary<string, string> attributes = new(StringComparer.OrdinalIgnoreCase);
+        bool inPlaylist = false;
+        string line;
+
+        while ((line = reader.ReadLine()) != null)
+        {
+            line = line.Trim().TrimStart('\uFEFF');
+            if (line.StartsWith('[') && line.EndsWith(']'))
+                inPlaylist = line.Equals("[playlist]", StringComparison.OrdinalIgnoreCase);
+
+            int equals = line.IndexOf('=');
+            if (inPlaylist && equals > 0)
+                attributes[line[..equals].Trim()] = line[(equals + 1)..].Trim();
+        }
+
+        SortedDictionary<int, PLSPlaylistItem> items = new();
+        foreach (var (key, url) in attributes)
+        {
+            if (!key.StartsWith("File", StringComparison.OrdinalIgnoreCase) ||
+                !int.TryParse(key.AsSpan(4), out int index) || index <= 0 || url.Length == 0)
+                continue;
+
+            items[index] = new()
+            {
+                Url = url,
+                Title = attributes.GetValueOrDefault($"Title{index}"),
+                Duration = int.TryParse(attributes.GetValueOrDefault($"Length{index}"), out int duration) ? duration : 0
+            };
+        }
+
+        return new(items.Values);
     }
 
     public static string GetINIAttribute(string name, string key, string path)
