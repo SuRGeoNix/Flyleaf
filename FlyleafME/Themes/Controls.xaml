@@ -1,6 +1,7 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:me="clr-namespace:Flyleaf.Controls.WPF">
+                    xmlns:me="clr-namespace:Flyleaf.Controls.WPF"
+                    xmlns:player="clr-namespace:FlyleafLib.MediaPlayer;assembly=FlyleafLib">
 
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="PanelControls.xaml"/>
@@ -677,5 +678,32 @@
                 </Grid>
             </Border>
         </ControlTemplate></Setter.Value></Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Options.Visibility, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafVisibilityPolicy.Never}">
+                <Setter Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding Options.Visibility, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafVisibilityPolicy.Auto}"/>
+                    <Condition Binding="{Binding Player.CanPlay, RelativeSource={RelativeSource Self}}" Value="True"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Visibility" Value="Collapsed"/>
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding Options.Visibility, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafVisibilityPolicy.Auto}"/>
+                    <Condition Binding="{Binding Player.Status, RelativeSource={RelativeSource Self}}" Value="{x:Static player:Status.Opening}"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Visibility" Value="Collapsed"/>
+            </MultiDataTrigger>
+            <!-- Mouse activity takes precedence while media is playable or opening. -->
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding Options.Visibility, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafVisibilityPolicy.Auto}"/>
+                    <Condition Binding="{Binding Player.Activity.Mode, RelativeSource={RelativeSource Self}}" Value="{x:Static player:ActivityMode.FullActive}"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Visibility" Value="Visible"/>
+            </MultiDataTrigger>
+        </Style.Triggers>
     </Style>
 </ResourceDictionary>

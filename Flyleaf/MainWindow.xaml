@@ -116,7 +116,7 @@
             <Grid>
                 <me:FlyleafOverlayLayout>
                     <me:FlyleafOverlayLayout.BottomContent>
-                        <me:FlyleafPlaybackBar x:Name="PlaybackBar"/>
+                        <me:FlyleafPlaybackBar x:Name="PlaybackBar" Visibility="Visible"/>
                     </me:FlyleafOverlayLayout.BottomContent>
                 </me:FlyleafOverlayLayout>
 

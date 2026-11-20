@@ -1731,6 +1731,16 @@ internal static class Program
         scene.Measure(new Size(1100, 120)); scene.Arrange(new Rect(0, 0, 1100, 120)); scene.UpdateLayout();
         T Part<T>(string name) where T : DependencyObject => (T)bar.Template.FindName(name, bar);
         bar.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+        bar.Options.Visibility = FlyleafVisibilityPolicy.Never;
+        Check(bar.Visibility == Visibility.Collapsed, "Playback bar ignored the Never visibility option");
+        bar.Visibility = Visibility.Visible;
+        Check(bar.Visibility == Visibility.Visible, "A host could not supply its own playback bar visibility");
+        bar.ClearValue(UIElement.VisibilityProperty);
+        bar.Options.Visibility = FlyleafVisibilityPolicy.Always;
+        Check(bar.Visibility == Visibility.Visible, "Playback bar ignored the Always visibility option");
+        bar.Options.Visibility = FlyleafVisibilityPolicy.Auto;
+        Check(bar.Visibility == Visibility.Visible, "The unconnected playback bar was hidden in Auto mode");
+
         var autoNext = Part<System.Windows.Controls.Primitives.ToggleButton>("PART_AutoNext");
         var speed = Part<Button>("PART_Speed");
         Check(speed.ToolTip is string tip && tip.Contains("1×") && bar.SpeedNeedleAngle == 0,

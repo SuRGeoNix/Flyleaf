@@ -45,6 +45,8 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
                 uri         = new(Playlist.Url);
                 isWeb       = uri.Scheme.StartsWith("http");
                 localPath   = uri.LocalPath;
+                if (isWeb)
+                    ext = GetUrlExtention(uri.AbsolutePath);
             } catch { }
 
 
@@ -79,15 +81,25 @@ public class OpenDefault : PluginBase, IOpen, IScrapeItem
                 Playlist.InputType = InputType.Web; // TBR: Can be mixed
                 Playlist.FolderBase = Path.GetTempPath();
 
-                var items = PLSPlaylist.Parse(Playlist.Url);
-
-                foreach(var mitem in items)
+                List<PLSPlaylistItem> items;
+                if (isWeb)
                 {
+                    var text = DownloadToString(Playlist.Url);
+                    if (text == null) return new("Could not read the playlist.");
+
+                    items = PLSPlaylist.ParseFromString(text);
+                }
+                else
+                    items = PLSPlaylist.Parse(Playlist.Url);
+
+                foreach (var mitem in items)
+                {
+                    var url = isWeb && Uri.TryCreate(uri, mitem.Url, out var streamUri) ? streamUri.AbsoluteUri : mitem.Url;
                     AddPlaylistItem(new()
                     {
                         Title       = mitem.Title,
-                        Url         = mitem.Url,
-                        DirectUrl   = mitem.Url,
+                        Url         = url,
+                        DirectUrl   = url,
                         // Duration
                     });
                 }
