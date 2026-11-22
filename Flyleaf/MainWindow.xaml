@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:me="clr-namespace:Flyleaf.Controls.WPF;assembly=FlyleafME"
         Title="Flyleaf" Width="900" Height="560"
-        MinWidth="404" MinHeight="360"
+        MinWidth="404" MinHeight="260"
         WindowStyle="None" ResizeMode="CanResize" AllowsTransparency="False"
         FontFamily="Segoe UI" FontSize="13"
         Background="Black"
@@ -33,11 +33,11 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <me:FlyleafLogo Grid.Column="0" Width="28" Height="28" Margin="6,0,10,0"/>
-                                    <TextBlock Grid.Column="1" Text="Flyleaf" FontSize="15" FontWeight="SemiBold"
+                                    <me:FlyleafLogo Grid.Column="0" Width="28" Height="28" Margin="6,0,2,0"/>
+                                    <TextBlock Grid.Column="1" Text="lyleaf" FontSize="16" FontWeight="SemiBold"
                                                Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"
                                                VerticalAlignment="Center"/>
-                                    <Border Grid.Column="2" Width="1" Height="18" Margin="14,0" Opacity="0.5"
+                                    <Border Grid.Column="2" Width="1" Height="22" Margin="10,0" Opacity="0.5"
                                             Background="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}"/>
                                     <TextBlock Grid.Column="3" FontSize="12" Margin="0,0,12,0"
                                                TextTrimming="CharacterEllipsis"
@@ -58,7 +58,7 @@
 
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                     <StackPanel x:Name="PlayerActions" Orientation="Horizontal">
-                                        <Button x:Name="ThemeButton" Content="&#xE790;" ToolTip="Switch theme (right-click for options)"
+                                        <Button x:Name="ThemeButton" Content="&#xE790;" ToolTip="Switch theme (right-click for options)" Focusable="False"
                                                 Click="ToggleTheme_Click" Foreground="{DynamicResource FlyleafME.AccentBrush}"
                                                 Style="{StaticResource FlyleafME.OverlayIconButtonStyle}">
                                             <Button.ContextMenu>
@@ -83,7 +83,7 @@
                                         </Button>
                                     </StackPanel>
                                     <StackPanel x:Name="WindowActions" Orientation="Horizontal">
-                                        <ToggleButton x:Name="PinButton" ToolTip="Always on top"
+                                        <ToggleButton x:Name="PinButton" ToolTip="Always on top" Focusable="False"
                                                       Style="{StaticResource FlyleafME.OverlayIconToggleStyle}">
                                             <Canvas Width="18" Height="18">
                                                 <Path Data="M 6,3 L 12,3 M 7,3 L 7,8 L 5,11 L 13,11 L 11,8 L 11,3 M 9,11 L 9,17"
@@ -91,7 +91,7 @@
                                                       StrokeThickness="1.5" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
                                             </Canvas>
                                         </ToggleButton>
-                                        <Button ToolTip="Minimize" Click="Minimize_Click"
+                                        <Button ToolTip="Minimize" Click="Minimize_Click" Focusable="False"
                                                 Style="{StaticResource FlyleafME.OverlayIconButtonStyle}">
                                             <Canvas Width="18" Height="18">
                                                 <Path Data="M 3,14.5 L 15,14.5"
@@ -99,14 +99,14 @@
                                                       StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
                                             </Canvas>
                                         </Button>
-                                        <Button x:Name="MaximizeButton" Content="&#xE922;" ToolTip="Maximize"
+                                        <Button x:Name="MaximizeButton" Content="&#xE922;" ToolTip="Maximize" Focusable="False"
                                                 Click="Maximize_Click"
                                                 Style="{StaticResource FlyleafME.OverlayIconButtonStyle}"/>
                                     </StackPanel>
-                                    <ToggleButton x:Name="FullscreenButton" Content="&#xE740;" ToolTip="Fullscreen / restore"
+                                    <ToggleButton x:Name="FullscreenButton" Content="&#xE740;" ToolTip="Fullscreen / restore" Focusable="False"
                                                   Checked="Fullscreen_Changed" Unchecked="Fullscreen_Changed"
                                                   Style="{StaticResource FlyleafME.OverlayIconToggleStyle}"/>
-                                    <Button x:Name="CloseButton" Content="&#xE8BB;" ToolTip="Close" Click="Close_Click"
+                                    <Button x:Name="CloseButton" Content="&#xE8BB;" ToolTip="Close" Click="Close_Click" Focusable="False"
                                             Style="{StaticResource FlyleafME.OverlayIconButtonStyle}"/>
                                 </StackPanel>
                             </Grid>
