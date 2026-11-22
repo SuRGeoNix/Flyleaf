@@ -348,3 +348,6 @@ FlyleafLib/FlyleafLib.xml
 
 # FlyleafME temp docs
 FlyleafME/docs
+
+# FFmpeg binaries
+/FFmpeg/
