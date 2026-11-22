@@ -32,7 +32,18 @@ partial class Player
     /// Fires after a seek operation for the requested ms (-1 on failure), before any subsequent playback buffering.
     /// Invoked on the seek/playback worker; handlers must not synchronously pause or stop playback.
     /// </summary>
+    /// <remarks>
+    /// Obsolete. Use <see cref="SeekResultCompleted"/> instead for cancellation-aware seek results.
+    /// </remarks>
+    [Obsolete("Use SeekResultCompleted instead. This event will be removed in v4.")]
     public event EventHandler<int> SeekCompleted;
+
+    /// <summary>
+    /// Fires after a seek operation completes, providing the requested position and whether the operation was cancelled.
+    /// Unlike <see cref="SeekCompleted"/>, distinguishes interrupted or superseded seeks from genuine failures.
+    /// Invoked on the seek/playback worker; handlers must not synchronously pause or stop playback.
+    /// </summary>
+    public event EventHandler<FlyleafSeekResult> SeekResultCompleted;
 
     /// <summary>
     /// Plays AVS streams
@@ -289,7 +300,8 @@ partial class Player
                 return;
 
             _CurTime = curTime = ms * (long)10000;
-            seeks.Push(new SeekData(ms, forward, accurate));
+            var version = Interlocked.Increment(ref seekRequestVersion);
+            seeks.Push(new SeekData(ms, forward, accurate, version, OpenCancellationVersion));
 
             startSeekTask = !taskPlayRuns && !taskSeekRuns;
             if (startSeekTask)
@@ -377,7 +389,7 @@ partial class Player
 
                     decoder.PauseOnQueueFull();
                     seekExecuting = false;
-                    SeekCompleted?.Invoke(this, ret < 0 ? -1 : seekData.ms);
+                    NotifySeekResult(ret < 0 ? -1 : seekData.ms, seekData);
                 }
                 else
                 {
@@ -410,7 +422,7 @@ partial class Player
                     if (seekCompletedMs is int seekCompletedMsValue)
                     {
                         seekExecuting = false;
-                        SeekCompleted?.Invoke(this, seekCompletedMsValue);
+                        NotifySeekResult(seekCompletedMsValue, seekData);
                     }
                 }
 
@@ -419,7 +431,7 @@ partial class Player
         }
         catch (Exception e)
         {
-            if (seekExecuting) { seekExecuting = false; SeekCompleted?.Invoke(this, -1); }
+            if (seekExecuting) { seekExecuting = false; NotifySeekResult(-1, seekData); }
             Log.Error($"Seek failed ({e.Message})");
         }
         finally
@@ -466,6 +478,8 @@ partial class Player
     /// </summary>
     public void Stop()
     {
+        Interlocked.Increment(ref openCancellationVersion);
+        Interlocked.Increment(ref seekRequestVersion);
         lock (lockActions)
         {
             Initialize();
@@ -491,6 +505,8 @@ class SeekData
     public int  ms;
     public bool forward;
     public bool accurate;
-    public SeekData(int ms, bool forward, bool accurate)
-        { this.ms = ms; this.forward = forward && !accurate; this.accurate = accurate; }
+    public long Version;
+    public long OpenVersion;
+    public SeekData(int ms, bool forward, bool accurate, long version, long openVersion)
+        { this.ms = ms; this.forward = forward && !accurate; this.accurate = accurate; Version = version; OpenVersion = openVersion; }
 }

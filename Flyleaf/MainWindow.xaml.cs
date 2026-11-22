@@ -111,6 +111,8 @@ public partial class MainWindow : Window
         Player = new Player(Profile.Player);
 
         InitializeComponent();
+        MediaTitle.DataContext = MediaElement;
+
         if (App.Instance.UseTransparentWindows)
         {
             // A layered owner has per-pixel transparency. Alpha-zero pixels let mouse input pass through to the desktop.

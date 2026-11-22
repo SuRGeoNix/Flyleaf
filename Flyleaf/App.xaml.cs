@@ -133,9 +133,9 @@ public partial class App : Application
         if (request.Inputs.Length > 0) await target.OpenLaunchInputsAsync(request.Inputs);
     }
 
-    static FlyleafLib.Config CreateDefaultPlayerConfig()
+    static Config CreateDefaultPlayerConfig()
     {
-        var config = new FlyleafLib.Config();
+        var config = new Config();
         config.Demuxer.FormatOpt = DefaultFormatOpt();
         config.Playback.KeyBindings = FlyleafME.CreateDefaultKeybindings();
         return config;
@@ -158,20 +158,7 @@ public partial class App : Application
 
     internal static EngineConfig CreateDefaultEngineConfig() => new()
     {
-        PluginsPath       = ":Plugins",
-        FFmpegPath        = ":FFmpeg",
         FFmpegHLSLiveSeek = true,
-        UIRefresh         = true,
-        FFmpegLoadProfile = Flyleaf.FFmpeg.LoadProfile.All,
-
-        #if DEBUG
-        LogLevel          = LogLevel.Debug,
-        LogOutput         = ":debug",
-        FFmpegLogLevel    = Flyleaf.FFmpeg.LogLevel.Warning,
-        #else
-        LogLevel          = LogLevel.Quiet,
-        LogOutput         = "",
-        #endif
     };
 
     internal static string NormalizeEngineLogOutput(string? value)
@@ -231,6 +218,14 @@ public partial class App : Application
         {
             store.Engine.LogOutput = FactoryEngine.LogOutput;
         }
+
+        #if DEBUG
+        store.Engine.FFmpegPath     = ":FFmpeg";
+        store.Engine.FFmpegLogLevel = FFmpeg.LogLevel.Warning;
+        store.Engine.LogLevel       = LogLevel.Debug;
+        store.Engine.LogOutput      = ":debug";
+        #endif
+
         Engine.Start(store.Engine);
         store.LoadProfiles(CreateDefaultPlayerConfig());
         initialized = true;
@@ -252,11 +247,13 @@ public partial class App : Application
             {
                 Config.Startup.PropertyChanged -= StartupOptionsChanged;
                 tray?.Dispose();
+                #if !DEBUG
                 try { store.Save(); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Text.Json.JsonException)
                 {
                     MessageBox.Show(ex.Message, "Settings save failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+                #endif
             }
             // Engine's Exit handler changes runtime refresh settings as it disposes players.
             base.OnExit(e);

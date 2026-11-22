@@ -176,6 +176,7 @@ unsafe partial class Player
     private OpenCompletedArgs OpenInternal(object url_iostream, bool defaultPlaylistItem = true, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
     {
         OpenCompletedArgs args = new();
+        long openVersion = OpenCancellationVersion;
 
         try
         {
@@ -196,8 +197,9 @@ unsafe partial class Player
 
             if (!args.Success)
             {
-                status      = Status.Failed;
-                lastError   = args.Error;
+                bool cancelled = IsOpenCancelled(args.Error, openVersion);
+                status      = cancelled ? Status.Stopped : Status.Failed;
+                lastError   = cancelled ? null : args.Error;
             }
             else if (CanPlay)
             {
@@ -233,6 +235,7 @@ unsafe partial class Player
             return args;
         } finally
         {
+            if (!args.Success) FinalizeOpenCancellation(ref args.Error, openVersion);
             OnOpenCompleted(args);
         }
     }
@@ -340,6 +343,7 @@ unsafe partial class Player
     public OpenSessionCompletedArgs Open(Session session)
     {
         OpenSessionCompletedArgs args = new(session);
+        long openVersion = OpenCancellationVersion;
 
         try
         {
@@ -350,8 +354,9 @@ unsafe partial class Player
 
             if (!args.Success || !CanPlay)
             {
-                status = Status.Failed;
-                lastError = args.Error;
+                bool cancelled = !args.Success && IsOpenCancelled(args.Error, openVersion);
+                status = cancelled ? Status.Stopped : Status.Failed;
+                lastError = cancelled ? null : args.Error;
             }
             else
             {
@@ -376,6 +381,7 @@ unsafe partial class Player
             return args;
         } finally
         {
+            if (!args.Success) FinalizeOpenCancellation(ref args.Error, openVersion);
             OnOpenSessionCompleted(args);
         }
     }
@@ -397,6 +403,7 @@ unsafe partial class Player
     public OpenPlaylistItemCompletedArgs Open(PlaylistItem item, bool defaultVideo = true, bool defaultAudio = true, bool defaultSubtitles = true)
     {
         OpenPlaylistItemCompletedArgs args = new(item, Playlist.Selected);
+        long openVersion = OpenCancellationVersion;
 
         try
         {
@@ -409,8 +416,9 @@ unsafe partial class Player
 
             if (!args.Success)
             {
-                status = Status.Failed;
-                lastError = args.Error;
+                bool cancelled = IsOpenCancelled(args.Error, openVersion);
+                status = cancelled ? Status.Stopped : Status.Failed;
+                lastError = cancelled ? null : args.Error;
             }
             else if (CanPlay)
             {
@@ -447,6 +455,7 @@ unsafe partial class Player
             return args;
         } finally
         {
+            if (!args.Success) FinalizeOpenCancellation(ref args.Error, openVersion);
             OnOpenPlaylistItemCompleted(args);
         }
     }
@@ -949,6 +958,7 @@ unsafe partial class Player
             }
             else
             {
+                Interlocked.Increment(ref openCancellationVersion);
                 decoder.Interrupt = true;
 
                 if (url_iostream is string)
@@ -969,6 +979,7 @@ unsafe partial class Player
             if (!openInputs.IsEmpty)
                 return;
 
+            Interlocked.Increment(ref openCancellationVersion);
             decoder.Interrupt = true;
             openSessions.Clear();
             openSessions.Push(new OpenAsyncData(session));
@@ -983,6 +994,7 @@ unsafe partial class Player
             if (!openInputs.IsEmpty || !openSessions.IsEmpty)
                 return;
 
+            Interlocked.Increment(ref openCancellationVersion);
             decoder.Interrupt = true;
             openItems.Push(new OpenAsyncData(playlistItem, defaultVideo, defaultAudio, defaultSubtitles));
 

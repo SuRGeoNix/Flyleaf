@@ -272,8 +272,6 @@ public partial class MainWindow
             savedQueueRevision = playlistPath != null ? MediaElement.Queue.Revision : -1;
             playlistDocumentActive = !hls;
         }
-        playlistStage = "Showing queue panel";
-        MediaElement.ShowPanel("queue"); UpdatePlaylistStatus();
         if (!append && MediaElement.Queue.Sources.FirstOrDefault() is { } first)
             MediaElement.Queue.Open(first, play: Player.Config.Playback.AutoPlay);
     }

@@ -90,7 +90,7 @@ public sealed class FlyleafQueue : NotifyPropertyChanged, IDisposable
     readonly Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
     readonly ObservableCollection<FlyleafQueueSource> sources = [];
     Player? player;
-    FlyleafQueueSource? currentSource, navigationSource;
+    FlyleafQueueSource? currentSource, navigationSource, highlightedSource;
     FlyleafQueueChild? navigationChild;
     Request? pending, nextRequest;
     bool issuingOpen, disposed, repeat, navigationFailed;
@@ -138,7 +138,7 @@ public sealed class FlyleafQueue : NotifyPropertyChanged, IDisposable
         }
     }
     public string ItemCountText => CurrentItemNumber > 0 ? $"{CurrentItemNumber} / {TotalItems} items" : $"{TotalItems} items";
-    public string? CurrentTitle => currentSource is { HasCustomTitle: true, Children.Count: 0 } ? currentSource.Title : null;
+    public string? CurrentTitle => (nextRequest?.Source ?? pending?.Source ?? (navigationFailed ? navigationSource : currentSource)) is { HasCustomTitle: true, Children.Count: 0 } source ? source.Title : null;
     FlyleafQueueSource? NavigationSource => nextRequest?.Source ?? pending?.Source ?? navigationSource ?? currentSource;
     public bool CanNext => HasPlayer && NavigationTarget(1) != null;
     public bool CanPrevious => HasPlayer && NavigationTarget(-1) != null;
@@ -250,7 +250,15 @@ public sealed class FlyleafQueue : NotifyPropertyChanged, IDisposable
         dispatcher.VerifyAccess(); ObjectDisposedException.ThrowIf(disposed, this);
         if (!sources.Contains(source) || child != null && !ReferenceEquals(child.Source, source) || player is not { IsDisposed: false }) return;
         var request = new Request(source, child, play);
-        if (pending != null) { nextRequest = request; SetMessage("Waiting to open " + source.Title); return; }
+        if (pending != null)
+        {
+            nextRequest = request;
+            NotifyNavigation();
+            SetMessage("Waiting to open " + source.Title);
+            // The queue still opens one item at a time; interrupt only the superseded open.
+            player.CancelCurrentOperation();
+            return;
+        }
         Start(request);
     }
     void Start(Request request)
@@ -347,7 +355,6 @@ public sealed class FlyleafQueue : NotifyPropertyChanged, IDisposable
         if (shuffled.SequenceEqual(sources)) (shuffled[0], shuffled[1]) = (shuffled[1], shuffled[0]);
         ReorderSources(shuffled);
     }
-
     void ReorderSources(FlyleafQueueSource[] order)
     {
         bool changed = false;
@@ -363,11 +370,30 @@ public sealed class FlyleafQueue : NotifyPropertyChanged, IDisposable
     {
         if (ReferenceEquals(currentSource, value)) return;
         if (value == null) CancelProgression();
-        currentSource?.Mark(false); currentSource?.UnmarkChildren(); currentSource = value; currentSource?.Mark(true);
+        currentSource = value;
         Raise(nameof(CurrentSource)); Raise(nameof(CurrentTitle)); NotifyNavigation();
     }
     void SetMessage(string value) => Set(ref message, value, propertyName: nameof(Message));
-    void NotifyNavigation() { UpdateItemNumbers(); Raise(nameof(CanNext)); Raise(nameof(CanPrevious)); Raise(nameof(TotalItems)); Raise(nameof(CurrentItemNumber)); Raise(nameof(ItemCountText)); Raise(nameof(CurrentTitle)); }
+    // The highlighted row follows navigation intent, while CurrentSource remains the confirmed playback source.
+    void UpdateHighlight()
+    {
+        var request = nextRequest ?? pending;
+        var source = request?.Source ?? (navigationFailed ? navigationSource : currentSource);
+        if (source != null && !sources.Contains(source)) source = null;
+        if (!ReferenceEquals(highlightedSource, source))
+        {
+            highlightedSource?.Mark(false);
+            highlightedSource?.UnmarkChildren();
+            highlightedSource = source;
+        }
+        if (source == null) return;
+        source.Mark(true);
+        if (source.Children.Count == 0) return;
+        var child = request == null ? navigationChild : request.Child;
+        int position = child != null && ReferenceEquals(child.Source, source) ? child.Position : 0;
+        foreach (var item in source.Children) item.Mark(item.Position == position);
+    }
+    void NotifyNavigation() { UpdateHighlight(); UpdateItemNumbers(); Raise(nameof(CanNext)); Raise(nameof(CanPrevious)); Raise(nameof(TotalItems)); Raise(nameof(CurrentItemNumber)); Raise(nameof(ItemCountText)); Raise(nameof(CurrentTitle)); }
     void UpdateItemNumbers()
     {
         int number = 1;
@@ -411,11 +437,11 @@ public sealed class FlyleafQueue : NotifyPropertyChanged, IDisposable
     {
         if (!ReferenceEquals(pending, request)) return;
         pending = null; Raise(nameof(IsOpening));
+        if (nextRequest is { } next) { nextRequest = null; Start(next); return; }
         var retained = sources.Contains(request.Source);
         success = success && retained; navigationFailed = !success;
         if (success) { SetCurrent(request.Source); UpdateChildren(); }
         SetMessage(success || !retained ? "" : error ?? "Could not open this source.");
-        if (nextRequest is { } next) { nextRequest = null; Start(next); return; }
         if (success && request.Item == null && request.Child != null)
         {
             // Resolve against freshly expanded library items; never reuse a cached live item.
@@ -483,6 +509,8 @@ public sealed class FlyleafQueue : NotifyPropertyChanged, IDisposable
         Post(sender, () =>
         {
             if (!ReferenceEquals(request, pending)) return;
+            // A superseded discovery must not start a second-stage item open.
+            if (nextRequest != null) { Complete(request, false, null); return; }
             if (e.Success && request.Source.HasHttpOptions)
             {
                 // Discover first, then attach options before opening the item.
@@ -605,5 +633,6 @@ public sealed class FlyleafQueue : NotifyPropertyChanged, IDisposable
         CancelProgression(); SlideShowIntervalProvider = null;
         Observe(false); foreach (var source in sources) source.PropertyChanged -= SourceChanged;
         player = null; pending = nextRequest = null; disposed = true;
+        highlightedSource?.Mark(false); highlightedSource?.UnmarkChildren(); highlightedSource = null;
     }
 }

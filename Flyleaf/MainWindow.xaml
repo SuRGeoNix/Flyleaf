@@ -39,15 +39,15 @@
                                                VerticalAlignment="Center"/>
                                     <Border Grid.Column="2" Width="1" Height="22" Margin="10,0" Opacity="0.5"
                                             Background="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}"/>
-                                    <TextBlock Grid.Column="3" FontSize="12" Margin="0,0,12,0"
+                                    <TextBlock x:Name="MediaTitle" Grid.Column="3" FontSize="12" Margin="0,0,12,0"
                                                TextTrimming="CharacterEllipsis"
                                                Foreground="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}"
                                                VerticalAlignment="Center">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
-                                                <Setter Property="Text" Value="{Binding ElementName=MediaElement, Path=Queue.CurrentTitle}"/>
+                                                <Setter Property="Text" Value="{Binding Queue.CurrentTitle}"/>
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding ElementName=MediaElement, Path=Queue.CurrentTitle}" Value="{x:Null}">
+                                                    <DataTrigger Binding="{Binding Queue.CurrentTitle}" Value="{x:Null}">
                                                         <Setter Property="Text" Value="{Binding Player.Playlist.Selected.Title}"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
