@@ -7,7 +7,10 @@
 >Notes<br/>
 >1. FlyleafLib's releases will be on [NuGet](https://www.nuget.org/packages?q=flyleaflib)
 >2. Compiled samples will be on [GitHub releases](https://github.com/SuRGeoNix/Flyleaf/releases)
->3. Documentation will be on [Wiki](https://github.com/SuRGeoNix/Flyleaf/wiki) and [Samples](https://github.com/SuRGeoNix/Flyleaf/tree/master/Samples) within the solution
+>3. Documentation will be on [Wiki](https://github.com/SuRGeoNix/Flyleaf/wiki) (outdated!) and [Samples](https://github.com/SuRGeoNix/Flyleaf/tree/master/Samples) within the solution
+
+> **Repository History Update (November 2026):**
+> Git history was rewritten to remove obsolete binaries and media assets, reducing repository storage by approximately 98.5%. Existing contributors are encouraged to perform a fresh clone. Forks and branches based on the previous history may require rebasing or recreation before contributing.
 
 # [Overview]
 
@@ -30,10 +33,12 @@
 # [Features]
 
 ### **FFmpeg**
-- *HLS Live Seeking <sub>Might the 1st FFmpeg player which does that</sub>*
-- *Pached for [.NET](https://developercommunity.microsoft.com/t/Proper-handling-of-MS_VC_EXCEPTION-0x40/10961029) issues <sub>Use recommended FFmpeg libraries which can be found on GitHub releases</sub>*
-- *Capture Devices <sub>Pass the format, input and options with a single Url eg. fmt://gdigrab?desktop&framerate=30</sub>*
-- *Supports FFmpeg v9.0 <sub>(use updated Flyleaf.FFmpeg.ABI at your project if required)</sub>*
+- *HLS Live Seeking <sub>Supports seeking in live HLS streams</sub>*
+- *Custom FFmpeg Builds <sub>Based on FFmpeg master (post-9.1 Gauss), with Flyleaf-specific optimizations and patches</sub>*
+- *Additional Patches <sub>HLS persistent HTTP/HTTPS connections, Windows Schannel TLS 1.3, and MPEG-TS HEVC seeking</sub>*
+- *Capture Devices <sub>Pass the format, input and options with a single URL, e.g. fmt://gdigrab?desktop&framerate=30</sub>*
+- *FFmpeg ABI <sub>Uses [Flyleaf.FFmpeg.ABI](https://github.com/SuRGeoNix/Flyleaf.FFmpeg.ABI) bindings; use a compatible version for your FFmpeg binaries</sub>*
+- *Recommended binaries and patch details: [Flyleaf FFmpeg Releases](https://github.com/SuRGeoNix/FFmpeg/releases)*
 
 ### **Playback**
 - *Open / Play / Pause / Stop*
@@ -116,6 +121,22 @@
 - *Downloader / Remuxer <sub>The library can be used also for downloading & remuxing</sub>*
 - *Extractor <sub>The library can be used also for extracting video frames (supports also by X frames Step)</sub>*
 
+# [Building from Source]
+
+FFmpeg native binaries are no longer included in the repository. They are distributed separately through [Flyleaf FFmpeg releases](https://github.com/SuRGeoNix/FFmpeg/releases).
+
+After cloning the repository, run `Download-FFmpeg.bat` from the repository root to download the recommended FFmpeg build into the `FFmpeg/` directory.
+
+```powershell
+git clone https://github.com/SuRGeoNix/Flyleaf.git
+cd Flyleaf
+.\Download-FFmpeg.bat
+```
+
+The script downloads a pinned Windows x64 LGPL shared build, ensuring consistent FFmpeg versions across development environments. Running it again replaces the existing FFmpeg binaries.
+
+Once downloaded, open `FlyleafLib.sln` in Visual Studio to build the library and samples.
+
 # [Thanks to]
 
 *Flyleaf wouldn't exist without them!*
@@ -124,10 +145,6 @@
   * ***[FFmpeg](http://ffmpeg.org/)*** / ***[Flyleaf.FFmpeg.ABI](https://github.com/SuRGeoNix/Flyleaf.FFmpeg.ABI)***
   * DirectX / ***[Vortice](https://github.com/amerkoleci/Vortice.Windows)***
   * *Major open source media players* ***[FFplay](https://github.com/FFmpeg/FFmpeg/blob/master/fftools/ffplay.c)***, ***[Kodi](https://github.com/xbmc/xbmc)***, ***[Libplacebo](https://github.com/haasn/libplacebo)***, ***[MPCVR](https://github.com/Aleksoid1978/VideoRenderer/)***, ***[MPV](https://github.com/mpv-player/mpv)***, ***[VLC](https://github.com/videolan/vlc)***
-
-* *For the UI*
-  * ***[Dragablz](https://github.com/ButchersBoy/Dragablz)***
-  * ***[MaterialDesign Colors & Themes](https://github.com/MaterialDesignInXAML/MaterialDesignInXamlToolkit/)***
 
 * *For the Plugins*
   * ***[BitSwarm](https://github.com/SuRGeoNix/BitSwarm)***
