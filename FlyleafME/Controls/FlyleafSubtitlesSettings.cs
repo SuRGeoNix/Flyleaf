@@ -8,24 +8,21 @@ namespace Flyleaf.Controls.WPF;
 public sealed class FlyleafSubtitlesSettings : FlyleafSettingsEditor
 {
     protected override NotifyPropertyChanged SelectConfig(Player target) => target.Config.Subtitles;
-
     protected override void Build()
     {
         BeginPage("Subtitles");
         if (config is not Config.SubtitlesConfig c) return;
-        var defaults = new Config.SubtitlesConfig();
-
+        Config Defaults() => FlyleafSettingsReset.GetDefaults(this);
         var appearance = new FlyleafSubtitleAppearanceEditor { ShowResetButton = false };
         var textAppearance = Group("Text appearance", appearance.Reset);
         appearance.SetBinding(FlyleafSubtitleAppearanceEditor.OptionsProperty, new System.Windows.Data.Binding("Context.UIConfig.Subtitles") { Source = this });
         textAppearance.Children.Add(appearance);
-
-        var languages = Group("Preferred languages", () => c.Languages = defaults.Languages.ToList());
+        var languages = Group("Preferred languages", () => c.Languages = Defaults().Subtitles.Languages.ToList());
         languages.Children.Add(Text("First choice at the top. Used by subsequent subtitle selection and searches; does not switch the current track. Keep at least one preference.", true));
         Languages(languages, () => c.Languages, v => c.Languages = v);
-
         var search = Group("Subtitle search", () =>
         {
+            var defaults = Defaults().Subtitles;
             c.SearchLocalOnInputType = defaults.SearchLocalOnInputType.ToList();
             c.SearchOnlineOnInputType = defaults.SearchOnlineOnInputType.ToList();
             if (c.SearchLocal != defaults.SearchLocal) c.SearchLocal = defaults.SearchLocal;
@@ -36,17 +33,15 @@ public sealed class FlyleafSubtitlesSettings : FlyleafSettingsEditor
         Toggle(search, "Search online subtitles", "Enabling can immediately search for the current video through installed plugins. Provider availability and credentials belong to Plugins.", () => c.SearchOnline, v => c.SearchOnline = v);
         InputTypes(search, "Online search input types", () => c.SearchOnlineOnInputType, v => c.SearchOnlineOnInputType = v);
         search.Children.Add(Text("Choose All types or restrict the input types. Disable the corresponding search switch to prevent searching; at least one type remains selected in a restricted list.", true));
-
-        var synchronization = Group("Synchronization steps", () => { c.DelayOffset = defaults.DelayOffset; c.DelayOffset2 = defaults.DelayOffset2; });
+        var synchronization = Group("Synchronization steps", () => { var defaults = Defaults().Subtitles; c.DelayOffset = defaults.DelayOffset; c.DelayOffset2 = defaults.DelayOffset2; });
         DelayStep(synchronization, "Delay step", () => c.DelayOffset, v => c.DelayOffset = v);
         DelayStep(synchronization, "Delay step 2", () => c.DelayOffset2, v => c.DelayOffset2 = v);
         synchronization.Children.Add(Text("Used by subsequent delay-step actions. Current subtitle delay, enable/disable and tracks stay in the Subtitles panel.", true));
-
         var advanced = Advanced();
         if (player?.Config.Video is { } video)
         {
             Observe(video);
-            var bitmap = Group("Bitmap subtitle scaling", () => video.BitmapSubsScaleQuality = SwsFlags.Bilinear | SwsFlags.Bitexact, advanced);
+            var bitmap = Group("Bitmap subtitle scaling", () => video.BitmapSubsScaleQuality = Defaults().Video.BitmapSubsScaleQuality, advanced);
             Choice(bitmap, "Scaling quality", () => video.BitmapSubsScaleQuality, v => video.BitmapSubsScaleQuality = v,
                 [(SwsFlags.FastBilinear | SwsFlags.Bitexact, "Fast bilinear"), (SwsFlags.Bilinear | SwsFlags.Bitexact, "Bilinear"),
                  (SwsFlags.Bicubic | SwsFlags.Bitexact, "Bicubic"), (SwsFlags.Lanczos | SwsFlags.Bitexact, "Lanczos")]);
@@ -54,8 +49,9 @@ public sealed class FlyleafSubtitlesSettings : FlyleafSettingsEditor
         }
         var decoder = Group("Decoder", () =>
         {
+            var defaults = Defaults().Subtitles;
             c.MaxFrames = defaults.MaxFrames; c.MaxErrors = defaults.MaxErrors;
-            c.Codec = defaults.Codec; c.CodecOpt = [];
+            c.Codec = defaults.Codec; c.CodecOpt = new(defaults.CodecOpt);
         }, advanced);
         Integer(decoder, "Maximum decoded frames", "frames", () => c.MaxFrames, v => c.MaxFrames = v, 1, 1000);
         Integer(decoder, "Maximum decoding errors", "errors", () => c.MaxErrors, v => c.MaxErrors = v, 1, 100000);

@@ -35,7 +35,6 @@ internal sealed class ConfigStore(string directory)
     string PathOf(string name) => Path.Combine(directory, $"Flyleaf.{name}.json");
     string ConfigPath => PathOf("Config");
     Document? loaded;
-    bool importLegacy;
     byte[]? baseline;
     AppConfig application = new();
     EngineConfig engine = null!;
@@ -53,31 +52,39 @@ internal sealed class ConfigStore(string directory)
             application = loaded.Application;
             engine = loaded.Engine;
         }
-        importLegacy = loaded == null && LoadError == null;
-        if (importLegacy) application = Load(PathOf("AppConfig"), AppConfig.Deserialize) ?? new();
     }
 
     static Document ReadDocument(string json)
     {
         var document = JsonSerializer.Deserialize<Document>(json, options);
-        if (document?.SchemaVersion != 1 || document.Application == null || document.Engine == null || document.Profiles == null)
+        if (document?.SchemaVersion is not (1 or 2) ||
+            document.Application == null ||
+            document.Engine == null ||
+            document.Profiles == null)
             throw new JsonException("Invalid application configuration.");
+    
         return document;
     }
 
     public void LoadProfiles(Config factoryPlayer)
     {
-        var ui = importLegacy ? Load(PathOf("UIConfig"), FlyleafUIConfigSerializer.Deserialize) : null;
-        string legacyPath = PathOf("PlayerProfiles");
-        var legacy = importLegacy
-            ? Load(legacyPath, json => JsonSerializer.Deserialize<PlayerProfiles.LegacyDocument>(json)) : null;
-        try { Profiles = new(factoryPlayer, loaded?.Profiles, legacy, ui); }
+        try { Profiles = new(factoryPlayer, loaded?.Profiles); }
         catch (Exception ex) when (IsSettingsError(ex))
         {
-            RecordError(loaded == null ? legacyPath : ConfigPath, ex);
+            RecordError(ConfigPath, ex);
             Profiles = new(factoryPlayer);
         }
-        if (loaded != null && LoadError == null) baseline = Snapshot();
+
+        if (loaded == null || LoadError != null)
+            return;
+
+        if (loaded.SchemaVersion == 1)
+        {
+            Profiles.MigrateDemuxerFormatOptions(factoryPlayer);
+            baseline = null;
+        }
+        else
+            baseline = Snapshot();
     }
 
     public bool Save()
@@ -90,7 +97,7 @@ internal sealed class ConfigStore(string directory)
         return true;
     }
 
-    byte[] Snapshot() => JsonSerializer.SerializeToUtf8Bytes(new Document(1, application, engine, Profiles.Current), options);
+    byte[] Snapshot() => JsonSerializer.SerializeToUtf8Bytes(new Document(2, application, engine, Profiles.Current), options);
 
     T? Load<T>(string path, Func<string, T?> read) where T : class
     {

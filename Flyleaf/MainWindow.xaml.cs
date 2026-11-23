@@ -148,6 +148,15 @@ public partial class MainWindow : Window
             settings.Pages.Insert(0, new("application", "Application", c => new ApplicationSettings { Context = c }));
             settings.Pages.Insert(1, new("profiles", "Profiles", c => new ProfileSettings(this) { Context = c }));
             settings.Pages.Insert(2, new("file-associations", "File associations", _ => new FileAssociationSettings(App.Instance.Config)));
+
+            void RefreshResetDefaults() =>
+                FlyleafSettingsReset.SetDefaults(settings, profiles.GetResetPlayer(Profile));
+
+            RefreshResetDefaults();
+
+            EventHandler profilesChanged = (_, _) => RefreshResetDefaults();
+            profiles.MetadataChanged += profilesChanged;
+            Closed += (_, _) => profiles.MetadataChanged -= profilesChanged;
         });
         PlaybackBar.MediaElement = MediaElement;
         App.Instance.Profiles.Observe(Profile);

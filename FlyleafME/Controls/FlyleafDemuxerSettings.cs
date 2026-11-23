@@ -6,26 +6,25 @@ namespace Flyleaf.Controls.WPF;
 public sealed class FlyleafDemuxerSettings : FlyleafSettingsEditor
 {
     protected override NotifyPropertyChanged SelectConfig(Player target) => target.Config.Demuxer;
-
     protected override void Build()
     {
         BeginPage("Demuxer");
         if (config is not Config.DemuxerConfig c) return;
-        var defaults = new Config.DemuxerConfig();
-        var formats = Group("Input format options", () => c.FormatOpt = Config.DemuxerConfig.DefaultFormatOpt());
+        Config.DemuxerConfig Defaults() => FlyleafSettingsReset.GetDefaults(this).Demuxer;
+        var formats = Group("Input format options", () => c.FormatOpt = new(Defaults().FormatOpt));
         formats.Children.Add(Text("Main input / video demuxer. Applied when the next format context opens. Names and values follow FFmpeg; unknown options are preserved.", true));
         Options(formats, () => c.FormatOpt, v => c.FormatOpt = v, "Main input · name / value");
-        var audio = Group("External audio format options", () => c.AudioFormatOpt = Config.DemuxerConfig.DefaultFormatOpt());
+        var audio = Group("External audio format options", () => c.AudioFormatOpt = new(Defaults().AudioFormatOpt));
         Options(audio, () => c.AudioFormatOpt, v => c.AudioFormatOpt = v, "Audio input · name / value");
-        var subtitles = Group("External subtitle format options", () => c.SubtitlesFormatOpt = Config.DemuxerConfig.DefaultFormatOpt());
+        var subtitles = Group("External subtitle format options", () => c.SubtitlesFormatOpt = new(Defaults().SubtitlesFormatOpt));
         Options(subtitles, () => c.SubtitlesFormatOpt, v => c.SubtitlesFormatOpt = v, "Subtitle input · name / value");
-
         var advanced = Advanced();
-        var packets = Group("Packet limits", () => { c.BufferPackets = defaults.BufferPackets; c.MaxAudioPackets = defaults.MaxAudioPackets; }, advanced);
+        var packets = Group("Packet limits", () => { var defaults = Defaults(); c.BufferPackets = defaults.BufferPackets; c.MaxAudioPackets = defaults.MaxAudioPackets; }, advanced);
         Number(packets, "Buffered packet limit", "0 = no limit", () => c.BufferPackets, v => c.BufferPackets = (long)v, 0, int.MaxValue, Whole);
         Number(packets, "Audio packet limit", "0 = no limit", () => c.MaxAudioPackets, v => c.MaxAudioPackets = (long)v, 0, int.MaxValue, Whole);
         var opening = Group("Input discovery & overrides", () =>
         {
+            var defaults = Defaults();
             c.AllowFindStreamInfo = defaults.AllowFindStreamInfo; c.ForceFormat = defaults.ForceFormat;
             c.ForceFPS = defaults.ForceFPS; c.IOStreamBufferSize = defaults.IOStreamBufferSize; c.FormatFlags = defaults.FormatFlags;
         }, advanced);
@@ -34,9 +33,9 @@ public sealed class FlyleafDemuxerSettings : FlyleafSettingsEditor
         Number(opening, "Forced frame rate", "fps · 0 = automatic", () => c.ForceFPS, v => c.ForceFPS = v, 0, 1000);
         Integer(opening, "Custom stream I/O buffer", "bytes", () => c.IOStreamBufferSize, v => c.IOStreamBufferSize = v, 4096, 67108864);
         Flags(opening, "Format flags · next input open", () => c.FormatFlags, v => c.FormatFlags = v);
-
         var timeouts = Group("Interrupts & timeouts", () =>
         {
+            var defaults = Defaults();
             c.AllowInterrupts = defaults.AllowInterrupts; c.AllowReadInterrupts = defaults.AllowReadInterrupts;
             c.AllowTimeouts = defaults.AllowTimeouts; c.ExcludeInterruptFmts = defaults.ExcludeInterruptFmts.ToList();
             c.OpenTimeout = defaults.OpenTimeout; c.CloseTimeout = defaults.CloseTimeout;
@@ -54,11 +53,11 @@ public sealed class FlyleafDemuxerSettings : FlyleafSettingsEditor
         Duration(timeouts, "Live read timeout", "seconds", () => c.ReadLiveTimeout, v => c.ReadLiveTimeout = v, positive: true);
         Duration(timeouts, "Seek timeout", "seconds", () => c.SeekTimeout, v => c.SeekTimeout = v, positive: true);
         Integer(timeouts, "Maximum demuxing errors", "errors", () => c.MaxErrors, v => c.MaxErrors = v, 1, 100000);
-
         var nested = Group("Nested inputs", () =>
         {
+            var defaults = Defaults();
             c.FormatOptToUnderlying = defaults.FormatOptToUnderlying; c.DefaultHTTPQueryToUnderlying = defaults.DefaultHTTPQueryToUnderlying;
-            c.ExtraHTTPQueryParamsToUnderlying = [];
+            c.ExtraHTTPQueryParamsToUnderlying = new(defaults.ExtraHTTPQueryParamsToUnderlying);
         }, advanced);
         nested.Children.Add(Text("For formats that open underlying inputs. Used when those contexts open; editing does not reopen the current input.", true));
         Toggle(nested, "Forward format options", "Pass format options to underlying format contexts.", () => c.FormatOptToUnderlying, v => c.FormatOptToUnderlying = v);
@@ -66,6 +65,5 @@ public sealed class FlyleafDemuxerSettings : FlyleafSettingsEditor
         Options(nested, () => c.ExtraHTTPQueryParamsToUnderlying, v => c.ExtraHTTPQueryParamsToUnderlying = v, "Additional HTTP query parameters · name / value");
         Refresh();
     }
-
     static string? Whole(double value) => value == Math.Truncate(value) ? null : "Enter a whole number.";
 }

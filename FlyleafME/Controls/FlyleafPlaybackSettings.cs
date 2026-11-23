@@ -9,31 +9,29 @@ namespace Flyleaf.Controls.WPF;
 public sealed class FlyleafPlaybackSettings : FlyleafSettingsEditor
 {
     protected override NotifyPropertyChanged SelectConfig(Player target) => target.Config.Playback;
-
     protected override void Build()
     {
         BeginPage("Playback");
         if (config is not Config.PlaybackConfig c) return;
-        var defaults = new Config.PlaybackConfig();
-
-        var general = Group("Opening & seeking", () => { c.AutoPlay = defaults.AutoPlay; c.SeekAccurate = defaults.SeekAccurate; });
+        Config Defaults() => FlyleafSettingsReset.GetDefaults(this);
+        var general = Group("Opening & seeking", () => { var defaults = Defaults().Playback; c.AutoPlay = defaults.AutoPlay; c.SeekAccurate = defaults.SeekAccurate; });
         Toggle(general, "Play automatically", "Starts playback after opening media or seeking from the end.", () => c.AutoPlay, v => c.AutoPlay = v);
         Toggle(general, "Accurate seeking", "Applies to subsequent seeks. Decodes up to the requested video position.", () => c.SeekAccurate, v => c.SeekAccurate = v);
-
         var d = player!.Config.Demuxer; Observe(d);
         FlyleafDurationRangeEditor? bufferRange = null;
         var buffering = Group("Buffering", () =>
         {
-            d.BufferDuration = new Config.DemuxerConfig().BufferDuration; c.MinBufferDuration = defaults.MinBufferDuration;
+            var defaults = Defaults();
+            d.BufferDuration = defaults.Demuxer.BufferDuration; c.MinBufferDuration = defaults.Playback.MinBufferDuration;
             bufferRange?.RefreshValues(true);
         });
         bufferRange = new(() => (c.MinBufferDuration / (double)TimeSpan.TicksPerSecond, d.BufferDuration / (double)TimeSpan.TicksPerSecond),
             (minimum, maximum) => { d.BufferDuration = Ticks(maximum); c.MinBufferDuration = Ticks(minimum); }, action => Run(action));
         buffering.Children.Add(bufferRange); RefreshWith(() => bufferRange.RefreshValues());
         buffering.Children.Add(Text("Playback starts or re-buffers after the minimum is available; the maximum caps buffered media. Live latency control can retune this range.", true));
-
         var steps = Group("Seek & speed steps", () =>
         {
+            var defaults = Defaults().Playback;
             c.SeekOffset = defaults.SeekOffset; c.SeekOffset2 = defaults.SeekOffset2; c.SeekOffset3 = defaults.SeekOffset3;
             c.SpeedOffset = defaults.SpeedOffset; c.SpeedOffset2 = defaults.SpeedOffset2;
         });
@@ -43,9 +41,9 @@ public sealed class FlyleafPlaybackSettings : FlyleafSettingsEditor
         Duration(steps, "Seek step 3", "seconds", () => c.SeekOffset3, v => c.SeekOffset3 = v, positive: true);
         Number(steps, "Speed step", "×", () => c.SpeedOffset, v => c.SpeedOffset = v, 0.001, 15.875);
         Number(steps, "Speed step 2", "×", () => c.SpeedOffset2, v => c.SpeedOffset2 = v, 0.001, 15.875);
-
         var capture = Group("Snapshots & recordings", () =>
         {
+            var defaults = Defaults().Playback;
             c.FolderSnapshots = defaults.FolderSnapshots; c.FolderRecordings = defaults.FolderRecordings;
             c.SnapshotFormat = defaults.SnapshotFormat;
         });
@@ -54,7 +52,6 @@ public sealed class FlyleafPlaybackSettings : FlyleafSettingsEditor
             [("bmp", "BMP"), ("png", "PNG"), ("jpg", "JPEG"), ("jpeg", "JPEG (.jpeg)")]);
         Folder(capture, "Recording folder", () => c.FolderRecordings, v => c.FolderRecordings = v);
         capture.Children.Add(Text("Used when no output filename is supplied. A save dialog can choose a different location and format.", true));
-
         var advancedBody = new StackPanel();
         var advanced = new Expander { Header = Text("Advanced"), Content = advancedBody, Margin = new Thickness(0, 22, 0, 0) };
         advanced.SetResourceReference(Control.ForegroundProperty, "FlyleafME.TextBrush");
@@ -69,8 +66,7 @@ public sealed class FlyleafPlaybackSettings : FlyleafSettingsEditor
         latency.Children.Add(latencyRange); RefreshWith(() => latencyRange.RefreshValues());
         Duration(latency, "Speed change interval", "seconds", () => c.LatencySpeedChangeInterval, v => c.LatencySpeedChangeInterval = v, positive: true);
         latency.Children.Add(Text("Maximum latency enables catch-up speed, may enlarge demuxer buffering and reduce the minimum buffer. Disabling it sets playback speed to 1×. It also updates the low-delay preference for the next video decoder open; zero latency writes that same preference. Buffer changes are not automatically undone.", true));
-
-        var performance = Group("Scheduling & time display", () => { c.ThreadPriority = defaults.ThreadPriority; c.UICurTime = defaults.UICurTime; }, advancedBody);
+        var performance = Group("Scheduling & time display", () => { var defaults = Defaults().Playback; c.ThreadPriority = defaults.ThreadPriority; c.UICurTime = defaults.UICurTime; }, advancedBody);
         Choice(performance, "Playback thread priority", () => c.ThreadPriority, v => c.ThreadPriority = v,
             Enum.GetValues<ThreadPriority>().Select(v => (v, v.ToString())).ToArray());
         performance.Children.Add(Text("Applies when the next playback thread starts; changing this does not restart playback.", true));
@@ -80,6 +76,5 @@ public sealed class FlyleafPlaybackSettings : FlyleafSettingsEditor
         performance.Children.Add(Text("Applies during playback. Every-frame updates can increase UI work.", true));
         Refresh();
     }
-
     static long Ticks(double seconds) => (long)Math.Round(seconds * TimeSpan.TicksPerSecond);
 }

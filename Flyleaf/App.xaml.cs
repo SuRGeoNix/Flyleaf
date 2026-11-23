@@ -136,8 +136,10 @@ public partial class App : Application
     static Config CreateDefaultPlayerConfig()
     {
         var config = new Config();
-        config.Demuxer.FormatOpt = DefaultFormatOpt();
-        config.Playback.KeyBindings = FlyleafME.CreateDefaultKeybindings();
+        config.Demuxer.FormatOpt            = DefaultFormatOpt();
+        config.Demuxer.AudioFormatOpt       = DefaultFormatOpt();
+        config.Demuxer.SubtitlesFormatOpt   = DefaultFormatOpt();
+        config.Playback.KeyBindings         = FlyleafME.CreateDefaultKeybindings();
         return config;
     }
 
@@ -197,6 +199,16 @@ public partial class App : Application
             return;
         }
 
+        #if DEBUG
+        store.Application.Startup.SingleInstance = false;
+        store.Application.Startup.KeepInTray = false;
+
+        store.Engine.FFmpegPath     = ":FFmpeg";
+        store.Engine.FFmpegLogLevel = FFmpeg.LogLevel.Warning;
+        store.Engine.LogLevel       = LogLevel.Debug;
+        store.Engine.LogOutput      = ":debug";
+        #endif
+
         if (Config.Startup.SingleInstance)
         {
             instance = SingleInstance.ForCurrentSession();
@@ -218,13 +230,6 @@ public partial class App : Application
         {
             store.Engine.LogOutput = FactoryEngine.LogOutput;
         }
-
-        #if DEBUG
-        store.Engine.FFmpegPath     = ":FFmpeg";
-        store.Engine.FFmpegLogLevel = FFmpeg.LogLevel.Warning;
-        store.Engine.LogLevel       = LogLevel.Debug;
-        store.Engine.LogOutput      = ":debug";
-        #endif
 
         Engine.Start(store.Engine);
         store.LoadProfiles(CreateDefaultPlayerConfig());

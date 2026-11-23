@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,7 +8,6 @@ using FlyleafLib.Plugins;
 using static Flyleaf.Controls.WPF.FlyleafPanelUI;
 
 namespace Flyleaf.Controls.WPF;
-
 /// <summary>Installed plugin options with optional application-supplied presentation metadata.</summary>
 public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
 {
@@ -18,7 +17,6 @@ public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
     readonly Button pluginSelector = Button("");
     readonly Dictionary<string, StackPanel> pluginBodies = new(StringComparer.Ordinal);
     ContextMenu? pluginMenu;
-
     public FlyleafPluginSettings()
     {
         pluginSelector.HorizontalAlignment = HorizontalAlignment.Left;
@@ -50,7 +48,6 @@ public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
         foreach (var (name, body) in pluginBodies) body.Visibility = name == selectedPlugin ? Visibility.Visible : Visibility.Collapsed;
     }
     protected override NotifyPropertyChanged SelectConfig(Player target) => target.Config;
-
     protected override void Build()
     {
         BeginPage("Plugins");
@@ -86,7 +83,6 @@ public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
                 Options(fallback, () => new(values), v => UpdateUnknown(values, v, []), "Plugin options · name / value");
                 continue;
             }
-
             var pluginTitle = PluginTitle(pluginType.Name);
             pluginBody.Children.Add(Text($"Version {pluginType.Version}", true));
             var declared = pluginType.Type.GetNestedTypes(BindingFlags.Public)
@@ -99,7 +95,12 @@ public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
             foreach (var group in descriptions.GroupBy(d => d.Info.Group))
             {
                 var entries = group.ToArray();
-                var section = Group(group.Key, () => { foreach (var option in entries) values[option.Key] = option.Default; }, group.Key == "Advanced" ? advanced : pluginBody);
+                var section = Group(group.Key, () =>
+                {
+                    var reset = FlyleafSettingsReset.GetDefaults(this).Plugins;
+                    var source = reset.TryGetValue(pluginType.Name, out var options) ? options : null;
+                    foreach (var option in entries) values[option.Key] = source?.GetValueOrDefault(option.Key) ?? option.Default;
+                }, group.Key == "Advanced" ? advanced : pluginBody);
                 foreach (var option in entries)
                 {
                     string Read() => values.GetValueOrDefault(option.Key) ?? option.Default;
@@ -145,7 +146,6 @@ public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
         ShowSelectedPlugin();
         Refresh();
     }
-
     static void UpdateUnknown(Utils.ObservableDictionary<string, string> values, Dictionary<string, string> replacement, HashSet<string> known)
     {
         if (replacement.Keys.Any(known.Contains)) throw new ArgumentException("Use the named editor above for a known plugin option.");

@@ -10,8 +10,6 @@ internal sealed class PlayerProfiles
 {
     internal sealed record Profile(Guid Id, string Name, JsonObject Configuration, FlyleafUIConfig Presentation);
     internal sealed record Document(Guid Selected, Guid? ResetSource, Profile[] Profiles);
-    internal sealed record LegacyProfile(Guid Id, string Name, JsonObject Configuration);
-    internal sealed record LegacyDocument(int SchemaVersion, Guid? Selected, LegacyProfile[] Profiles);
 
     internal sealed class Session(Guid id, Config player, FlyleafUIConfig presentation)
     {
@@ -25,7 +23,7 @@ internal sealed class PlayerProfiles
     readonly Profile factory;
     Document document;
 
-    public PlayerProfiles(Config factoryPlayer, Document? saved = null, LegacyDocument? legacy = null, FlyleafUIConfig? legacyPresentation = null)
+    public PlayerProfiles(Config factoryPlayer, Document? saved = null)
     {
         factory = new(Guid.Empty, "Factory defaults", Snapshot(factoryPlayer), new());
         if (saved != null)
@@ -35,17 +33,8 @@ internal sealed class PlayerProfiles
             return;
         }
 
-        if (legacy != null && (legacy.SchemaVersion != 1 || legacy.Profiles == null || legacy.Profiles.Any(p => p == null)))
-            throw new JsonException("Invalid legacy profile document.");
-        var presentation = legacyPresentation ?? factory.Presentation;
-        var legacyProfiles = legacy?.Profiles ?? [];
-        string defaultName = "Default";
-        for (int number = 2; legacyProfiles.Any(p => string.Equals(p.Name, defaultName, StringComparison.OrdinalIgnoreCase)); number++)
-            defaultName = $"Default {number}";
-        var initial = new Profile(Guid.NewGuid(), defaultName, (JsonObject)factory.Configuration.DeepClone(), presentation.Clone());
-        var profiles = new List<Profile> { initial };
-        profiles.AddRange(legacyProfiles.Select(p => new Profile(p.Id, p.Name, p.Configuration, presentation.Clone())));
-        document = new(legacy?.Selected ?? initial.Id, null, profiles.ToArray());
+        var initial = new Profile(Guid.NewGuid(), "Default", (JsonObject)factory.Configuration.DeepClone(), factory.Presentation.Clone());
+        document = new(initial.Id, null, [initial]);
         Validate(document);
     }
 
@@ -109,6 +98,9 @@ internal sealed class PlayerProfiles
 
     public Guid? GetResetSource(Session session)
         => document.ResetSource == session.Id ? null : document.ResetSource;
+
+    public Config GetResetPlayer(Session session)
+        => ReadPlayer(GetResetSource(session) is { } id ? Find(id) : factory);
 
     public void SetResetSource(Guid? id)
     {
@@ -248,4 +240,60 @@ internal sealed class PlayerProfiles
         current.Subtitles.DelayOffset = incoming.Subtitles.DelayOffset;
         current.Subtitles.DelayOffset2 = incoming.Subtitles.DelayOffset2;
     }
+
+    #region Migration form v1 to v2 config (Demuxer Audio/Subs Format Options)
+    public void MigrateDemuxerFormatOptions(Config current)
+    {
+        Dictionary<string, string> oldOpts = Config.DemuxerConfig.DefaultFormatOpt();
+
+        foreach (var profile in document.Profiles)
+        {
+            if (profile.Configuration[nameof(Config.Demuxer)] is not JsonObject demuxer)
+                continue;
+
+            MigrateOptions(demuxer, "AudioFormatOpt",
+                oldOpts, current.Demuxer.AudioFormatOpt);
+
+            MigrateOptions(demuxer, "SubtitlesFormatOpt",
+                oldOpts, current.Demuxer.SubtitlesFormatOpt);
+        }
+    }
+
+    static void MigrateOptions(JsonObject demuxer, string name, IReadOnlyDictionary<string, string> previous, IReadOnlyDictionary<string, string> current)
+    {
+        if (demuxer[name] is not JsonObject saved)
+        {
+            demuxer[name] = JsonSerializer.SerializeToNode(current);
+            return;
+        }
+
+        foreach (var (key, value) in current)
+        {
+            if (!saved.TryGetPropertyValue(key, out var node))
+            {
+                saved[key] = value;
+                continue;
+            }
+
+            if (previous.TryGetValue(key, out var oldValue) &&
+                node is JsonValue json &&
+                json.TryGetValue<string>(out var savedValue) &&
+                savedValue == oldValue)
+            {
+                saved[key] = value;
+            }
+        }
+
+        foreach (var (key, oldValue) in previous)
+        {
+            if (!current.ContainsKey(key) &&
+                saved[key] is JsonValue json &&
+                json.TryGetValue<string>(out var savedValue) &&
+                savedValue == oldValue)
+            {
+                saved.Remove(key);
+            }
+        }
+    }
+    #endregion
 }

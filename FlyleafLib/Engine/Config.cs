@@ -153,7 +153,7 @@ public class Config : NotifyPropertyChanged
     internal void SetPlayer(Player player)
     {
         Playback.config = this;
-        Demuxer.config = this;
+        Demuxer.config  = this;
         Playback.player = player;
         Playback.KeyBindings.SetPlayer(player);
         Demuxer.player  = player;
@@ -222,7 +222,7 @@ public class Config : NotifyPropertyChanged
 
         /// <summary>Saved shortcut definitions. Applications attach custom action delegates at runtime.</summary>
         public KeysConfig
-                        KeyBindings                 { get; set; } = new KeysConfig();
+                        KeyBindings                 { get; set; } = new();
 
         /// <summary>Requests playback of the latest available live video frame and updates <see cref="VideoConfig.LowDelay"/> when linked to a configuration.</summary>
         public bool     ZeroLatency                 { get => _ZeroLatency; set { Set(ref _ZeroLatency, value); if (config != null) config.Video.LowDelay = value; if (player != null && player.IsPlaying) { player.Pause(); player.Play(); } } }

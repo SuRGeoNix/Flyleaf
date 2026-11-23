@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using FlyleafLib.MediaPlayer;
@@ -6,7 +6,6 @@ using PlayerKeyBinding = FlyleafLib.MediaPlayer.KeyBinding;
 using static Flyleaf.Controls.WPF.FlyleafPanelUI;
 
 namespace Flyleaf.Controls.WPF;
-
 public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
 {
     public IReadOnlyDictionary<string, FlyleafShortcutGesture> CustomDefaults { get; init; } = new Dictionary<string, FlyleafShortcutGesture>();
@@ -15,14 +14,12 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
         public override string ToString() => Label;
     }
     protected override NotifyPropertyChanged SelectConfig(Player target) => target.Config.Playback;
-
     protected override void Build()
     {
         BeginPage("Bindings");
         if (player is not { } target) return;
         BuildBindings(target.Config.Playback.KeyBindings, Context?.UIConfig?.Mouse);
     }
-
     internal void BuildBindings(KeysConfig keys, FlyleafMouseOptions? mouse)
     {
         var defaults = new KeysConfig(); defaults.LoadDefault();
@@ -31,6 +28,7 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
         var rows = new StackPanel(); Children.Add(rows);
         void Display()
         {
+            var configuredDefaults = FlyleafSettingsReset.GetDefaults(this).Playback.KeyBindings;
             rows.Children.Clear();
             foreach (var section in keys.Keys.GroupBy(b => b.Action != KeyBindingAction.Custom ? "Library actions" : FlyleafControlKeybindings.Defaults.ContainsKey(b.ActionName ?? "") ? "Control actions · FlyleafME" : "Application actions").OrderBy(g => g.Key))
             {
@@ -52,19 +50,25 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
                     var controls = new StackPanel { Orientation = Orientation.Horizontal };
                     controls.Children.Add(field); controls.Children.Add(release); controls.Children.Add(clear);
                     row.Children.Add(label); row.Children.Add(controls);
-                    FlyleafShortcutGesture? original;
-                    if (binding.Action == KeyBindingAction.Custom) original = FlyleafControlKeybindings.Defaults.GetValueOrDefault(binding.ActionName ?? "") ?? CustomDefaults.GetValueOrDefault(binding.ActionName ?? "");
-                    else
+                    FlyleafShortcutGesture? Original(KeysConfig resetKeys)
                     {
+                        if (binding.Action == KeyBindingAction.Custom)
+                        {
+                            var match = resetKeys.Keys.FirstOrDefault(b => b.Action == binding.Action && b.ActionName == binding.ActionName);
+                            return match != null ? FlyleafShortcutGesture.From(match) : FlyleafControlKeybindings.Defaults.GetValueOrDefault(binding.ActionName ?? "") ?? CustomDefaults.GetValueOrDefault(binding.ActionName ?? "");
+                        }
                         int index = keys.Keys.Where(b => b.Action == binding.Action).ToList().IndexOf(binding);
-                        var baseline = defaults.Keys.Where(b => b.Action == binding.Action).ElementAtOrDefault(index);
-                        original = baseline == null ? null : FlyleafShortcutGesture.From(baseline);
+                        var baseline = resetKeys.Keys.Where(b => b.Action == binding.Action).ElementAtOrDefault(index)
+                            ?? defaults.Keys.Where(b => b.Action == binding.Action).ElementAtOrDefault(index);
+                        return baseline == null ? null : FlyleafShortcutGesture.From(baseline);
                     }
-                    if (original != null)
+                    if (Original(configuredDefaults) != null)
                     {
                         var reset = ResetButton("Reset " + ActionLabel(binding)); reset.Margin = new Thickness(4, 0, 0, 0);
                         reset.Click += (_, _) =>
                         {
+                            var original = Original(FlyleafSettingsReset.GetDefaults(this).Playback.KeyBindings);
+                            if (original == null) return;
                             if (original.Conflict(keys.Keys, binding) is { } other) { error.Text = $"Default shortcut is assigned to {ActionLabel(other)}. Unassign it first."; return; }
                             Run(() => original.Apply(binding)); error.Text = ""; Display();
                         };
@@ -75,7 +79,6 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
             }
         }
         Display();
-
         var add = Group("Additional shortcut", null);
         add.Children.Add(Text("Add a missing library action or give an existing action another shortcut. Capture first, then press Add.", true));
         var available = Enum.GetValues<KeyBindingAction>().Where(a => a != KeyBindingAction.Custom &&
@@ -132,7 +135,6 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
         }
         Refresh();
     }
-
     static string ActionLabel(PlayerKeyBinding binding) => binding.ActionName switch
     {
         "app.open" => "Open media",
@@ -151,7 +153,6 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
         null or "" => "Custom action",
         var name => FlyleafPluginOptionDescriptions.Label(name.StartsWith("app.", StringComparison.Ordinal) ? name[4..] : name).Replace('_', ' ').Replace('.', ' ')
     };
-
     static TextBox CaptureField(Func<FlyleafShortcutGesture, string?> assign, Func<FlyleafShortcutGesture?> get, TextBlock error)
     {
         var field = new TextBox { Width = 128, IsReadOnly = true, Tag = "FlyleafKeyCapture", Text = get()?.ToString() ?? "Press shortcut…", ToolTip = "Focus and press a shortcut; Tab moves focus, Escape cancels" };
@@ -163,7 +164,7 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
             if (e.Key == Key.Escape) { field.Text = get()?.ToString() ?? "Press shortcut…"; field.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next)); return; }
             if (e.IsRepeat) return;
             var key = e.Key == Key.System ? e.SystemKey : e.Key;
-            if (key is Key.LeftAlt or Key.RightAlt or Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.None or Key.ImeProcessed or Key.DeadCharProcessed) return;
+            if (key is Key.LeftAlt or Key.RightAlt or Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.LWin or Key.RWin or Key.None or Key.ImeProcessed or Key.DeadCharProcessed) return;
             var modifiers = Keyboard.Modifiers;
             if ((modifiers & ModifierKeys.Windows) != 0) { error.Text = "Windows-key combinations are not supported."; return; }
             var gesture = new FlyleafShortcutGesture(key, modifiers.HasFlag(ModifierKeys.Alt), modifiers.HasFlag(ModifierKeys.Control), modifiers.HasFlag(ModifierKeys.Shift), get()?.IsKeyUp ?? false);

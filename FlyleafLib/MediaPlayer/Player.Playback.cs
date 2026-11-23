@@ -35,7 +35,7 @@ partial class Player
     /// <remarks>
     /// Obsolete. Use <see cref="SeekResultCompleted"/> instead for cancellation-aware seek results.
     /// </remarks>
-    [Obsolete("Use SeekResultCompleted instead. This event will be removed in v4.")]
+    [Obsolete("Use SeekResultCompleted instead. This event will be removed in v3.13.")]
     public event EventHandler<int> SeekCompleted;
 
     /// <summary>
