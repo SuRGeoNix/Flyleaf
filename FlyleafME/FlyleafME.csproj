@@ -7,8 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>FlyleafME</PackageId>
-    <FlyleafLibPackageVersionRange>[3.12.0,4.0.0)</FlyleafLibPackageVersionRange>
-    <Version>2.0.0-preview.1</Version>
+    <FlyleafLibPackageVersionRange>[3.12.1,4.0.0)</FlyleafLibPackageVersionRange>
+    <Version>2.0.0-preview.2</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2026</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,7 +17,18 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>A customizable WPF media player control powered by FlyleafLib, with built-in playback controls, a media queue, and dockable panels.</Description>
-    <PackageReleaseNotes>First preview of the composed FlyleafME WPF control for .NET 10.</PackageReleaseNotes>
+    <PackageReleaseNotes>
+		- PlaybackBar: Fixes auto-hide when idle in standalone hosts
+		- PlaybackFeedback: Suppresses expected cancellation errors for interrupted opens/seeks
+		- PlaybackFeedback: Uses cancellation-aware seek results and improves seeking state handling
+		- Queue: Improves navigation responsiveness by interrupting superseded opens while preserving serialized requests
+		- Queue: Updates titles immediately during navigation and preserves custom titles on failed opens
+		- Queue: Highlights requested items immediately and automatically scrolls them into view
+		- Settings: Adds support for application-defined reset defaults
+		- Settings: Updates Player settings reset actions to use the configured reset source
+		- Settings: Preserves FlyleafLib defaults when no custom reset configuration is provided
+		- Settings: Clones mutable configuration values to prevent shared-state modifications
+	</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

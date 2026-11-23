@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.12.0</Version>
+	<Version>3.12.1</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,28 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Config: Renames Player to Playback and moves decoder settings into the Video, Audio, Subtitles and Data sections
-		- Config: Moves stream enablement, delays, subtitle parsing, statistics and renderer adjustments to their runtime owners
-		- Config.Video: Renames VideoAcceleration to HWAcceleration and removes the unused SwsForce option
-		- Player: Introduces LastRecordingFilename for the most recently finalized recording
-		- Player: Introduces SnapshotCompleted to report snapshot results and errors
-		- Player: Introduces SeekStarted and extends SeekCompleted to seeks during playback
-		- Player: Supports forcing subtitle inputs in OpenAsync and selecting a preferred video decoder per open
-		- FlyleafHost: Fixes DPI-dependent panorama drag sensitivity, improves inertia cancellation and lets derived hosts opt out of player swapping
-		- Renderer.Panorama: Fixes filtering across the longitude seam and uses the fitted viewport for projection
-		- Renderer: Adds original-size display and fixes one-pixel gaps when fitting near-matching aspect ratios [Fixes #729]
-		- Renderer: Exposes the active video processor and its filters
-		- Renderer: Exposes SDR/HDR black and peak levels for the luminance panel
-		- Renderer: Exposes source crop bounds for the crop controls
-		- Renderer: Prevents pending update flags from being lost during concurrent requests
-		- SwapChain: Skips zero-size resize requests and refreshes when restored to the same size
-		- OpenDefault: Routes HLS manifests named .m3u to the demuxer and preserves playlist entry user agents
-		- MediaExtensions: Consolidates media extension lists and expands image discovery
-		- Logger: Preserves the current destination if a new log file cannot be opened
-		- Logger: Prevents pending log rotation from affecting a replacement file
-
-		Breaking changes: Public APIs and configuration format
-		Consumers must update their API calls, rebuild and recreate settings from earlier versions
+		- OpenDefault: Fixes playback of remote PLS entries in M3U playlists
+		- Player: Adds cancellation-aware open handling using DecoderContext results and lightweight cancellation tracking
+		- Player: Adds `CancelCurrentOperation()` to interrupt operations without stopping the player
+		- Player: Adds `SeekResultCompleted` with cancellation tracking and deprecates `SeekCompleted`
+		- Player: Adds `OperationCancellationRequested` for cancellation notifications
 	</PackageReleaseNotes>
   </PropertyGroup>
 
