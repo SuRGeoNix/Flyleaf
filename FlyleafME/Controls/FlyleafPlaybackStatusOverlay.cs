@@ -76,6 +76,7 @@ public sealed class FlyleafPlaybackStatusOverlay : Grid
     }
     internal void SetObscured(bool value) { obscured = value; Refresh(); }
     internal void Error(string message) { blockingError = message; dismissedFailure = false; busyDelay.Stop(); Refresh(); }
+    internal void ClearError() { blockingError = ""; dismissedFailure = false; Refresh(); }
     internal void NewInput() { blockingError = ""; dismissedFailure = false; buffering = seeking = false; seekReveal.Stop(); Refresh(); }
     internal void CancelOperations() { buffering = seeking = false; seekReveal.Stop(); Refresh(); }
     internal void Reset() { busyDelay.Stop(); seekReveal.Stop(); busy = blockingError = ""; busyVisible = buffering = seeking = dismissedFailure = false; display = Empty; Refresh(); }

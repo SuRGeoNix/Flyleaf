@@ -79,7 +79,18 @@ public partial class FlyleafME
                     if (p.Status == Status.Ended && !FlyleafQueueProgression.IsImageFormat(p.MainDemuxer?.Name) && !(Queue.AutoAdvance && Queue.CanNext) && !p.LoopPlayback) osd.ShowMessage("Ended", status: true);
                 }
             });
-        if (e.PropertyName == nameof(Player.LastError)) PostPlaybackFeedback(sender, p => ReportPlaybackError(p.LastError, p.Status == Status.Failed || !p.CanPlay));
+        if (e.PropertyName == nameof(Player.LastError))
+            PostPlaybackFeedback(sender, p =>
+            {
+                if (string.IsNullOrWhiteSpace(p.LastError))
+                {
+                    playbackDisplay.ClearError();
+                    osd.ClearError();
+                    lastFeedbackError = "";
+                }
+                else
+                    ReportPlaybackError(p.LastError, p.Status == Status.Failed || !p.CanPlay);
+            });
         if (e.PropertyName is nameof(Player.LoopPlayback) or nameof(Player.ReversePlayback))
             PostPlaybackFeedback(sender, p => osd.ShowMessage(e.PropertyName == nameof(Player.LoopPlayback) ? p.LoopPlayback ? "Repeat item on" : "Repeat item off" : p.ReversePlayback ? "Reverse playback on" : "Reverse playback off"));
     }

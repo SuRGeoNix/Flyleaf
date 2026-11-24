@@ -61,4 +61,5 @@ public sealed class FlyleafOSDOverlay : Border
     }
     public void Clear() { Dispatcher.VerifyAccess(); timer.Stop(); errorMessage = statusMessage = false; message.Text = ""; Visibility = Visibility.Collapsed; }
     internal void ClearStatusMessage() { Dispatcher.VerifyAccess(); if (statusMessage && !errorMessage) Clear(); }
+    internal void ClearError() { Dispatcher.VerifyAccess(); if (errorMessage) Clear(); }
 }
