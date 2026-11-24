@@ -159,7 +159,7 @@ public partial class FlyleafME
         Dispatcher.VerifyAccess();
         Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
         {
-            if (disposed || !IsLoaded || overlayPanel?.IsOpen == true || panels.Values.Any(panel => panel.IsOpen && panel.IsKeyboardFocusWithin)) return;
+            if (disposed || !IsLoaded || IsQueueSearchOpen || overlayPanel?.IsOpen == true || panels.Values.Any(panel => panel.IsOpen && panel.IsKeyboardFocusWithin)) return;
             var owner = Window.GetWindow(this);
             if (owner?.IsActive != true && Host.Overlay?.IsActive != true && Host.Surface?.IsActive != true) return;
             // Keyboard input is routed by the child windows, not the main owner.

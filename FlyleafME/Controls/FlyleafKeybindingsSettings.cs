@@ -150,6 +150,7 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
         "control.navigation.previousPage" => "Previous items · large step",
         "control.navigation.nextPage" => "Next items · large step",
         "control.queue.autoAdvance" => "Auto-next",
+        "control.queue.search" => "Search queue",
         null or "" => "Custom action",
         var name => FlyleafPluginOptionDescriptions.Label(name.StartsWith("app.", StringComparison.Ordinal) ? name[4..] : name).Replace('_', ' ').Replace('.', ' ')
     };

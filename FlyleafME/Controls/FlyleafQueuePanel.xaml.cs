@@ -5,7 +5,6 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using Microsoft.Win32;
 
 namespace Flyleaf.Controls.WPF;
 
@@ -21,10 +20,13 @@ public partial class FlyleafQueuePanel : UserControl
     Point dragStart;
     FlyleafQueueSource? dragSource;
     bool deferredSelection;
+    string searchText = "";
+    bool IsSearching => searchText.Length != 0;
     IDisposable? queueMenuActivity;
     public FlyleafQueuePanel()
     {
         InitializeComponent(); Items.ItemsSource = rows;
+        SearchBox.TextChanged += Search_TextChanged;
         Loaded += (_, _) => Attach(); Unloaded += (_, _) => Detach();
     }
     void Attach()
@@ -56,22 +58,56 @@ public partial class FlyleafQueuePanel : UserControl
     {
         if (e.PropertyName is nameof(FlyleafQueue.Revision) or nameof(FlyleafQueue.TotalItems)) RefreshRows();
     }
+    void Search_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        var text = SearchBox.Text.Trim();
+        if (searchText == text) return;
+        searchText = text;
+        dragSource = null; deferredSelection = false;
+        Items.Tag = IsSearching;
+        RefreshRows();
+        if (!IsSearching) ScheduleCurrentScroll(true);
+    }
+
+    void ClearSearch_Click(object sender, RoutedEventArgs e) { SearchBox.Clear(); SearchBox.Focus(); }
+
+
     void RefreshRows()
     {
         SortQueueButton.IsEnabled = queue?.Sources.Count >= 2;
         var desired = new List<object>();
+        int matches = 0;
         if (queue != null)
             foreach (var source in queue.Sources)
             {
-                desired.Add(source);
-                if (!collapsed.Contains(source)) desired.AddRange(source.Children);
+                if (!IsSearching)
+                {
+                    desired.Add(source);
+                    if (!collapsed.Contains(source)) desired.AddRange(source.Children);
+                }
+                else if (FlyleafQueueSearch.Matches(source, searchText))
+                {
+                    desired.Add(source); desired.AddRange(source.Children);
+                    matches += Math.Max(1, source.Children.Count);
+                }
+                else
+                {
+                    // Keep the parent as context, even when only its children match.
+                    var children = source.Children.Where(child => FlyleafQueueSearch.Matches(child, searchText)).ToArray();
+                    if (children.Length == 0) continue;
+                    desired.Add(source); desired.AddRange(children); matches += children.Length;
+                }
             }
+        SearchCount.Text = IsSearching ? $"{matches} matching" : "";
+        NoSearchResults.Visibility = IsSearching && matches == 0 ? Visibility.Visible : Visibility.Collapsed;
         var selection = Items.SelectedItems.Cast<object>().ToArray();
-        for (int i = rows.Count - 1; i >= 0; i--) if (!desired.Contains(rows[i])) rows.RemoveAt(i);
+        var desiredSet = desired.ToHashSet();
+        for (int i = rows.Count - 1; i >= 0; i--) if (!desiredSet.Contains(rows[i])) rows.RemoveAt(i);
+        var retained = rows.ToHashSet();
         for (int i = 0; i < desired.Count; i++)
         {
             if (i < rows.Count && ReferenceEquals(rows[i], desired[i])) continue;
-            var existing = rows.IndexOf(desired[i]);
+            var existing = retained.Contains(desired[i]) ? rows.IndexOf(desired[i]) : -1;
             if (existing >= 0) rows.Move(existing, i); else rows.Insert(i, desired[i]);
         }
         foreach (var item in selection) if (rows.Contains(item) && !Items.SelectedItems.Contains(item)) Items.SelectedItems.Add(item);
@@ -82,27 +118,12 @@ public partial class FlyleafQueuePanel : UserControl
     void Items_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateSelection();
     void Expand_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: FlyleafQueueSource source })
+        if (!IsSearching && sender is Button { Tag: FlyleafQueueSource source })
         {
             if (!collapsed.Add(source)) collapsed.Remove(source);
             ((Button)sender).Content = collapsed.Contains(source) ? "›" : "⌄";
             RefreshRows(); e.Handled = true;
         }
-    }
-    void AddFiles()
-    {
-        if (Context?.MediaElement is { HasPlaylistActionHandler: true } view) { view.RequestPlaylistAction(FlyleafPlaylistAction.Add); return; }
-        var dialog = new OpenFileDialog { Title = "Add queue items", Filter = "All files|*.*", Multiselect = true };
-        using var activity = FlyleafPopupActivity.Hold(Context?.Player);
-        if (dialog.ShowDialog(Window.GetWindow(this)) == true)
-            foreach (var file in dialog.FileNames) queue?.Add(file);
-    }
-    void AddUrl()
-    {
-        if (Context?.MediaElement is not { } view) return;
-        if (view.HasPlaylistActionHandler) { view.RequestPlaylistAction(FlyleafPlaylistAction.AddUrl); return; }
-        var input = view.PromptForInput("Add URL", "Media URL", "Add");
-        if (input != null) queue?.Add(input);
     }
     void PlayItem(object? item)
     {
@@ -130,7 +151,7 @@ public partial class FlyleafQueuePanel : UserControl
             Items.SelectedItem = row.DataContext;
             PlayItem(row.DataContext); e.Handled = true; return;
         }
-        dragSource = row?.DataContext as FlyleafQueueSource;
+        dragSource = IsSearching ? null : row?.DataContext as FlyleafQueueSource;
         dragStart = e.GetPosition(Items);
         // Keep an existing multiple selection intact until this is a click rather than a drag.
         if (dragSource != null && row!.IsSelected && Keyboard.Modifiers == ModifierKeys.None)
@@ -147,7 +168,7 @@ public partial class FlyleafQueuePanel : UserControl
     }
     void Items_MouseMove(object sender, MouseEventArgs e)
     {
-        if (dragSource == null || e.LeftButton != MouseButtonState.Pressed) return;
+        if (IsSearching || dragSource == null || e.LeftButton != MouseButtonState.Pressed) return;
         var position = e.GetPosition(Items);
         if (Math.Abs(position.X - dragStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
             Math.Abs(position.Y - dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
@@ -159,7 +180,7 @@ public partial class FlyleafQueuePanel : UserControl
     void Items_DragOver(object sender, DragEventArgs e)
     {
         if (e.Data.GetDataPresent(typeof(FlyleafQueueSource[])))
-            e.Effects = e.Data.GetData(typeof(FlyleafQueueSource[])) is FlyleafQueueSource[] moving && moving.All(s => queue?.Sources.Contains(s) == true) ? DragDropEffects.Move : DragDropEffects.None;
+            e.Effects = !IsSearching && e.Data.GetData(typeof(FlyleafQueueSource[])) is FlyleafQueueSource[] moving && moving.All(s => queue?.Sources.Contains(s) == true) ? DragDropEffects.Move : DragDropEffects.None;
         else e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.Text) ? DragDropEffects.Copy : DragDropEffects.None;
         if (e.OriginalSource is DependencyObject original && Ancestor<ListBoxItem>(original) is { } row) row.BringIntoView();
         e.Handled = true;
@@ -169,7 +190,7 @@ public partial class FlyleafQueuePanel : UserControl
         e.Handled = true;
         if (e.Data.GetData(typeof(FlyleafQueueSource[])) is FlyleafQueueSource[] moving)
         {
-            if (queue == null || moving.Any(s => !queue.Sources.Contains(s))) return;
+            if (IsSearching || queue == null || moving.Any(s => !queue.Sources.Contains(s))) return;
             var row = e.OriginalSource is DependencyObject original ? Ancestor<ListBoxItem>(original) : null;
             var before = row?.DataContext is FlyleafQueueChild child ? child.Source : row?.DataContext as FlyleafQueueSource;
             if (before != null && row != null && e.GetPosition(row).Y > row.ActualHeight / 2)
@@ -201,15 +222,7 @@ public partial class FlyleafQueuePanel : UserControl
     {
         if (queue is not { Sources.Count: >= 2 } target) return;
 
-        void Add(string label, bool descending, bool numeric) => FlyleafMenuItems.Add(menu, label, () =>
-        {
-            if (ReferenceEquals(queue, target)) target.SortByName(descending, numeric);
-        });
-        Add("Name (A–Z)", descending: false, numeric: false);
-        Add("Name (Z–A)", descending: true, numeric: false);
-        FlyleafMenuItems.Separator(menu);
-        Add("Name numeric (A–Z)", descending: false, numeric: true);
-        Add("Name numeric (Z–A)", descending: true, numeric: true);
+        FlyleafMenuItems.QueueSort(menu, target, () => ReferenceEquals(queue, target));
     }
 
     void Shuffle_Click(object sender, RoutedEventArgs e) => ShuffleQueue();
@@ -219,7 +232,7 @@ public partial class FlyleafQueuePanel : UserControl
         queue?.ShuffleItems(); Context?.MediaElement?.ShowOSD("Queue shuffled");
     }
     void Add_Click(object sender, RoutedEventArgs e) => OpenToolbarMenu(CreateAddMenu());
-    void Playlist_Click(object sender, RoutedEventArgs e) => OpenToolbarMenu(CreatePlaylistMenu());
+    void Queue_Click(object sender, RoutedEventArgs e) => OpenToolbarMenu(CreateQueueMenu());
 
     internal ContextMenu CreateAddMenu()
     {
@@ -228,36 +241,25 @@ public partial class FlyleafQueuePanel : UserControl
         return menu;
     }
 
-    internal ContextMenu CreatePlaylistMenu()
+    internal ContextMenu CreateQueueMenu()
     {
-        var menu = CreateToolbarMenu(PlaylistButton);
-        AddPlaylistChoices(menu);
+        var menu = CreateToolbarMenu(QueueButton);
+        AddQueueChoices(menu);
         return menu;
     }
 
-    void AddPlaylistChoices(ItemsControl menu)
+    void AddQueueChoices(ItemsControl menu)
     {
-        if (Context?.MediaElement is not { HasPlaylistActionHandler: true } view)
-        {
-            FlyleafMenuItems.Add(menu, "New queue", queue is { } target ? target.Clear : null);
-            return;
-        }
+        if (Context?.MediaElement is not { } view) return;
 
-        Add("New queue", FlyleafPlaylistAction.New);
-        FlyleafMenuItems.Separator(menu);
-        Add("Save playlist", FlyleafPlaylistAction.Save);
-        Add("Save playlist as…", FlyleafPlaylistAction.SaveAs);
-        Add("Export playlist…", FlyleafPlaylistAction.Export);
-
-        void Add(string label, FlyleafPlaylistAction action) =>
-            FlyleafMenuItems.Add(menu, label, view.PlaylistActionsAvailable ? () => view.RequestPlaylistAction(action) : null);
+        view.AddQueueMenuItems(menu);
     }
 
     void Items_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
         var row = e.OriginalSource is DependencyObject element
             ? ItemsControl.ContainerFromElement(Items, element) as ListBoxItem : null;
-        PopulateQueueMenu(row?.DataContext);
+        PopulateQueueMenu(row?.DataContext ?? (e.CursorLeft < 0 && e.CursorTop < 0 ? Items.SelectedItem : null));
     }
 
     internal void PopulateQueueMenu(object? rowItem = null)
@@ -268,42 +270,42 @@ public partial class FlyleafQueuePanel : UserControl
         menu.SetResourceReference(StyleProperty, "FlyleafME.ThemeContextMenuStyle");
 
         var target = queue;
-        var item = rowItem ?? Items.SelectedItem;
+        var item = rowItem;
         if (target != null && item != null)
         {
-            var selection = rowItem == null || Items.SelectedItems.Contains(rowItem)
-                ? Items.SelectedItems.Cast<object>() : new[] { rowItem };
+            var selection = Items.SelectedItems.Contains(rowItem)
+                ? Items.SelectedItems.Cast<object>() : new[] { item };
             var removable = selection.OfType<FlyleafQueueSource>().ToArray();
+
             FlyleafMenuItems.Add(menu, "Play", target.HasPlayer ? () => PlayItem(item) : null).InputGestureText = "Enter";
-            FlyleafMenuItems.Add(menu, "Remove selected entries", removable.Length > 0 ? () => target.Remove(removable) : null)
+            FlyleafMenuItems.Add(menu, "Remove selected", removable.Length > 0 ? () => target.Remove(removable) : null)
                 .InputGestureText = "Delete";
             FlyleafMenuItems.Separator(menu);
         }
 
-        AddImportChoices(menu);
+        if (Context?.MediaElement != null)
+        {
+            AddImportChoices(FlyleafMenuItems.Group(menu, "Add"));
+            AddQueueChoices(FlyleafMenuItems.Group(menu, "Queue"));
+        }
+
         if (target != null)
         {
             FlyleafMenuItems.Separator(menu);
             if (target.Sources.Count >= 2)
             {
-                AddSortChoices(FlyleafMenuItems.Group(menu, "Sort queue"));
-                FlyleafMenuItems.Add(menu, "Shuffle queue", ShuffleQueue);
+                AddSortChoices(FlyleafMenuItems.Group(menu, "Sort"));
+                FlyleafMenuItems.Add(menu, "Shuffle", ShuffleQueue);
+                FlyleafMenuItems.Separator(menu);
             }
             FlyleafMenuItems.Add(menu, "Auto-next", () => target.AutoAdvance = !target.AutoAdvance, target.AutoAdvance).IsCheckable = true;
             FlyleafMenuItems.Add(menu, "Repeat queue", () => target.Repeat = !target.Repeat, target.Repeat).IsCheckable = true;
         }
-
-        FlyleafMenuItems.Separator(menu);
-        AddPlaylistChoices(FlyleafMenuItems.Group(menu, "Playlist"));
     }
 
     void AddImportChoices(ItemsControl menu)
     {
-        var view = Context?.MediaElement;
-        bool canAdd = view is { HasPlaylistActionHandler: true } ? view.PlaylistActionsAvailable : queue != null;
-        FlyleafMenuItems.Add(menu, "Add files or playlists…", canAdd ? AddFiles : null);
-        view?.AddFolderMenuItem(menu);
-        FlyleafMenuItems.Add(menu, "Add URL…", canAdd && view != null ? AddUrl : null);
+        Context?.MediaElement?.AddAppendQueueMenuItems(menu);
     }
 
     void QueueMenu_Opened(object sender, RoutedEventArgs e) => queueMenuActivity ??= FlyleafPopupActivity.Hold(Context?.Player);

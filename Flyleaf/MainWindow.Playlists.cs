@@ -18,16 +18,13 @@ public partial class MainWindow
     string? playlistPath;
     string playlistName = "New queue";
     long savedQueueRevision;
-    bool playlistOperation, playlistDisposed, allowPlaylistClose, closeAfterPlaylistOperation, playlistDocumentActive;
+    bool playlistOperation, playlistDisposed, allowPlaylistClose, closeAfterPlaylistOperation;
     bool playlistClosePromptQueued;
     string playlistStage = "Starting playlist operation";
     bool PlaylistDirty => savedQueueRevision != MediaElement.Queue.Revision;
+    bool ShouldConfirmPlaylistChanges => PlaylistDirty && App.Instance.Config.ConfirmUnsavedQueueChanges &&
+        (playlistPath != null || MediaElement.Queue.TotalItems > 1);
     TaskCompletionSource? playlistIdle;
-    static readonly string PlaylistFilter =
-        $"All supported playlists|{string.Join(";", FlyleafPlaylistSerializer.SupportedExtensions.Select(extension => "*" + extension))}" +
-        $"|Flyleaf playlists|*{FlyleafPlaylistSerializer.NativeExtension}" +
-        $"|M3U playlists|*{FlyleafPlaylistSerializer.M3UExtension};*{FlyleafPlaylistSerializer.M3U8Extension}" +
-        $"|PLS playlists|*{FlyleafPlaylistSerializer.PlsExtension}";
 
     static readonly FlyleafShortcutGesture NewWindowShortcut = new(Key.N, Ctrl: true, IsKeyUp: true);
     static readonly FlyleafShortcutGesture CloseWindowShortcut = new(Key.W, Ctrl: true, IsKeyUp: true);
@@ -99,8 +96,7 @@ public partial class MainWindow
 
     void PasteMediaInput()
     {
-        try { var text = Clipboard.GetText().Trim(); if (text.Length > 0) MediaElement.OpenInput(text); }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Open input", MessageBoxButton.OK, MessageBoxImage.Error); }
+        MediaElement.PasteInput();
     }
 
     void DisposePlaylistCommands()
@@ -188,23 +184,43 @@ public partial class MainWindow
     {
         await RunPlaylistOperation(async () =>
         {
+            bool append = e.Action is FlyleafPlaylistAction.Add or FlyleafPlaylistAction.AddFolder or FlyleafPlaylistAction.AddUrl;
             switch (e.Action)
             {
                 case FlyleafPlaylistAction.New:
                     if (!await ConfirmPlaylistReplacement()) return;
                     MediaElement.Queue.Clear(); playlistPath = null; playlistName = "New queue";
-                    savedQueueRevision = MediaElement.Queue.Revision; playlistDocumentActive = false;
+                    savedQueueRevision = MediaElement.Queue.Revision;
                     break;
+                case FlyleafPlaylistAction.Open:
                 case FlyleafPlaylistAction.Add:
-                    var dialog = new OpenFileDialog { Title = "Add files or playlists", Filter = "All supported inputs|*.*", Multiselect = true };
-                    if (dialog.ShowDialog(this) == true) await AddQueueInputs(dialog.FileNames);
+                    var dialog = new OpenFileDialog { Title = append ? "Add files" : "Open files", Filter = "All supported inputs|*.*", Multiselect = true };
+                    if (dialog.ShowDialog(this) == true)
+                    {
+                        var inputs = GetQueueMediaFiles(dialog.FileNames);
+                        if (inputs.Length > 0)
+                        {
+                            if (append) await AddQueueInputs(inputs);
+                            else await OpenQueueInputs(inputs);
+                        }
+                    }
                     break;
+                case FlyleafPlaylistAction.OpenFolder:
                 case FlyleafPlaylistAction.AddFolder:
-                    await AddQueueFolder();
+                    await ImportQueueFolder(append);
                     break;
+                case FlyleafPlaylistAction.OpenUrl:
                 case FlyleafPlaylistAction.AddUrl:
-                    var input = MediaElement.PromptForInput("Add URL", "Media or playlist URL", "Add");
-                    if (input != null) await AddQueueInputs([input]);
+                    var input = MediaElement.PromptForInput(append ? "Add URL" : "Open URL", "Media or playlist URL", append ? "Add" : "Open");
+                    if (!string.IsNullOrWhiteSpace(input) && !Utils.ExtensionsSubtitles.Contains(Utils.GetUrlExtention(input)))
+                    {
+                        if (append) await AddQueueInputs([input]);
+                        else await OpenQueueInputs([input]);
+                    }
+                    break;
+                case FlyleafPlaylistAction.OpenInputs:
+                    var pasted = GetQueueMediaFiles(e.Inputs);
+                    if (pasted.Length > 0) await OpenQueueInputs(pasted);
                     break;
                 case FlyleafPlaylistAction.AddInputs:
                     await AddQueueInputs(e.Inputs);
@@ -269,8 +285,7 @@ public partial class MainWindow
                 ? document.Title : Path.GetFileNameWithoutExtension(location.AbsolutePath);
             if (string.IsNullOrWhiteSpace(playlistName)) playlistName = "Imported playlist";
             playlistPath = extension == FlyleafPlaylistSerializer.NativeExtension && location.IsFile ? location.LocalPath : null;
-            savedQueueRevision = playlistPath != null ? MediaElement.Queue.Revision : -1;
-            playlistDocumentActive = !hls;
+            savedQueueRevision = MediaElement.Queue.Revision;
         }
         if (!append && MediaElement.Queue.Sources.FirstOrDefault() is { } first)
             MediaElement.Queue.Open(first, play: Player.Config.Playback.AutoPlay);
@@ -281,10 +296,10 @@ public partial class MainWindow
         Entries = MediaElement.Queue.CaptureEntries().Select(entry => new FlyleafPlaylistEntry
         { Input = entry.Input, Title = entry.Title, UserAgent = entry.UserAgent, Referrer = entry.Referrer }).ToList()
     };
-    async Task AddQueueFolder()
+    async Task ImportQueueFolder(bool append)
     {
         playlistStage = "Choosing a folder";
-        var picker = new OpenFolderDialog { Title = "Add folder to queue" };
+        var picker = new OpenFolderDialog { Title = append ? "Add folder to queue" : "Open folder" };
         if (picker.ShowDialog(this) != true) return;
         var folder = picker.FolderName;
         var options = new FolderImportDialog(MediaElement.Resources, folder) { Owner = this };
@@ -295,12 +310,22 @@ public partial class MainWindow
         if (playlistDisposed) return;
         if (result.Paths.Length > 0)
         {
+            if (!append && !await ConfirmPlaylistReplacement()) return;
+            if (playlistDisposed) return;
             bool wasEmpty = MediaElement.Queue.Sources.Count == 0;
-            MediaElement.Queue.ApplyEntries(result.Paths.Select(path => new FlyleafQueueEntry { Input = path }), append: true);
-            PlayFirstAddedQueueItem(wasEmpty);
+            MediaElement.Queue.ApplyEntries(result.Paths.Select(path => new FlyleafQueueEntry { Input = path }), append);
+            if (append) PlayFirstAddedQueueItem(wasEmpty);
+            else
+            {
+                playlistPath = null; playlistName = "Queue";
+                savedQueueRevision = MediaElement.Queue.Revision;
+                UpdatePlaylistStatus();
+                if (MediaElement.Queue.Sources.FirstOrDefault() is { } first)
+                    MediaElement.Queue.Open(first, play: Player.Config.Playback.AutoPlay);
+            }
         }
 
-        string message = result.Paths.Length == 0 ? "No matching media found" : $"Added {result.Paths.Length:N0} to the queue";
+        string message = result.Paths.Length == 0 ? "No matching media found" : $"{(append ? "Added" : "Opened")} {result.Paths.Length:N0} {(append ? "in the queue" : "items")}";
         if (result.Paths.Length > 0 && result.UsedNameFallback)
             message += " · Windows name sorting used where Explorer view order was unavailable";
         if (result.SkippedFolders > 0) message += $" · Skipped folders: {result.SkippedFolders:N0}";
@@ -310,7 +335,13 @@ public partial class MainWindow
     async Task AddQueueInputs(IEnumerable<string> inputs)
     {
         bool wasEmpty = MediaElement.Queue.Sources.Count == 0;
-        await AppendQueueInputs(inputs);
+        var items = inputs.ToArray();
+        if (wasEmpty && !PlaylistDirty && playlistPath == null && items.Length == 1 && IsPlaylistInput(items[0]))
+        {
+            await LoadPlaylist(items[0], false);
+            return;
+        }
+        await AppendQueueInputs(items);
         PlayFirstAddedQueueItem(wasEmpty);
     }
 
@@ -336,9 +367,11 @@ public partial class MainWindow
     {
         if (inputs.Count == 1 && IsPlaylistInput(inputs[0])) { await LoadPlaylist(inputs[0], false); return; }
         if (!await ConfirmPlaylistReplacement() || playlistDisposed) return;
-        MediaElement.Queue.Clear(); playlistPath = null; playlistName = "Queue"; playlistDocumentActive = false;
+        MediaElement.Queue.Clear(); playlistPath = null; playlistName = "Queue";
+        savedQueueRevision = MediaElement.Queue.Revision;
         await AppendQueueInputs(inputs);
         if (playlistDisposed) return;
+        savedQueueRevision = MediaElement.Queue.Revision;
         UpdatePlaylistStatus();
         if (MediaElement.Queue.Sources.FirstOrDefault() is { } first)
             MediaElement.Queue.Open(first, play: Player.Config.Playback.AutoPlay);
@@ -359,7 +392,7 @@ public partial class MainWindow
         var document = CapturePlaylist(name); var revision = MediaElement.Queue.Revision;
         await WritePlaylistFile(path, FlyleafPlaylistSerializer.Write(document));
         if (playlistDisposed) return false;
-        playlistPath = path; playlistName = name; savedQueueRevision = revision; playlistDocumentActive = true; UpdatePlaylistStatus(); return true;
+        playlistPath = path; playlistName = name; savedQueueRevision = revision; UpdatePlaylistStatus(); return true;
     }
     async Task ExportPlaylist()
     {
@@ -385,9 +418,9 @@ public partial class MainWindow
     }
     async Task<bool> ConfirmPlaylistReplacement()
     {
-        if (!PlaylistDirty || !playlistDocumentActive) return true;
+        if (!ShouldConfirmPlaylistChanges) return true;
         playlistStage = "Confirming unsaved playlist changes";
-        var decision = MessageBox.Show(this, playlistDocumentActive ? "Save changes to the current playlist?" : "Save the current queue as a playlist before replacing it?", "Playlist changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        var decision = MessageBox.Show(this, playlistPath != null ? "Save changes to the current playlist?" : "Save the current queue as a playlist?", "Playlist changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         if (decision == MessageBoxResult.Cancel) return false;
         if (decision == MessageBoxResult.No) return true;
         return await SavePlaylist(false) && !PlaylistDirty;
@@ -407,7 +440,7 @@ public partial class MainWindow
     {
         if (allowPlaylistClose) return;
         if (playlistOperation) { e.Cancel = true; closeAfterPlaylistOperation = true; return; }
-        if (!PlaylistDirty || !playlistDocumentActive) return;
+        if (!ShouldConfirmPlaylistChanges) return;
         e.Cancel = true;
         if (playlistClosePromptQueued) return;
         playlistClosePromptQueued = true;

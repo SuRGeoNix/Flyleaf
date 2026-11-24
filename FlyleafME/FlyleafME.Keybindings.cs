@@ -42,6 +42,7 @@ public partial class FlyleafME
                     case "control.navigation.previousPage": control.PreviousItems(); break;
                     case "control.navigation.nextPage": control.NextItems(); break;
                     case "control.queue.autoAdvance": control.ToggleQueueAutoAdvance(); break;
+                    case "control.queue.search": control.ShowQueueSearch(); break;
                 }
             }
             if (control.Dispatcher.CheckAccess()) Execute(); else control.Dispatcher.BeginInvoke(new Action(Execute));
@@ -88,7 +89,8 @@ internal static class FlyleafControlKeybindings
         ["control.navigation.next"] = new(Key.Down, Ctrl: true, IsKeyUp: true),
         ["control.navigation.previousPage"] = new(Key.PageUp, Ctrl: true, IsKeyUp: true),
         ["control.navigation.nextPage"] = new(Key.PageDown, Ctrl: true, IsKeyUp: true),
-        ["control.queue.autoAdvance"] = new(Key.F5, IsKeyUp: true)
+        ["control.queue.autoAdvance"] = new(Key.F5, IsKeyUp: true),
+        ["control.queue.search"] = new(Key.F, Ctrl: true, IsKeyUp: true)
     });
 
     internal static void Attach(KeysConfig keys, Action<string> execute, bool addDefaultGestures)
@@ -107,11 +109,16 @@ internal static class FlyleafControlKeybindings
                 var binding = new PlayerKeyBinding { Action = KeyBindingAction.Custom, ActionName = id };
                 // AddCustom overwrites a matching gesture (including None). Append
                 // distinct unassigned rows if defaults are disabled or occupied.
-                // Seed the requested F5 action in older configs only when its row
+                // Seed new queue actions in older configs only when their row
                 // is absent; existing remappings/unassignment never reach this branch.
-                ((addDefaultGestures || id == "control.queue.autoAdvance") && gesture.Conflict(keys.Keys) == null ? gesture : new FlyleafShortcutGesture(Key.None)).Apply(binding);
+                ((addDefaultGestures || id is "control.queue.autoAdvance" or "control.queue.search") && gesture.Conflict(keys.Keys) == null ? gesture : new FlyleafShortcutGesture(Key.None)).Apply(binding);
                 keys.Keys.Add(binding); existing = [binding];
             }
+            // Migrate only the previous default, without replacing custom gestures or an occupied Ctrl+F.
+            if (id == "control.queue.search")
+                foreach (var binding in existing)
+                    if (FlyleafShortcutGesture.From(binding) == new FlyleafShortcutGesture(Key.F3, IsKeyUp: true) && gesture.Conflict(keys.Keys, binding) == null)
+                        gesture.Apply(binding);
             foreach (var binding in existing) binding.SetAction(() => execute(id), binding.IsKeyUp);
         }
     }

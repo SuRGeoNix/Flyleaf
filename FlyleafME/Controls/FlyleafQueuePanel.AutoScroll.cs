@@ -44,12 +44,12 @@ public partial class FlyleafQueuePanel
     void ScheduleCurrentScroll(bool force = false)
     {
         if (force) lastScrolledItem = null;
-        if (!IsVisible || scrollScheduled) return;
+        if (IsSearching || !IsVisible || scrollScheduled) return;
         scrollScheduled = true;
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
         {
             scrollScheduled = false;
-            if (!IsVisible || scrollQueue == null) return;
+            if (IsSearching || !IsVisible || scrollQueue == null) return;
 
             object? current = null;
             foreach (var source in scrollQueue.Sources)

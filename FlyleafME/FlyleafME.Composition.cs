@@ -91,6 +91,7 @@ public partial class FlyleafME
                 oldPlayer.PropertyChanged -= view.ComposedPlayer_PropertyChanged;
                 oldPlayer.Activity.ForceFullActive();
             }
+            view.CloseQueueSearch();
             view.CloseAllPanels();
             view.CloseGeneralMenu();
             view.Host.SetCurrentValue(FlyleafHost.PlayerProperty, e.NewValue);
@@ -212,6 +213,7 @@ public partial class FlyleafME
 
     void PanelEscape(object sender, KeyEventArgs e)
     {
+        if (IsQueueSearchOpen) return;
         if (e.OriginalSource is TextBox { Tag: "FlyleafKeyCapture" }) return;
         if (e.OriginalSource is TextBox { Tag: FlyleafLanguageEntry { IsSuggestionOpen: true } }) return;
         if (e.Key == Key.Escape && overlayPanel != null) { ClosePanel(overlayPanel); e.Handled = true; }
@@ -221,7 +223,7 @@ public partial class FlyleafME
     {
         // Like v1's settings dialog: suppress host shortcuts while an editor owns focus.
         // The configured preference stays intact, including bindings supplied by the app.
-        bool editing = panels.Values.Any(panel => panel.IsOpen && panel.IsKeyboardFocusWithin);
+        bool editing = IsQueueSearchOpen || panels.Values.Any(panel => panel.IsOpen && panel.IsKeyboardFocusWithin);
         Host.SetCurrentValue(FlyleafHost.KeyBindingsProperty, editing ? AvailableWindows.None : KeyBindings);
     }
 
@@ -242,6 +244,7 @@ public partial class FlyleafME
     }
     void DetachHostInput()
     {
+        CloseQueueSearch();
         CloseGeneralMenu();
         if (inputSurface != null) { inputSurface.MouseDoubleClick -= HostDoubleClick; inputSurface.MouseRightButtonUp -= HostRightClick; inputSurface.PreviewKeyDown -= HostMenuKeyDown; }
         if (inputOverlay != null) { inputOverlay.MouseDoubleClick -= HostDoubleClick; inputOverlay.MouseRightButtonUp -= HostRightClick; inputOverlay.PreviewKeyDown -= HostMenuKeyDown; }
@@ -249,7 +252,7 @@ public partial class FlyleafME
     }
     void HostDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton != MouseButton.Left || e.Handled) return;
+        if (IsQueueSearchOpen || e.ChangedButton != MouseButton.Left || e.Handled) return;
         // Interactive controls, title bar, and tool panels handle their own input.
         if (e.OriginalSource is DependencyObject source)
             for (DependencyObject? item = source; item != null; item = item is Visual or System.Windows.Media.Media3D.Visual3D

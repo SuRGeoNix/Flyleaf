@@ -34,6 +34,10 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
         Number(playbackBar, "Auto-hide delay", "seconds · 0 = never", () => ui.PlaybackBar.AutoHideDelayMilliseconds / 1000.0,
             value => ui.PlaybackBar.AutoHideDelayMilliseconds = (int)Math.Round(value * 1000), 0, 600,
             value => value > 0 && value < 0.001 ? "Use 0 or at least 0.001 seconds." : null);
+        var app = App.Instance.Config;
+        var queue = Group("Queue", () => app.ConfirmUnsavedQueueChanges = true);
+        Toggle(queue, "Confirm unsaved queue changes", "Ask before closing or replacing an edited queue with multiple items or a modified saved playlist. Applies to all player windows.",
+            () => app.ConfirmUnsavedQueueChanges, value => app.ConfirmUnsavedQueueChanges = value);
         var slideShow = Group("Slide show", () => ui.Queue.SlideShowIntervalMilliseconds = 3000);
         Number(slideShow, "Image display interval", "seconds", () => ui.Queue.SlideShowIntervalMilliseconds / 1000.0,
             value => ui.Queue.SlideShowIntervalMilliseconds = (int)Math.Round(value * 1000), 0.1, 3600);
@@ -90,7 +94,6 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
         BuildEngineSettings();
         Refresh();
     }
-
     void BuildEngineSettings()
     {
         var engine = Engine.Config;
@@ -122,7 +125,6 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
         Choice(group, "FFmpeg log level", () => engine.FFmpegLogLevel, value => engine.FFmpegLogLevel = value,
             Enum.GetValues<Flyleaf.FFmpeg.LogLevel>().Select(value => (value, value.ToString())).ToArray());
     }
-
     static void ResetEngine()
     {
         var engine = Engine.Config;

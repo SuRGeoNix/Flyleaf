@@ -47,7 +47,10 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
                 <TextBlock Text="{Binding IndexText}" Style="{StaticResource QueueIndex}"/>
                 <Button Grid.Column="1" Content="⌄" Width="18" Tag="{Binding}" Click="Expand_Click" Padding="0" MinWidth="0" MinHeight="22" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" ToolTip="Expand or collapse embedded items">
-                    <Button.Style><Style TargetType="Button"><Style.Triggers><DataTrigger Binding="{Binding Children.Count}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                    <Button.Style><Style TargetType="Button"><Style.Triggers>
+                        <DataTrigger Binding="{Binding Children.Count}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                        <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"><Setter Property="IsEnabled" Value="False"/><Setter Property="Opacity" Value="0.4"/></DataTrigger>
+                    </Style.Triggers></Style></Button.Style>
                 </Button>
                 <TextBlock Grid.Column="2" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
             </Grid>
@@ -60,19 +63,19 @@
             </Grid>
         </DataTemplate>    </UserControl.Resources>
     <Grid>
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <WrapPanel x:Name="ToolbarHost" Margin="0,0,0,4" SizeChanged="Toolbar_SizeChanged">
             <StackPanel x:Name="QueueTools" Orientation="Horizontal" Margin="0,0,0,4">
+                <Button x:Name="QueueButton" AutomationProperties.Name="Queue actions" Click="Queue_Click" Style="{StaticResource QueueMenuButton}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Queue"/>
+                        <Path Style="{StaticResource QueueMenuChevron}"/>
+                    </StackPanel>
+                </Button>
                 <Button x:Name="AddButton" AutomationProperties.Name="Add to queue" Click="Add_Click" Style="{StaticResource QueueMenuButton}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <TextBlock Text="Add"/>
-                        <Path Style="{StaticResource QueueMenuChevron}"/>
-                    </StackPanel>
-                </Button>
-                <Button x:Name="PlaylistButton" AutomationProperties.Name="Playlist actions" Click="Playlist_Click" Style="{StaticResource QueueMenuButton}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Playlist"/>
                         <Path Style="{StaticResource QueueMenuChevron}"/>
                     </StackPanel>
                 </Button>
@@ -94,7 +97,27 @@
                 <ToggleButton x:Name="RepeatToggle" Content="&#xE8EE;" ToolTip="Repeat queue" IsChecked="{Binding Repeat, Mode=TwoWay}" Style="{StaticResource QueueToggle}"/>
             </StackPanel>
         </WrapPanel>
-        <ListBox x:Name="Items" Grid.Row="1" SelectionMode="Extended" Background="Transparent" BorderThickness="0"
+        <Grid Grid.Row="1" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid>
+                <TextBox x:Name="SearchBox" Style="{StaticResource FlyleafME.InputStyle}" Padding="27,5,8,5"
+                         VerticalContentAlignment="Center" AutomationProperties.Name="Search queue" ToolTip="Search titles, paths and URLs"/>
+                <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="9,0,0,0" VerticalAlignment="Center"
+                           HorizontalAlignment="Left" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" IsHitTestVisible="False"/>
+                <TextBlock Text="Search queue…" Margin="27,0,8,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" IsHitTestVisible="False">
+                    <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    </Style></TextBlock.Style>
+                </TextBlock>
+            </Grid>
+            <Button Grid.Column="1" Content="&#xE711;" ToolTip="Clear search" Click="ClearSearch_Click">
+                <Button.Style><Style TargetType="Button" BasedOn="{StaticResource QueueIcon}"><Setter Property="Margin" Value="4,0,0,0"/>
+                    <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value=""><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers>
+                </Style></Button.Style>
+            </Button>
+        </Grid>
+        <ListBox x:Name="Items" Grid.Row="2" SelectionMode="Extended" Background="Transparent" BorderThickness="0"
                  Foreground="{DynamicResource FlyleafME.TextBrush}" HorizontalContentAlignment="Stretch"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" AllowDrop="True"
                  SelectionChanged="Items_SelectionChanged" ContextMenuOpening="Items_ContextMenuOpening"
@@ -121,8 +144,14 @@
                 </ControlTemplate></Setter.Value></Setter>
             </Style></ListBox.ItemContainerStyle>
         </ListBox>
-        <TextBlock Grid.Row="2" Text="{Binding ItemCountText}" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" Margin="3,8,0,0"
-                   ToolTip="{Binding Context.MediaElement.PlaylistStatus, RelativeSource={RelativeSource AncestorType=local:FlyleafQueuePanel}}"/>
-        <TextBlock Grid.Row="3" Text="{Binding Message}" TextWrapping="Wrap" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" Margin="3,4,0,0"/>
+        <TextBlock x:Name="NoSearchResults" Grid.Row="2" Text="No matching items" Visibility="Collapsed" IsHitTestVisible="False"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
+        <Grid Grid.Row="3" Margin="3,8,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding ItemCountText}" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" TextTrimming="CharacterEllipsis"
+                       ToolTip="{Binding Context.MediaElement.PlaylistStatus, RelativeSource={RelativeSource AncestorType=local:FlyleafQueuePanel}}"/>
+            <TextBlock x:Name="SearchCount" Grid.Column="1" Margin="8,0,3,0" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
+        </Grid>
+        <TextBlock Grid.Row="4" Text="{Binding Message}" TextWrapping="Wrap" Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}" Margin="3,4,0,0"/>
     </Grid>
 </UserControl>

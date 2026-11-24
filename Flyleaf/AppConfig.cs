@@ -157,8 +157,10 @@ public class AppConfig : NotifyPropertyChanged
     WindowOptions window = new();
     NewWindowOptions newWindow = new();
     StartupOptions startup = new();
+    bool confirmUnsavedQueueChanges = true;
 
     public string[] CustomFileExtensions { get; set; } = [];
+    public bool ConfirmUnsavedQueueChanges { get => confirmUnsavedQueueChanges; set => Set(ref confirmUnsavedQueueChanges, value); }
 
     public StartupOptions Startup
     {

@@ -23,6 +23,19 @@ internal static class FlyleafMenuItems
         separator.SetResourceReference(FrameworkElement.StyleProperty, "FlyleafME.ThemeMenuSeparatorStyle");
         menu.Items.Add(separator);
     }
+    internal static void QueueSort(ItemsControl menu, FlyleafQueue target, Func<bool> isCurrent)
+    {
+        if (target.Sources.Count < 2) return;
+        void Sort(string label, bool descending, bool numeric) => Add(menu, label, () =>
+        {
+            if (isCurrent()) target.SortByName(descending, numeric);
+        });
+        Sort("Name (A–Z)", descending: false, numeric: false);
+        Sort("Name (Z–A)", descending: true, numeric: false);
+        Separator(menu);
+        Sort("Name numeric (A–Z)", descending: false, numeric: true);
+        Sort("Name numeric (Z–A)", descending: true, numeric: true);
+    }
     internal static void Speed(ItemsControl menu, Player target, Func<bool> isCurrent)
     {
         foreach (var value in FlyleafPlaybackActions.SpeedPresets)

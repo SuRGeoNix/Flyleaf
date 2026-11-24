@@ -112,6 +112,7 @@ public partial class MainWindow : Window
 
         InitializeComponent();
         MediaTitle.DataContext = MediaElement;
+        QueueSearchButton.DataContext = MediaElement;
 
         if (App.Instance.UseTransparentWindows)
         {
@@ -899,6 +900,10 @@ public partial class MainWindow : Window
         Activate();
         MediaElement.FocusPlayback();
     }
+
+    void QueueSearch_Click(object sender, RoutedEventArgs e) => MediaElement.ShowQueueSearch();
+    void QueueSearch_ToolTipOpening(object sender, ToolTipEventArgs e) => QueueSearchButton.ToolTip =
+        MediaElement.QueueSearchShortcut is { } shortcut ? $"Search queue ({shortcut})" : "Search queue";
 
     void Close_Click(object sender, RoutedEventArgs e) => Close();
 

@@ -57,6 +57,18 @@
                                 </Grid>
 
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="QueueSearchButton" Content="&#xE721;" ToolTip="Search queue" Focusable="False"
+                                            AutomationProperties.Name="Search queue" Click="QueueSearch_Click" ToolTipOpening="QueueSearch_ToolTipOpening">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource FlyleafME.OverlayIconButtonStyle}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Queue.TotalItems, FallbackValue=0}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding Queue.TotalItems}" Value="1"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding Queue.HasPlayer}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                     <StackPanel x:Name="PlayerActions" Orientation="Horizontal">
                                         <Button x:Name="ThemeButton" Content="&#xE790;" ToolTip="Switch theme (right-click for options)" Focusable="False"
                                                 Click="ToggleTheme_Click" Foreground="{DynamicResource FlyleafME.AccentBrush}"

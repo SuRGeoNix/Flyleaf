@@ -106,6 +106,7 @@ public partial class FlyleafME
         bool changed = osdBarVisible != bar;
         osdHeaderVisible = header; osdBarVisible = bar;
         playbackDisplay.SetInsets(new Thickness(12, (header ? overlayHeader.ActualHeight : 0) + 12, 12, (bar ? osdPlaybackBar!.ActualHeight : 0) + 12));
+        if (IsQueueSearchOpen) PositionQueueSearch();
         if (changed && overlayPlayer is { IsDisposed: false }) UpdatePlaybackDisplay();
     }
 }

@@ -37,6 +37,64 @@ public partial class FlyleafME
         if (CanOfferFolderImport)
             Add(menu, "Add folder…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.AddFolder) : null);
     }
+    bool CanChangeQueue => !disposed && (!HasPlaylistActionHandler || PlaylistActionsAvailable);
+    internal void AddOpenQueueMenuItems(ItemsControl menu, bool directInput = false)
+    {
+        Add(menu, "Open files…", CanChangeQueue ? () =>
+        {
+            if (directInput) OpenFile();
+            else if (HasPlaylistActionHandler) RequestPlaylistAction(FlyleafPlaylistAction.Open);
+            else PickQueueFiles(false);
+        } : null);
+        if (CanOfferFolderImport)
+            Add(menu, "Open folder…", CanChangeQueue ? () => RequestPlaylistAction(FlyleafPlaylistAction.OpenFolder) : null);
+        Add(menu, "Open URL…", CanChangeQueue ? () =>
+        {
+            if (directInput) OpenUrl();
+            else if (HasPlaylistActionHandler) RequestPlaylistAction(FlyleafPlaylistAction.OpenUrl);
+            else PromptQueueUrl(false);
+        } : null);
+        Add(menu, "Paste", CanChangeQueue ? () => PasteMenuInput(false, directInput) : null);
+    }
+    internal void AddAppendQueueMenuItems(ItemsControl menu)
+    {
+        Add(menu, "Add files…", CanChangeQueue ? () =>
+        {
+            if (HasPlaylistActionHandler) RequestPlaylistAction(FlyleafPlaylistAction.Add);
+            else PickQueueFiles(true);
+        } : null);
+        AddFolderMenuItem(menu);
+        Add(menu, "Add URL…", CanChangeQueue ? () =>
+        {
+            if (HasPlaylistActionHandler) RequestPlaylistAction(FlyleafPlaylistAction.AddUrl);
+            else PromptQueueUrl(true);
+        } : null);
+        Add(menu, "Paste", CanChangeQueue ? () => PasteMenuInput(true) : null);
+    }
+    internal void AddNewQueueMenuItems(ItemsControl menu)
+    {
+        Add(menu, "New queue", CanChangeQueue ? () =>
+        {
+            if (HasPlaylistActionHandler) RequestPlaylistAction(FlyleafPlaylistAction.New);
+            else Queue.Clear();
+        } : null);
+        Separator(menu);
+        AddOpenQueueMenuItems(menu);
+    }
+    internal void AddSaveQueueMenuItems(ItemsControl menu)
+    {
+        if (!HasPlaylistActionHandler) return;
+        Separator(menu);
+        bool canSave = CanChangeQueue;
+        Add(menu, "Save", canSave ? () => RequestPlaylistAction(FlyleafPlaylistAction.Save) : null);
+        Add(menu, "Save as…", canSave ? () => RequestPlaylistAction(FlyleafPlaylistAction.SaveAs) : null);
+        Add(menu, "Export…", canSave ? () => RequestPlaylistAction(FlyleafPlaylistAction.Export) : null);
+    }
+    internal void AddQueueMenuItems(ItemsControl menu)
+    {
+        AddNewQueueMenuItems(menu);
+        AddSaveQueueMenuItems(menu);
+    }
     public void RequestPlaylistAction(FlyleafPlaylistAction action, IReadOnlyList<string>? inputs = null) => PlaylistActionRequested?.Invoke(this, new(action, inputs));
     ContextMenu? generalMenu;
     int menuActionGeneration;
@@ -82,13 +140,7 @@ public partial class FlyleafME
         menu.Closed += (_, _) => { activity?.Dispose(); activity = null; if (ReferenceEquals(generalMenu, menu)) generalMenu = null; };
 
         var input = Group(menu, "Input");
-        Add(input, "Open media…", OpenFile);
-        Add(input, "Open URL…", () => OpenUrl());
-        Add(input, "Paste input", () =>
-        {
-            try { var text = Clipboard.GetText().Trim(); if (text.Length > 0) OpenInput(text); }
-            catch (Exception ex) { MenuError(ex); }
-        });
+        AddOpenQueueMenuItems(input, directInput: true);
         Separator(input);
         Add(input, "Copy original input", !string.IsNullOrEmpty(target?.Playlist.Url) ? () =>
         {
@@ -103,31 +155,29 @@ public partial class FlyleafME
             ? () => RunMenuAction(target!, p => p.Stop()) : null);
 
         var queue = Group(menu, "Queue");
-        if (HasPlaylistActionHandler)
+        if (panelDefinitions.TryGetValue("queue", out var queueDefinition))
         {
-            Add(queue, "Add files or playlists…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.Add) : null);
-            AddFolderMenuItem(queue);
-            Add(queue, "Add URL…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.AddUrl) : null);
+            PanelLink(queue, "queue", "Show " + queueDefinition.Title.ToLowerInvariant() + " panel");
             Separator(queue);
         }
-        Add(queue, "Previous queue item", Queue.CanPrevious ? () => Queue.Previous() : null);
-        Add(queue, "Next queue item", Queue.CanNext ? () => Queue.Next() : null);
+        Add(queue, "Search queue…", CanSearchQueue ? () => { Dispatcher.BeginInvoke(new Action(ShowQueueSearch)); } : null).InputGestureText = QueueSearchShortcut ?? "";
         Separator(queue);
-        Add(queue, "Auto-next", () => Queue.AutoAdvance = !Queue.AutoAdvance, Queue.AutoAdvance);
-        Add(queue, "Repeat queue", () => Queue.Repeat = !Queue.Repeat, Queue.Repeat);
-        Add(queue, "Shuffle queue", () => { Queue.ShuffleItems(); ShowOSD("Queue shuffled"); });
+        AddNewQueueMenuItems(queue);
         Separator(queue);
-        if (HasPlaylistActionHandler)
+        AddAppendQueueMenuItems(Group(queue, "Add"));
+        AddSaveQueueMenuItems(queue);
+        Separator(queue);
+        Add(queue, "Previous item", Queue.CanPrevious ? () => Queue.Previous() : null);
+        Add(queue, "Next item", Queue.CanNext ? () => Queue.Next() : null);
+        Separator(queue);
+        if (Queue.Sources.Count >= 2)
         {
-            var playlist = Group(queue, "Playlist document");
-            Add(playlist, "New queue", () => RequestPlaylistAction(FlyleafPlaylistAction.New));
-            Separator(playlist);
-            Add(playlist, "Save playlist", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.Save) : null);
-            Add(playlist, "Save playlist as…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.SaveAs) : null);
-            Add(playlist, "Export playlist…", PlaylistActionsAvailable ? () => RequestPlaylistAction(FlyleafPlaylistAction.Export) : null);
+            FlyleafMenuItems.QueueSort(Group(queue, "Sort"), Queue, () => !disposed);
+            Add(queue, "Shuffle", () => { Queue.ShuffleItems(); ShowOSD("Queue shuffled"); });
+            Separator(queue);
         }
-        else Add(queue, "New queue", () => Queue.Clear());
-        if (panelDefinitions.TryGetValue("queue", out var queueDefinition)) PanelLink(queue, "queue", "Open " + queueDefinition.Title + "…");
+        Add(queue, "Auto-next", () => Queue.AutoAdvance = !Queue.AutoAdvance, Queue.AutoAdvance).IsCheckable = true;
+        Add(queue, "Repeat queue", () => Queue.Repeat = !Queue.Repeat, Queue.Repeat).IsCheckable = true;
 
         var playback = Group(menu, "Playback");
         var speeds = Group(playback, "Speed");
@@ -249,7 +299,7 @@ public partial class FlyleafME
     {
         Dispatcher.VerifyAccess(); ObjectDisposedException.ThrowIf(disposed, this);
         var openFiles = OpenFilesRequested;
-        var dialog = new OpenFileDialog { Title = "Open media", Filter = "All files|*.*", Multiselect = openFiles != null };
+        var dialog = new OpenFileDialog { Title = "Open files", Filter = "All files|*.*", Multiselect = openFiles != null };
         using var activity = FlyleafPopupActivity.Hold(Player);
         if (dialog.ShowDialog(Window.GetWindow(this)) != true || disposed) return;
         try
@@ -264,6 +314,47 @@ public partial class FlyleafME
     {
         var input = PromptForInput("Open URL", "Media URL");
         if (input != null) try { OpenInput(input); } catch (Exception ex) { MenuError(ex); }
+    }
+    /// <summary>Opens a media input or files copied to the clipboard through the normal input policy.</summary>
+    public void PasteInput() => PasteMenuInput(false, directInput: true);
+
+    void PasteMenuInput(bool append, bool directInput = false)
+    {
+        if (!CanChangeQueue) return;
+        try
+        {
+            string[] inputs = Clipboard.ContainsFileDropList() ? Clipboard.GetFileDropList().Cast<string>().ToArray() : [Clipboard.GetText().Trim()];
+            inputs = inputs.Where(input => !string.IsNullOrWhiteSpace(input)).ToArray();
+            if (inputs.Length == 0) return;
+            if (directInput && inputs.Length == 1) OpenInput(inputs[0]);
+            else if (directInput && OpenFilesRequested is { } openFiles) openFiles(this, inputs);
+            else if (HasPlaylistActionHandler) RequestPlaylistAction(append ? FlyleafPlaylistAction.AddInputs : FlyleafPlaylistAction.OpenInputs, inputs);
+            else ApplyQueueInputs(inputs, append);
+        }
+        catch (Exception ex) { MenuError(ex); }
+    }
+    void PickQueueFiles(bool append)
+    {
+        if (!CanChangeQueue) return;
+        var dialog = new OpenFileDialog { Title = append ? "Add files" : "Open files", Filter = "All files|*.*", Multiselect = true };
+        using var activity = FlyleafPopupActivity.Hold(Player);
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true || disposed) return;
+        try { ApplyQueueInputs(dialog.FileNames, append); }
+        catch (Exception ex) { MenuError(ex); }
+    }
+    void PromptQueueUrl(bool append)
+    {
+        if (!CanChangeQueue) return;
+        var input = PromptForInput(append ? "Add URL" : "Open URL", "Media URL", append ? "Add" : "Open");
+        if (!string.IsNullOrWhiteSpace(input))
+            try { ApplyQueueInputs([input], append); } catch (Exception ex) { MenuError(ex); }
+    }
+    void ApplyQueueInputs(IReadOnlyList<string> inputs, bool append)
+    {
+        if (!CanChangeQueue || inputs.Count == 0) return;
+        Queue.ApplyEntries(inputs.Select(input => new FlyleafQueueEntry { Input = input }), append);
+        if (!append && Queue.Sources.FirstOrDefault() is { } first)
+            Queue.Open(first, play: Player?.Config.Playback.AutoPlay == true);
     }
     public string? PromptForInput(string title, string label, string acceptLabel = "Open")
     {
@@ -282,12 +373,12 @@ public partial class FlyleafME
     }
     void HostRightClick(object sender, MouseButtonEventArgs e)
     {
-        if (e.Handled || !IsGeneralMenuTarget(e.OriginalSource)) return;
+        if (IsQueueSearchOpen || e.Handled || !IsGeneralMenuTarget(e.OriginalSource)) return;
         ShowContextMenu(); e.Handled = true;
     }
     void HostMenuKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Handled || !(e.Key == Key.Apps || e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.Shift) || !IsGeneralMenuTarget(e.OriginalSource)) return;
+        if (IsQueueSearchOpen || e.Handled || !(e.Key == Key.Apps || e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.Shift) || !IsGeneralMenuTarget(e.OriginalSource)) return;
         ShowContextMenu(e.OriginalSource as FrameworkElement, PlacementMode.Bottom); e.Handled = true;
     }
 }
