@@ -123,6 +123,7 @@ public partial class MainWindow
     }
     static bool IsPlaylistInput(string input)
     {
+        if (input.StartsWith("fmt://", StringComparison.Ordinal) || input.StartsWith("device://", StringComparison.Ordinal) || input.StartsWith("bluray:", StringComparison.Ordinal)) return false;
         var extension = PlaylistExtension(input);
         // Remote M3U8 inputs belong to the normal media opening pipeline.
         return FlyleafPlaylistSerializer.IsSupportedExtension(extension) && (extension != ".m3u8" || PlaylistUri(input).IsFile);
@@ -315,6 +316,12 @@ public partial class MainWindow
         var picker = new OpenFolderDialog { Title = append ? "Add folder to queue" : "Open folder" };
         if (picker.ShowDialog(this) != true) return;
         var folder = picker.FolderName;
+        if (FlyleafDiscInput.FromFolder(folder) is { } disc)
+        {
+            if (append) await AddQueueInputs([disc]);
+            else await OpenQueueInputs([disc]);
+            return;
+        }
         var options = new FolderImportDialog(MediaElement.Resources, folder) { Owner = this };
         if (options.ShowDialog() != true) return;
 
@@ -348,7 +355,7 @@ public partial class MainWindow
     async Task AddQueueInputs(IEnumerable<string> inputs)
     {
         bool wasEmpty = MediaElement.Queue.Sources.Count == 0;
-        var items = inputs.ToArray();
+        var items = inputs.Select(input => FlyleafDiscInput.FromFolder(input) ?? input).ToArray();
         if (wasEmpty && !PlaylistDirty && playlistPath == null && items.Length == 1 && IsPlaylistInput(items[0]))
         {
             await LoadPlaylist(items[0], false);
@@ -378,6 +385,7 @@ public partial class MainWindow
     }
     async Task OpenQueueInputs(IReadOnlyList<string> inputs)
     {
+        inputs = inputs.Select(input => FlyleafDiscInput.FromFolder(input) ?? input).ToArray();
         if (inputs.Count == 1 && IsPlaylistInput(inputs[0])) { await LoadPlaylist(inputs[0], false); return; }
         if (!await ConfirmPlaylistReplacement() || playlistDisposed) return;
         MediaElement.Queue.Clear(); playlistPath = null; playlistName = "Queue";

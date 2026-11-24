@@ -149,6 +149,8 @@ public static class FlyleafPlaylistSerializer
     static string Resolve(string input, Uri baseUri)
     {
         input = input.Trim();
+        // Format and disc inputs carry literal paths/options, not escaped URI components.
+        if (input.StartsWith("fmt://", StringComparison.Ordinal) || input.StartsWith("device://", StringComparison.Ordinal) || input.StartsWith("bluray:", StringComparison.Ordinal)) return input;
         if (Path.IsPathFullyQualified(input)) return Path.GetFullPath(input);
         var resolved = new Uri(baseUri, input);
         return resolved.IsFile ? resolved.LocalPath : resolved.AbsoluteUri;

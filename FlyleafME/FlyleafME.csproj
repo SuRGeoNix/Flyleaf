@@ -5,6 +5,7 @@
     <RootNamespace>Flyleaf.Controls.WPF</RootNamespace>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>FlyleafME</PackageId>
     <FlyleafLibPackageVersionRange>[3.12.1,4.0.0)</FlyleafLibPackageVersionRange>

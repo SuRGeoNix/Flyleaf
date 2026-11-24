@@ -44,6 +44,7 @@ public sealed class FlyleafQueueSource : NotifyPropertyChanged
         Input = input;
         UserAgent = userAgent; Referrer = referrer;
         title = Uri.TryCreate(input, UriKind.Absolute, out var uri) && !uri.IsFile ? uri.Host + uri.AbsolutePath : Path.GetFileName(input);
+        if (FlyleafDiscInput.DisplayTitle(input) is { } discTitle) { title = discTitle; HasCustomTitle = true; }
         if (string.IsNullOrWhiteSpace(title)) title = "Media source";
         Children = new(children);
     }

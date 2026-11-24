@@ -54,6 +54,7 @@ public partial class FlyleafME
             else if (HasPlaylistActionHandler) RequestPlaylistAction(FlyleafPlaylistAction.OpenUrl);
             else PromptQueueUrl(false);
         } : null);
+        Add(menu, "Open disc…", CanOpenDisc ? () => OpenDisc(false, directInput) : null);
         Add(menu, "Paste", CanChangeQueue ? () => PasteMenuInput(false, directInput) : null);
     }
     internal void AddAppendQueueMenuItems(ItemsControl menu)
@@ -69,6 +70,7 @@ public partial class FlyleafME
             if (HasPlaylistActionHandler) RequestPlaylistAction(FlyleafPlaylistAction.AddUrl);
             else PromptQueueUrl(true);
         } : null);
+        Add(menu, "Add disc…", CanOpenDisc ? () => OpenDisc(true) : null);
         Add(menu, "Paste", CanChangeQueue ? () => PasteMenuInput(true) : null);
     }
     void AddNewQueueMenuItem(ItemsControl menu)
