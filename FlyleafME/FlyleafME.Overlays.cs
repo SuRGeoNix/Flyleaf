@@ -72,6 +72,13 @@ public partial class FlyleafME
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(new Action(() => ShowOSD(message))); return; }
         if (!disposed && IsLoaded) osd.ShowMessage(message);
     }
+    /// <summary>Display a transient error using this control's OSD preferences and report it to the Information panel. Safe from a worker thread.</summary>
+    public void ShowError(string message)
+    {
+        if (Dispatcher.HasShutdownStarted) return;
+        if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(new Action(() => ShowError(message))); return; }
+        if (!disposed && IsLoaded) ReportPlaybackError(message, blocking: false);
+    }
     void ObserveTextPlayer(Player? target)
     {
         Interlocked.Increment(ref textPlayerGeneration);

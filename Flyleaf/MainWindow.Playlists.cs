@@ -121,8 +121,12 @@ public partial class MainWindow
         try { return Path.GetExtension(PlaylistUri(input).AbsolutePath).ToLowerInvariant(); }
         catch (UriFormatException) { return ""; }
     }
-    static bool IsPlaylistInput(string input) =>
-        FlyleafPlaylistSerializer.IsSupportedExtension(PlaylistExtension(input));
+    static bool IsPlaylistInput(string input)
+    {
+        var extension = PlaylistExtension(input);
+        // Remote M3U8 inputs belong to the normal media opening pipeline.
+        return FlyleafPlaylistSerializer.IsSupportedExtension(extension) && (extension != ".m3u8" || PlaylistUri(input).IsFile);
+    }
     async Task RunPlaylistOperation(Func<Task> operation)
     {
         if (playlistOperation || playlistDisposed) return;
@@ -134,8 +138,10 @@ public partial class MainWindow
         catch (OperationCanceledException) when (playlistLifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            var detailsPath = RecordPlaylistError(ex);
-            if (!playlistDisposed) MessageBox.Show(this, ex.Message + (detailsPath == null ? "" : "\n\nDetails saved to:\n" + detailsPath), "Playlist", MessageBoxButton.OK, MessageBoxImage.Error);
+            RecordPlaylistError(ex);
+            // Let pending player reset notifications finish before displaying the operation error.
+            if (!playlistDisposed)
+                await Dispatcher.InvokeAsync(() => { if (!playlistDisposed) MediaElement.ShowError(ex.Message); }, System.Windows.Threading.DispatcherPriority.Background);
         }
         finally
         {
@@ -233,6 +239,14 @@ public partial class MainWindow
     }
     async Task LoadPlaylist(string input, bool append)
     {
+        if (!append)
+        {
+            if (!await ConfirmPlaylistReplacement() || playlistDisposed) return;
+            MediaElement.Queue.Clear(); playlistPath = null; playlistName = "Queue";
+            savedQueueRevision = MediaElement.Queue.Revision;
+            UpdatePlaylistStatus();
+        }
+
         playlistStage = "Reading playlist document";
         var location = PlaylistUri(input); var baseUri = location;
         string text;
@@ -275,7 +289,6 @@ public partial class MainWindow
         var hls = extension is ".m3u" or ".m3u8" && FlyleafPlaylistSerializer.IsHls(text);
         var document = hls ? new FlyleafPlaylistDocument { Entries = [new() { Input = input }] }
             : FlyleafPlaylistSerializer.Read(text, extension, baseUri);
-        if (!append && !await ConfirmPlaylistReplacement()) return;
         if (playlistDisposed) return;
         playlistStage = append ? "Appending playlist entries" : "Replacing queue entries";
         MediaElement.Queue.ApplyEntries(document.Entries.Select(entry => new FlyleafQueueEntry { Input = entry.Input, Title = entry.Title, UserAgent = entry.UserAgent, Referrer = entry.Referrer }), append);
