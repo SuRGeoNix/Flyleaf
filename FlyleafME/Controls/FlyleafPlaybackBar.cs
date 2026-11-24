@@ -118,7 +118,7 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
 
     public string CurrentTimeText => Player?.CanPlay == true ? FormatTime(Player.CurTime) : "--:--:--";
     public string DurationText => Player?.Duration > 0 ? FormatTime(Player.Duration) : "--:--:--";
-    public bool IsLive => Player is { IsLive: true } p && !FlyleafQueueProgression.IsImageFormat(p.MainDemuxer?.Name);
+    public bool IsLive => Player is { CanPlay: true, IsLive: true, Status: not Status.Stopped } p && !FlyleafQueueProgression.IsImageFormat(p.MainDemuxer?.Name);
     public bool IsPlaying => Player?.IsPlaying == true;
     public bool CanPlay => Player?.CanPlay == true;
     public bool CanSeek => CanPlay && Player?.Duration > 0;

@@ -225,13 +225,24 @@ public partial class App : Application
             instance.Listen(QueueLaunch);
         }
 
+        // Launch inputs have already been resolved against the original working directory.
+        // Resolve application-relative resources from the executable directory instead.
+        Environment.CurrentDirectory = AppContext.BaseDirectory;
+
         try { store.Engine.LogOutput = NormalizeEngineLogOutput(store.Engine.LogOutput); }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
         {
             store.Engine.LogOutput = FactoryEngine.LogOutput;
         }
 
-        Engine.Start(store.Engine);
+        try { Engine.Start(store.Engine); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Flyleaf could not initialize its engine.\n\n{ex.Message}\n\nApplication directory: {AppContext.BaseDirectory}",
+                "Flyleaf startup failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
         store.LoadProfiles(CreateDefaultPlayerConfig());
         initialized = true;
         Config.Startup.PropertyChanged += StartupOptionsChanged;

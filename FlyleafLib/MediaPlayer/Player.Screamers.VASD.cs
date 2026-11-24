@@ -272,9 +272,6 @@ unsafe partial class Player
                 if (!seeks.IsEmpty)
                     continue;
 
-                if (curTime > TimeSpan.FromSeconds(30).Ticks && curTime < TimeSpan.FromSeconds(45).Ticks)
-                    break;
-
                 if (vFrame == null)
                 {
                     if (decoderHasEnded)

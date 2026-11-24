@@ -24,6 +24,7 @@ public sealed class FlyleafVideoPanel : StackPanel
     readonly CheckBox hflip = Check("Flip horizontally");
     readonly CheckBox vflip = Check("Flip vertically");
     readonly CheckBox panorama = Check("Enable 360° projection");
+    readonly Button capture = Button("Choose capture device  ▾");
     readonly Button track = Button("Choose video track  ▾");
     readonly TextBlock trackCaption = new() { TextTrimming = TextTrimming.CharacterEllipsis };
     readonly Button sizeMode = Button("Fit to window  ▾");
@@ -60,6 +61,7 @@ public sealed class FlyleafVideoPanel : StackPanel
         var header = new DockPanel(); enabled.Margin = new Thickness(0, 0, 12, 0); enabled.VerticalAlignment = VerticalAlignment.Center;
         DockPanel.SetDock(enabled, Dock.Left); header.Children.Add(enabled); header.Children.Add(track);
         Children.Add(header); Children.Add(details); Children.Add(feedback);
+        Children.Add(Section("Capture input", capture));
         var picture = new StackPanel();
         var panoBody = new StackPanel();
         var views = new[] { (Title: "Picture", Body: picture), (Title: "Framing", Body: framing), (Title: "360°", Body: panoBody) };
@@ -157,6 +159,7 @@ public sealed class FlyleafVideoPanel : StackPanel
         panoBody.Children.Add(Text("Projection zoom is independent of framing. Reset keeps projection enabled.", true));
 
         track.Click += (_, _) => ShowTracks();
+        capture.Click += (_, _) => ShowCaptureDevices();
         sizeMode.Click += (_, _) => Choose(sizeMode, new[] { ("Fit to window", false), ("Original size", true) },
             r => r.OriginalSize, (r, original) => { DiscardNumberDrafts(framing); r.SetOriginalSize(original); });
         aspect.Click += (_, _) => ChooseAspect();
@@ -393,6 +396,7 @@ public sealed class FlyleafVideoPanel : StackPanel
         ObserveRenderer(); refreshing = true;
         var available = player is { IsDisposed: false };
         enabled.IsEnabled = available;
+        capture.IsEnabled = available && Context?.MediaElement != null;
         track.IsEnabled = available && (player!.Video.Streams.Count > 0 || player.Playlist.Selected?.ExternalVideoStreams.Count > 0);
         trackCaption.Text = available && player!.Video.IsOpened ? $"{player.Video.Height}p · {player.Video.Codec}  ▾" : "Choose video track  ▾";
         processor.IsEnabled = renderer != null;
@@ -461,6 +465,13 @@ public sealed class FlyleafVideoPanel : StackPanel
         menu.Opened += (_, _) => hold = FlyleafPopupActivity.Hold(player);
         menu.Closed += (_, _) => { hold?.Dispose(); hold = null; };
         return menu;
+    }
+    void ShowCaptureDevices()
+    {
+        if (player is not { IsDisposed: false } target || Context?.MediaElement is not { } owner) return;
+        var menu = Menu(capture);
+        owner.PopulateCaptureDeviceMenu(menu, target, video: true);
+        menu.IsOpen = true;
     }
     void ShowTracks()
     {

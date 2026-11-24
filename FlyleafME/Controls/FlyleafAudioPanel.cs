@@ -21,6 +21,7 @@ public sealed class FlyleafAudioPanel : StackPanel
 
     readonly CheckBox enabled = new() { Content = "Enable audio" };
     readonly CheckBox mute = new() { Content = "Mute" };
+    readonly Button capture = Button("Choose capture device  ▾");
     readonly Button track = Button("No audio track");
     readonly Button device = Button("Default output");
     readonly Button load = Button("Load audio file…");
@@ -43,6 +44,7 @@ public sealed class FlyleafAudioPanel : StackPanel
         Children.Add(enabled);
         load.Margin = new Thickness(0, 10, 0, 0);
         Children.Add(Section("Track", track, details, load, feedback));
+        Children.Add(Section("Capture input", capture));
         Children.Add(Section("Output", device));
         (synchronization, refreshDelay) = DelaySection("audio", () => player?.Audio.Delay ?? 0,
             ticks => { if (player != null) player.Audio.Delay = ticks; },
@@ -58,6 +60,7 @@ public sealed class FlyleafAudioPanel : StackPanel
         Children.Add(Section("Volume", volumeHeader, volume));
 
         track.Click += (_, _) => ShowTracks();
+        capture.Click += (_, _) => ShowCaptureDevices();
         device.Click += (_, _) => ShowDevices();
         load.Click += (_, _) => LoadFile();
         Loaded += (_, _) => Attach();
@@ -158,6 +161,7 @@ public sealed class FlyleafAudioPanel : StackPanel
         var available = player is { IsDisposed: false };
         enabled.IsEnabled = mute.IsEnabled = volume.IsEnabled = device.IsEnabled = available;
         load.IsEnabled = available && player!.CanPlay && player.Playlist.Selected != null;
+        capture.IsEnabled = available && Context?.MediaElement != null;
         track.IsEnabled = available && (player!.Audio.Streams.Count > 0 || player.Playlist.Selected?.ExternalAudioStreams.Count > 0);
         synchronization.IsEnabled = available && player!.Audio.IsOpened;
         device.Content = available ? player!.Audio.Device?.Name ?? "Default output" : "No player";
@@ -191,6 +195,13 @@ public sealed class FlyleafAudioPanel : StackPanel
         menu.Items.Add(item);
     }
 
+    void ShowCaptureDevices()
+    {
+        if (player is not { IsDisposed: false } target || Context?.MediaElement is not { } owner) return;
+        var menu = Menu(capture);
+        owner.PopulateCaptureDeviceMenu(menu, target, video: false);
+        menu.IsOpen = true;
+    }
     void ShowTracks()
     {
         if (player is not { IsDisposed: false } target) return;

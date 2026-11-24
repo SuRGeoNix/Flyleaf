@@ -71,15 +71,13 @@ public partial class FlyleafME
         } : null);
         Add(menu, "Paste", CanChangeQueue ? () => PasteMenuInput(true) : null);
     }
-    internal void AddNewQueueMenuItems(ItemsControl menu)
+    void AddNewQueueMenuItem(ItemsControl menu)
     {
         Add(menu, "New queue", CanChangeQueue ? () =>
         {
             if (HasPlaylistActionHandler) RequestPlaylistAction(FlyleafPlaylistAction.New);
             else Queue.Clear();
         } : null);
-        Separator(menu);
-        AddOpenQueueMenuItems(menu);
     }
     internal void AddSaveQueueMenuItems(ItemsControl menu)
     {
@@ -92,7 +90,9 @@ public partial class FlyleafME
     }
     internal void AddQueueMenuItems(ItemsControl menu)
     {
-        AddNewQueueMenuItems(menu);
+        AddNewQueueMenuItem(menu);
+        Separator(menu);
+        AddOpenQueueMenuItems(menu);
         AddSaveQueueMenuItems(menu);
     }
     public void RequestPlaylistAction(FlyleafPlaylistAction action, IReadOnlyList<string>? inputs = null) => PlaylistActionRequested?.Invoke(this, new(action, inputs));
@@ -155,20 +155,12 @@ public partial class FlyleafME
             ? () => RunMenuAction(target!, p => p.Stop()) : null);
 
         var queue = Group(menu, "Queue");
-        if (panelDefinitions.TryGetValue("queue", out var queueDefinition))
-        {
-            PanelLink(queue, "queue", "Show " + queueDefinition.Title.ToLowerInvariant() + " panel");
-            Separator(queue);
-        }
-        Add(queue, "Search queue…", CanSearchQueue ? () => { Dispatcher.BeginInvoke(new Action(ShowQueueSearch)); } : null).InputGestureText = QueueSearchShortcut ?? "";
-        Separator(queue);
-        AddNewQueueMenuItems(queue);
-        Separator(queue);
+        AddNewQueueMenuItem(queue);
         AddAppendQueueMenuItems(Group(queue, "Add"));
-        AddSaveQueueMenuItems(queue);
         Separator(queue);
         Add(queue, "Previous item", Queue.CanPrevious ? () => Queue.Previous() : null);
         Add(queue, "Next item", Queue.CanNext ? () => Queue.Next() : null);
+        Add(queue, "Search queue…", CanSearchQueue ? () => { Dispatcher.BeginInvoke(new Action(ShowQueueSearch)); } : null).InputGestureText = QueueSearchShortcut ?? "";
         Separator(queue);
         if (Queue.Sources.Count >= 2)
         {
@@ -178,6 +170,7 @@ public partial class FlyleafME
         }
         Add(queue, "Auto-next", () => Queue.AutoAdvance = !Queue.AutoAdvance, Queue.AutoAdvance).IsCheckable = true;
         Add(queue, "Repeat queue", () => Queue.Repeat = !Queue.Repeat, Queue.Repeat).IsCheckable = true;
+        PanelLink(queue, "queue");
 
         var playback = Group(menu, "Playback");
         var speeds = Group(playback, "Speed");
@@ -200,10 +193,11 @@ public partial class FlyleafME
         frames.IsEnabled = FlyleafPlaybackActions.CanStep(target);
         Add(frames, "Previous frame", () => RunMenuAction(target!, p => { if (FlyleafPlaybackActions.CanStep(p)) p.ShowFramePrev(); }));
         Add(frames, "Next frame", () => RunMenuAction(target!, p => { if (FlyleafPlaybackActions.CanStep(p)) p.ShowFrameNext(); }));
-        PanelLink(playback, "playback", "Open playback panel…");
+        PanelLink(playback, "playback");
 
         var video = Group(menu, "Video");
         Add(video, "Enabled", Current() ? () => RunMenuAction(target!, p => p.Video.Toggle()) : null, target?.Video.Enabled == true);
+        AddCaptureDeviceMenu(video, target, video: true);
         var renderer = target?.Renderer;
         bool canFrame = Current() && target!.Video.IsOpened && renderer is { Disposed: false };
         void ChangeFraming(Action<Renderer> change)
@@ -245,12 +239,13 @@ public partial class FlyleafME
             if (CurrentInput()) RunMenuAction(target, p => { if (p.Video.IsOpened) p.TakeSnapshotToFile(); });
         } : null);
         if (Current()) FlyleafTrackMenus.AddVideoTracks(video, target!, Current);
-        PanelLink(video, "video", "Open video panel…");
+        PanelLink(video, "video");
 
         var audio = Group(menu, "Audio");
         Add(audio, "Enabled", Current() ? () => { if (Current()) RunMenuAction(target!, p => p.Audio.Toggle()); } : null, target?.Audio.Enabled == true);
         Add(audio, "Mute", Current() ? () => { if (Current()) target!.Audio.Mute = !target.Audio.Mute; } : null, target?.Audio.Mute == true);
         Separator(audio);
+        AddCaptureDeviceMenu(audio, target, video: false);
         var devices = Group(audio, "Output device");
         if (Current())
             foreach (var endpoint in Engine.Audio.Devices)
@@ -258,17 +253,17 @@ public partial class FlyleafME
         else devices.IsEnabled = false;
         Add(audio, "Reset delay", target?.Audio.IsOpened == true ? () => RunMenuAction(target, p => p.Audio.Delay = 0) : null);
         if (Current()) FlyleafTrackMenus.AddAudioTracks(audio, target!, Current);
-        PanelLink(audio, "audio", "Open audio panel…");
+        PanelLink(audio, "audio");
 
         var subtitles = Group(menu, "Subtitles");
         Add(subtitles, "Enabled", Current() ? () => RunMenuAction(target!, p => p.Subtitles.Toggle()) : null, target?.Subtitles.Enabled == true);
         Add(subtitles, "Reset delay", target?.Subtitles.IsOpened == true ? () => RunMenuAction(target, p => p.Subtitles.Delay = 0) : null);
         if (Current()) FlyleafTrackMenus.AddSubtitleTracks(subtitles, target!, Current);
-        PanelLink(subtitles, "subtitles", "Open subtitles panel…");
+        PanelLink(subtitles, "subtitles");
 
         var information = Group(menu, "Media information");
         Add(information, "Show statistics overlay", () => Information.ShowStatisticsOverlay = !Information.ShowStatisticsOverlay, Information.ShowStatisticsOverlay);
-        PanelLink(information, "information", "Open panel…");
+        PanelLink(information, "information");
         MenuBuilding?.Invoke(this, new FlyleafMenuBuildingEventArgs(menu));
         Separator(menu);
         Add(menu, IsFullScreen ? "Exit fullscreen" : "Fullscreen", () => SetCurrentValue(IsFullScreenProperty, !IsFullScreen));
@@ -276,11 +271,11 @@ public partial class FlyleafME
         else if (SettingsRequested != null) Add(menu, "Settings…", () => SettingsRequested?.Invoke(this, EventArgs.Empty));
         return menu;
     }
-    void PanelLink(ItemsControl menu, string id, string label)
+    void PanelLink(ItemsControl menu, string id)
     {
         if (!panelDefinitions.ContainsKey(id)) return;
         if (menu.Items.Count > 0) Separator(menu);
-        Add(menu, label, () => Dispatcher.BeginInvoke(new Action(() => { if (!disposed && IsLoaded && panelDefinitions.ContainsKey(id)) ShowPanel(id); })));
+        Add(menu, "Open panel…", () => Dispatcher.BeginInvoke(new Action(() => { if (!disposed && IsLoaded && panelDefinitions.ContainsKey(id)) ShowPanel(id); })));
     }
     async void RunMenuAction(Player target, Action<Player> action)
     {
@@ -292,6 +287,26 @@ public partial class FlyleafME
         // and use a plain generation value to cancel stale work on the worker.
         try { await Task.Run(() => { if (!target.IsDisposed && Volatile.Read(ref menuActionGeneration) == generation && ReferenceEquals(source, target.Playlist.Selected)) action(target); }); }
         catch (Exception ex) { if (!disposed && ReferenceEquals(Player, target)) MenuError(ex); }
+    }
+    internal bool CanOpenCaptureDevice(Player? target) => CanChangeQueue && Engine.IsLoaded && target is { IsDisposed: false } && ReferenceEquals(Player, target);
+    internal void PopulateCaptureDeviceMenu(ItemsControl menu, Player? target, bool video)
+    {
+        FlyleafCaptureDeviceMenus.Populate(menu, video, () => CanOpenCaptureDevice(target), input =>
+        {
+            if (!CanOpenCaptureDevice(target)) return;
+            try { OpenInput(input); }
+            catch (Exception ex) { MenuError(ex); }
+        });
+    }
+    void AddCaptureDeviceMenu(ItemsControl menu, Player? target, bool video)
+    {
+        var group = Group(menu, "Capture devices");
+        group.IsEnabled = CanOpenCaptureDevice(target);
+        Add(group, "Loading devices…", null);
+        group.SubmenuOpened += (_, e) =>
+        {
+            if (ReferenceEquals(e.Source, group)) PopulateCaptureDeviceMenu(group, target, video);
+        };
     }
     void MenuError(Exception error) => MessageBox.Show(Window.GetWindow(this), error.Message, "Media action", MessageBoxButton.OK, MessageBoxImage.Error);
     /// <summary>Shows a file picker and routes single inputs or batches through the corresponding open event.</summary>
