@@ -6,25 +6,24 @@ using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
 
 namespace Flyleaf.Controls.WPF;
-
 public partial class FlyleafME
 {
     readonly FlyleafSubtitleText subtitleText = new();
-    readonly FlyleafOSDOverlay osd = new();
+    readonly FlyleafOSDOverlay osd = new(), statusOsd = new();
     static readonly Rect fullViewport = new(0, 0, 1, 1);
     Player? overlayPlayer;
     Renderer? overlayRenderer;
     bool subtitleRefreshQueued;
     int textPlayerGeneration;
-
     void InitializeTextOverlays()
     {
         subtitleText.SetBinding(FlyleafSubtitleText.OptionsProperty, new Binding("UIConfig.Subtitles") { Source = this });
         osd.SetBinding(FlyleafOSDOverlay.OptionsProperty, new Binding("UIConfig.OSD") { Source = this });
+        statusOsd.SetBinding(FlyleafOSDOverlay.OptionsProperty, new Binding("UIConfig.OSD") { Source = this });
         playbackDisplay.SetBinding(FlyleafPlaybackStatusOverlay.OptionsProperty, new Binding("UIConfig.OSD") { Source = this });
         SetZIndex(subtitleText, -1); overlayRoot.Children.Add(subtitleText);
         // Messages remain visible over the Settings preview, while never intercepting input.
-        SetZIndex(osd, 30); overlayRoot.Children.Add(osd);
+        playbackDisplay.AttachMessages(osd, statusOsd);
         SetZIndex(playbackDisplay, 31); overlayRoot.Children.Add(playbackDisplay);
         playbackDisplay.ErrorDetailsRequested += (_, _) => { if (panelDefinitions.ContainsKey("information")) ShowPanel("information"); };
         overlayRoot.SizeChanged += (_, e) =>
@@ -32,15 +31,9 @@ public partial class FlyleafME
             UpdateOSDMargin();
             UpdateStatisticsViewport(e.NewSize);
         };
+        InitializeOSDBarObservation();
         UpdateOSDMargin();
     }
-
-    void UpdateOSDMargin()
-    {
-        double header = overlayHeader.Content != null ? overlayHeader.ActualHeight : 0;
-        osd.Margin = playbackDisplay.Margin = new Thickness(12, header + 12, 12, 80);
-    }
-
     void UpdateStatisticsViewport(Size surface)
     {
         var viewport = subtitleText.VideoViewport;
@@ -48,7 +41,6 @@ public partial class FlyleafME
             viewport.Width * surface.Width, viewport.Height * surface.Height);
         picture.Intersect(new Rect(surface));
         if (picture.IsEmpty) picture = new Rect();
-
         Canvas.SetLeft(statisticsViewport, picture.X);
         Canvas.SetTop(statisticsViewport, picture.Y);
         statisticsViewport.Width = picture.Width;
@@ -60,7 +52,6 @@ public partial class FlyleafME
         subtitleText.VideoViewport = viewport;
         UpdateStatisticsViewport(overlayRoot.RenderSize);
     }
-
     static bool TryGetVideoViewport(Renderer renderer, out Rect viewport)
     {
         var pixels = renderer.Viewport;
@@ -74,7 +65,6 @@ public partial class FlyleafME
             pixels.Width / (double)width, pixels.Height / (double)height);
         return true;
     }
-
     /// <summary>Display a transient message using this control's OSD preferences. Safe from a worker thread.</summary>
     public void ShowOSD(string message)
     {
@@ -82,7 +72,6 @@ public partial class FlyleafME
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(new Action(() => ShowOSD(message))); return; }
         if (!disposed && IsLoaded) osd.ShowMessage(message);
     }
-
     void ObserveTextPlayer(Player? target)
     {
         Interlocked.Increment(ref textPlayerGeneration);
@@ -93,7 +82,7 @@ public partial class FlyleafME
             overlayPlayer.Audio.PropertyChanged -= TextAudioChanged;
             overlayPlayer.Subtitles.PropertyChanged -= TextSubtitlesChanged;
         }
-        ObserveTextRenderer(null); overlayPlayer = target; osd.Clear(); subtitleText.Text = "";
+        ObserveTextRenderer(null); overlayPlayer = target; osd.Clear(); statusOsd.Clear(); subtitleText.Text = "";
         if (target != null)
         {
             target.PropertyChanged += TextPlayerChanged;

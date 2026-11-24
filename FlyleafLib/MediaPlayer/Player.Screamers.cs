@@ -131,7 +131,7 @@ unsafe partial class Player
                         if (seekResult < 0) Log.Warn("Seek failed 2");
                     }
                 }
-                finally { SeekCompleted?.Invoke(this, seekResult < 0 ? -1 : seekData.ms); }
+                finally { NotifySeekResult(seekResult >= 0 ? seekData.ms : -1, seekData); }
             }
 
             if (requiresBuffering)
@@ -212,7 +212,7 @@ unsafe partial class Player
                     seekResult = decoder.Seek(seekData.ms, seekData.forward);
                     if (seekResult < 0) Log.Warn("Seek failed");
                 }
-                finally { SeekCompleted?.Invoke(this, seekResult < 0 ? -1 : seekData.ms); }
+                finally { NotifySeekResult(seekResult >= 0 ? seekData.ms : -1, seekData); }
             }
 
             if (vFrame == null)

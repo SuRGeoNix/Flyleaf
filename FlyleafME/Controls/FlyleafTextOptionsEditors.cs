@@ -7,7 +7,6 @@ using System.Windows.Media;
 using static Flyleaf.Controls.WPF.FlyleafPanelUI;
 
 namespace Flyleaf.Controls.WPF;
-
 /// <summary>Compact editors shared by subtitle appearance and OSD preferences.</summary>
 public abstract class FlyleafTextOptionsEditor : StackPanel
 {
@@ -88,7 +87,6 @@ public abstract class FlyleafTextOptionsEditor : StackPanel
     }
     protected void RefreshWith(Action action) => refreshers.Add(action);
 }
-
 public sealed class FlyleafSubtitleAppearanceEditor : FlyleafTextOptionsEditor
 {
     public static readonly DependencyProperty OptionsProperty = DependencyProperty.Register(nameof(Options), typeof(FlyleafSubtitleOptions), typeof(FlyleafSubtitleAppearanceEditor), new PropertyMetadata(null, OptionsChanged));
@@ -134,7 +132,6 @@ public sealed class FlyleafSubtitleAppearanceEditor : FlyleafTextOptionsEditor
         }
         Finish();
     }
-
     internal void Reset()
     {
         if (Options is not { } o) return;
@@ -147,7 +144,6 @@ public sealed class FlyleafSubtitleAppearanceEditor : FlyleafTextOptionsEditor
         });
     }
 }
-
 public sealed class FlyleafOSDOptionsEditor : FlyleafTextOptionsEditor
 {
     sealed record PositionChoice(FlyleafOSDPosition Value, string Name) { public override string ToString() => Name; }
@@ -169,12 +165,14 @@ public sealed class FlyleafOSDOptionsEditor : FlyleafTextOptionsEditor
         Toggle("Show playback status", () => o.ShowStatus, v => o.ShowStatus = v);
         Toggle("Show error messages", () => o.ShowErrors, v => o.ShowErrors = v);
         Choice("Time display", Enum.GetValues<FlyleafVisibilityPolicy>(), () => o.TimeDisplay, v => o.TimeDisplay = v);
-        Children.Add(Text("Auto shows time during keyboard activity and seeking while the playback bar is hidden. Always keeps it visible; Never hides it. Recording keeps a separate REC indicator.", true));
+        Children.Add(Text("Auto shows playback time during mouse or keyboard activity and seeking while the playback bar is hidden. Always shows it when media can play; Never hides it. Recording keeps a separate REC indicator.", true));
         Number("Duration · s", () => o.DurationSeconds, v => o.DurationSeconds = v);
+        Children.Add(Text("Duration applies to timed action and status messages, not ongoing playback operations or errors.", true));
         Number("Text size", () => o.FontSize, v => o.FontSize = v);
         var positions = Enum.GetValues<FlyleafOSDPosition>().Select(p => new PositionChoice(p, FlyleafPluginOptionDescriptions.Label(p.ToString()))).ToArray();
-        Choice("Position", positions, () => positions.Single(p => p.Value == o.Position), v => o.Position = v.Value);
-        Children.Add(Text("Volume, mute, speed, rotation, zoom and synchronization changes replace the current message.", true));
+        Choice("Messages", positions, () => positions.Single(p => p.Value == o.Position), v => o.Position = v.Value);
+        Choice("Clock position", positions, () => positions.Single(p => p.Value == o.ClockPosition), v => o.ClockPosition = v.Value);
+        Children.Add(Text("The Messages position applies to status and action messages, which are displayed independently. Clock and recording share a corner. Errors always appear in the center; transient errors time out after 7 seconds or clear on recovery. Blocking errors remain until recovery or dismissal.", true));
         var preview = Button("Preview message"); preview.HorizontalAlignment = HorizontalAlignment.Left; preview.Margin = new Thickness(0, 8, 0, 0);
         RefreshWith(() => preview.IsEnabled = o.Enabled);
         preview.Click += (_, _) => PreviewRequested?.Invoke(this, EventArgs.Empty); Children.Add(preview);
@@ -188,7 +186,6 @@ public sealed class FlyleafOSDOptionsEditor : FlyleafTextOptionsEditor
         }
         Finish();
     }
-
     public void Reset()
     {
         if (Options is not { } o) return;
@@ -200,6 +197,7 @@ public sealed class FlyleafOSDOptionsEditor : FlyleafTextOptionsEditor
             o.DurationSeconds = defaults.DurationSeconds;
             o.FontSize = defaults.FontSize;
             o.Position = defaults.Position;
+            o.ClockPosition = defaults.ClockPosition;
             o.ShowStatus = defaults.ShowStatus;
             o.ShowErrors = defaults.ShowErrors;
             o.TimeDisplay = defaults.TimeDisplay;

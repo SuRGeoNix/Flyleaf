@@ -246,7 +246,7 @@ unsafe partial class Player
                         }
                     }
                 }
-                finally { SeekCompleted?.Invoke(this, seekSucceeded ? seekData.ms : -1); }
+                finally { NotifySeekResult(seekSucceeded ? seekData.ms : -1, seekData); }
             }
 
             // Ensures we have rendered vFrame ready for present (startTicks/sw)
@@ -271,6 +271,9 @@ unsafe partial class Player
                 
                 if (!seeks.IsEmpty)
                     continue;
+
+                if (curTime > TimeSpan.FromSeconds(30).Ticks && curTime < TimeSpan.FromSeconds(45).Ticks)
+                    break;
 
                 if (vFrame == null)
                 {

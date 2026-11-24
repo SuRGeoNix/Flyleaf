@@ -3,7 +3,6 @@ using System.Windows.Media;
 namespace Flyleaf.Controls.WPF;
 
 public enum FlyleafOSDPosition { TopLeft, TopRight, BottomLeft, BottomRight }
-
 /// <summary>WPF text-subtitle appearance; does not restyle bitmap subtitles.</summary>
 public sealed class FlyleafSubtitleOptions : NotifyPropertyChanged
 {
@@ -22,14 +21,13 @@ public sealed class FlyleafSubtitleOptions : NotifyPropertyChanged
     public bool WithinVideo { get => withinVideo; set => Set(ref withinVideo, value); }
     public FlyleafSubtitleOptions Clone() => new() { FontFamily = FontFamily, FontSize = FontSize, Bold = Bold, Italic = Italic, Color = Color, OutlineColor = OutlineColor, OutlineThickness = OutlineThickness, BottomOffset = BottomOffset, WithinVideo = WithinVideo };
 }
-
 public sealed class FlyleafOSDOptions : NotifyPropertyChanged
 {
     bool enabled = true;
     bool status = true, errors = true;
     FlyleafVisibilityPolicy timeDisplay = FlyleafVisibilityPolicy.Auto;
     double duration = 3.5, size = 16;
-    FlyleafOSDPosition position = FlyleafOSDPosition.TopRight;
+    FlyleafOSDPosition position = FlyleafOSDPosition.TopRight, clockPosition = FlyleafOSDPosition.TopLeft;
     public bool Enabled { get => enabled; set => Set(ref enabled, value); }
     public bool ShowStatus { get => status; set => Set(ref status, value); }
     public bool ShowErrors { get => errors; set => Set(ref errors, value); }
@@ -37,9 +35,9 @@ public sealed class FlyleafOSDOptions : NotifyPropertyChanged
     public double DurationSeconds { get => duration; set => Set(ref duration, FlyleafTextValues.Number(value, 0.5, 15)); }
     public double FontSize { get => size; set => Set(ref size, FlyleafTextValues.Number(value, 10, 48)); }
     public FlyleafOSDPosition Position { get => position; set { if (!Enum.IsDefined(value)) throw new ArgumentOutOfRangeException(nameof(value)); Set(ref position, value); } }
-    public FlyleafOSDOptions Clone() => new() { Enabled = Enabled, ShowStatus = ShowStatus, ShowErrors = ShowErrors, TimeDisplay = TimeDisplay, DurationSeconds = DurationSeconds, FontSize = FontSize, Position = Position };
+    public FlyleafOSDPosition ClockPosition { get => clockPosition; set { if (!Enum.IsDefined(value)) throw new ArgumentOutOfRangeException(nameof(value)); Set(ref clockPosition, value); } }
+    public FlyleafOSDOptions Clone() => new() { Enabled = Enabled, ShowStatus = ShowStatus, ShowErrors = ShowErrors, TimeDisplay = TimeDisplay, DurationSeconds = DurationSeconds, FontSize = FontSize, Position = Position, ClockPosition = ClockPosition };
 }
-
 internal static class FlyleafTextValues
 {
     internal static double Number(double value, double min, double max) => double.IsFinite(value) && value >= min && value <= max ? value : throw new ArgumentOutOfRangeException(nameof(value), $"Enter a value from {min} to {max}.");
