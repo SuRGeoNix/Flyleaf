@@ -129,7 +129,7 @@ public abstract class RunThreadBase : NotifyPropertyChanged
             }
         }
     }
-    public void Stop()
+    public virtual void Stop()
     {
         lock (lockActions)
         {

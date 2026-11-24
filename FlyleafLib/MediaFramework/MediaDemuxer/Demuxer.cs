@@ -1077,8 +1077,11 @@ public unsafe partial class Demuxer : RunThreadBase
         }
     }
 
+    internal int LastReadError { get; private set; }
+
     protected override void RunInternal()
     {
+        LastReadError = 0;
         if (IsReversePlayback)
         {
             RunInternalReverse();
@@ -1130,6 +1133,7 @@ public unsafe partial class Demuxer : RunThreadBase
                         continue;
                     }
 
+                    LastReadError = ret;
                     Status = Status.Stopping;
                     break;
                 }
@@ -1148,7 +1152,7 @@ public unsafe partial class Demuxer : RunThreadBase
                     allowedErrors--;
                     if (CanWarn) Log.Warn($"{FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
-                    if (allowedErrors == 0) { Log.Error("Too many errors!"); Status = Status.Stopping; break; }
+                    if (allowedErrors == 0) { LastReadError = ret; Log.Error("Too many errors!"); Status = Status.Stopping; break; }
 
                     gotAVERROR_EXIT = true;
                     continue;

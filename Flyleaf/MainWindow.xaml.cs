@@ -159,6 +159,7 @@ public partial class MainWindow : Window
             profiles.MetadataChanged += profilesChanged;
             Closed += (_, _) => profiles.MetadataChanged -= profilesChanged;
         });
+        InitializeDownloads();
         PlaybackBar.MediaElement = MediaElement;
         App.Instance.Profiles.Observe(Profile);
         Activated += PlayerWindow_Activated;
@@ -835,6 +836,7 @@ public partial class MainWindow : Window
     }
     void MediaElement_MenuBuilding(object? sender, FlyleafMenuBuildingEventArgs e)
     {
+        AddDownloadsMenu(e.Menu);
         var window = new MenuItem { Header = "Window" };
         window.SetResourceReference(StyleProperty, "FlyleafME.ThemeMenuItemStyle");
         void Add(string caption, Action action, bool selected = false, string? shortcut = null)

@@ -38,6 +38,8 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
         var queue = Group("Queue", () => app.ConfirmUnsavedQueueChanges = true);
         Toggle(queue, "Confirm unsaved queue changes", "Ask before closing or replacing an edited queue with multiple items or a modified saved playlist. Applies to all player windows.",
             () => app.ConfirmUnsavedQueueChanges, value => app.ConfirmUnsavedQueueChanges = value);
+        var downloads = Group("Downloads", () => app.DownloadFolder = FlyleafDownloadManager.DefaultDownloadFolder);
+        Folder(downloads, "Download folder", () => app.DownloadFolder, value => app.DownloadFolder = value);
         var slideShow = Group("Slide show", () => ui.Queue.SlideShowIntervalMilliseconds = 3000);
         Number(slideShow, "Image display interval", "seconds", () => ui.Queue.SlideShowIntervalMilliseconds / 1000.0,
             value => ui.Queue.SlideShowIntervalMilliseconds = (int)Math.Round(value * 1000), 0.1, 3600);

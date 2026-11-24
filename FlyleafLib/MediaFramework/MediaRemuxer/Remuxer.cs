@@ -9,6 +9,7 @@ public unsafe class Remuxer
     public string               Filename            { get; private set; }
     public bool                 HasStreams          => mapInOutStreams2.Count > 0 || mapInOutStreams.Count > 0;
     public bool                 HeaderWritten       { get; private set; }
+    internal int                OutputError         => fmtCtx != null && fmtCtx->pb != null ? fmtCtx->pb->error : 0;
 
     Dictionary<IntPtr, IntPtr>  mapInOutStreams     = [];
     Dictionary<int, IntPtr>     mapInInStream       = [];
@@ -34,6 +35,7 @@ public unsafe class Remuxer
 
         fmt = fmtCtx->oformat;
         mapInStreamToDts = [];
+        mapInStreamToDts2 = [];
         Disposed = false;
 
         return 0;
@@ -116,7 +118,12 @@ public unsafe class Remuxer
             var mapInOutStreams     = !isAudioDemuxer? this.mapInOutStreams : mapInOutStreams2;
             var mapInStreamToDts    = !isAudioDemuxer? this.mapInStreamToDts: mapInStreamToDts2;
 
-            AVStream* in_stream     =  (AVStream*) mapInInStream[packet->stream_index];
+            if (!mapInInStream.TryGetValue(packet->stream_index, out var streamPtr))
+            {
+                av_packet_free(&packet);
+                return -1;
+            }
+            AVStream* in_stream     =  (AVStream*) streamPtr;
             AVStream* out_stream    =  (AVStream*) mapInOutStreams[(IntPtr)in_stream];
 
             if (packet->dts != AV_NOPTS_VALUE)
@@ -133,7 +140,8 @@ public unsafe class Remuxer
             }
             else
             {
-                packet->pts = packet->pts == AV_NOPTS_VALUE ? AV_NOPTS_VALUE : av_rescale_q_rnd(packet->pts, in_stream->time_base, out_stream->time_base, AVRounding.NearInf | AVRounding.PassMinmax);
+                // Keep PTS in the same time domain as earlier packets even when DTS is missing.
+                packet->pts = packet->pts == AV_NOPTS_VALUE ? AV_NOPTS_VALUE : av_rescale_q_rnd(packet->pts - mapInStreamToDts.GetValueOrDefault(in_stream->index), in_stream->time_base, out_stream->time_base, AVRounding.NearInf | AVRounding.PassMinmax);
                 packet->dts = AV_NOPTS_VALUE;
             }
 
@@ -160,7 +168,11 @@ public unsafe class Remuxer
             if (HeaderWritten)
             {
                 ret = av_write_trailer(fmtCtx);
-                avio_closep(&fmtCtx->pb);
+            }
+            if (fmtCtx->pb != null)
+            {
+                int closeRet = avio_closep(&fmtCtx->pb);
+                if (ret == 0) ret = closeRet;
             }
 
             avformat_free_context(fmtCtx);

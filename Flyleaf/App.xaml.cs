@@ -24,6 +24,36 @@ public partial class App : Application
     internal PlayerProfiles Profiles => store.Profiles;
     internal EngineConfig FactoryEngine { get; private set; } = null!;
     internal bool UseTransparentWindows { get; private set; }
+    FlyleafDownloadManager? downloads;
+    internal FlyleafDownloadManager Downloads
+    {
+        get
+        {
+            if (downloads != null) return downloads;
+            var manager = new FlyleafDownloadManager { Concurrency = Config.DownloadConcurrency, DownloadFolder = Config.DownloadFolder };
+            manager.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(FlyleafDownloadManager.Concurrency)) Config.DownloadConcurrency = manager.Concurrency;
+            };
+            Config.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(AppConfig.DownloadFolder)) manager.DownloadFolder = Config.DownloadFolder;
+            };
+            return downloads = manager;
+        }
+    }
+    internal bool IsExiting => exiting;
+
+    internal async Task<bool> ConfirmStopDownloadsAsync(Window? owner = null)
+    {
+        if (downloads?.HasPending != true) return true;
+        const string message = "There are active, queued or scheduled downloads. Stop them and exit? Scheduled recordings will be cancelled and partial files will be retained.";
+        var answer = owner != null ? MessageBox.Show(owner, message, "Downloads", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+            : MessageBox.Show(message, "Downloads", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes) return false;
+        await downloads.StopAllAsync();
+        return !downloads.HasPending;
+    }
 
     internal MainWindow OpenWindow(MainWindow? source = null)
     {
@@ -69,7 +99,8 @@ public partial class App : Application
             tray ??= new TrayIcon(
                 () => Dispatcher.BeginInvoke(new Action(() => OpenLaunch(new([], false, false)))),
                 () => Dispatcher.BeginInvoke(new Action(() => CloseTrayWindows(exit: false))),
-                () => Dispatcher.BeginInvoke(new Action(() => CloseTrayWindows(exit: true))));
+                () => Dispatcher.BeginInvoke(new Action(() => CloseTrayWindows(exit: true))),
+                () => Dispatcher.BeginInvoke(new Action(OpenDownloadsFromTray)));
             tray.ApplyAppearance(activePlayerWindow?.Profile.Presentation.Appearance ?? Profiles.SelectedPresentation.Appearance);
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
         }
@@ -81,6 +112,15 @@ public partial class App : Application
         }
     }
 
+    async void OpenDownloadsFromTray()
+    {
+        while (trayCloseCompletion != null) await trayCloseCompletion.Task;
+        if (exiting) return;
+        var target = activePlayerWindow ?? Windows.OfType<MainWindow>().LastOrDefault() ?? OpenWindow();
+        target.ActivateFromTray();
+        target.ShowDownloads();
+    }
+
     async void CloseTrayWindows(bool exit)
     {
         if (trayCloseCompletion != null) return;
@@ -89,6 +129,7 @@ public partial class App : Application
         bool shutdown = false;
         try
         {
+            if (exit && !await ConfirmStopDownloadsAsync(activePlayerWindow)) return;
             foreach (var window in Windows.OfType<MainWindow>().ToArray())
                 if (!await window.CloseFromTrayAsync()) return;
             if (exit)

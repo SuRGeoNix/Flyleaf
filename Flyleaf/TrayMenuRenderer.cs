@@ -6,7 +6,7 @@ using Forms = System.Windows.Forms;
 
 namespace Flyleaf;
 
-internal enum TrayMenuGlyph { Open, CloseAll, Exit }
+internal enum TrayMenuGlyph { Open, CloseAll, Exit, Downloads }
 
 /// <summary>Paints the native notification menu with the active Flyleaf palette.</summary>
 internal sealed class TrayMenuRenderer(ResourceDictionary palette) : Forms.ToolStripRenderer
@@ -89,6 +89,11 @@ internal sealed class TrayMenuRenderer(ResourceDictionary palette) : Forms.ToolS
                 case TrayMenuGlyph.Open:
                     e.Graphics.DrawRectangle(pen, 2, 3, 12, 10);
                     e.Graphics.DrawPolygon(pen, [new(7, 6), new(10, 8), new(7, 10)]);
+                    break;
+                case TrayMenuGlyph.Downloads:
+                    e.Graphics.DrawLine(pen, 8, 2, 8, 10);
+                    e.Graphics.DrawLines(pen, [new(4, 6), new(8, 10), new(12, 6)]);
+                    e.Graphics.DrawLines(pen, [new(2, 10), new(2, 14), new(14, 14), new(14, 10)]);
                     break;
                 case TrayMenuGlyph.CloseAll:
                     e.Graphics.DrawLines(pen, [new(5, 2), new(14, 2), new(14, 11)]);

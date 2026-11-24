@@ -16,7 +16,7 @@ internal sealed class TrayIcon : IDisposable
     FlyleafTheme theme;
     FlyleafAccent accent;
 
-    public TrayIcon(Action open, Action closeAll, Action exit)
+    public TrayIcon(Action open, Action closeAll, Action exit, Action? downloads = null)
     {
         var menu = new Forms.ContextMenuStrip
         {
@@ -32,6 +32,7 @@ internal sealed class TrayIcon : IDisposable
             menu.Items.Add(item);
         }
         Add("&Open Flyleaf", TrayMenuGlyph.Open, open);
+        if (downloads != null) Add("&Downloads…", TrayMenuGlyph.Downloads, downloads);
         Add("&Close all windows", TrayMenuGlyph.CloseAll, closeAll);
         menu.Items.Add(new Forms.ToolStripSeparator());
         Add("E&xit", TrayMenuGlyph.Exit, exit);

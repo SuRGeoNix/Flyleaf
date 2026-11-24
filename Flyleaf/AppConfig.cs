@@ -158,9 +158,13 @@ public class AppConfig : NotifyPropertyChanged
     NewWindowOptions newWindow = new();
     StartupOptions startup = new();
     bool confirmUnsavedQueueChanges = true;
+    string downloadFolder = FlyleafDownloadManager.DefaultDownloadFolder;
+    int downloadConcurrency = 2;
 
     public string[] CustomFileExtensions { get; set; } = [];
     public bool ConfirmUnsavedQueueChanges { get => confirmUnsavedQueueChanges; set => Set(ref confirmUnsavedQueueChanges, value); }
+    public string DownloadFolder { get => downloadFolder; set => Set(ref downloadFolder, string.IsNullOrWhiteSpace(value) ? FlyleafDownloadManager.DefaultDownloadFolder : value); }
+    public int DownloadConcurrency { get => downloadConcurrency; set => Set(ref downloadConcurrency, Math.Clamp(value, 1, 8)); }
 
     public StartupOptions Startup
     {

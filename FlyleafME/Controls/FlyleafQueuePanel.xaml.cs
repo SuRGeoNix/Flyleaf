@@ -280,6 +280,20 @@ public partial class FlyleafQueuePanel : UserControl
             FlyleafMenuItems.Add(menu, "Play", target.HasPlayer ? () => PlayItem(item) : null).InputGestureText = "Enter";
             FlyleafMenuItems.Add(menu, "Remove selected", removable.Length > 0 ? () => target.Remove(removable) : null)
                 .InputGestureText = "Delete";
+            if (Context?.MediaElement is { } view && view.IsPanelRegistered("downloads"))
+            {
+                var targets = selection.SelectMany(row => row switch
+                {
+                    FlyleafQueueChild child => new[] { FlyleafDownloadTarget.From(child.Source, child) },
+                    FlyleafQueueSource source when source.Children.Count != 0 => source.Children.Select(c => FlyleafDownloadTarget.From(source, c)).ToArray(),
+                    FlyleafQueueSource source => new[] { FlyleafDownloadTarget.From(source) },
+                    _ => Array.Empty<FlyleafDownloadTarget>()
+                }).Distinct().ToArray();
+                FlyleafMenuItems.Add(menu, "Download selected…", targets.Length == 0 ? null : () =>
+                {
+                    if (view.ShowPanel("downloads").Editor is FlyleafDownloadsPanel panel) panel.AddDownloads(targets);
+                });
+            }
             FlyleafMenuItems.Separator(menu);
         }
 
