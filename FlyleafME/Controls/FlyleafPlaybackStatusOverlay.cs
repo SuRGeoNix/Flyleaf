@@ -1,20 +1,21 @@
 ﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
 using FlyleafLib.MediaPlayer;
 
 namespace Flyleaf.Controls.WPF;
 
-internal readonly record struct FlyleafPlaybackDisplay(Status Status, bool CanPlay, ActivityMode Activity, long Time, long Duration, bool Live, bool Recording, bool BarVisible);
+internal readonly record struct FlyleafPlaybackDisplay(Status Status, bool CanPlay, ActivityMode Activity, long Time, long Duration, bool Live, bool Recording, bool BarVisible, bool ClockAvailable = true);
 /// <summary>Playback operations, errors, recording and keyboard time feedback have independent lifetimes.</summary>
 public sealed class FlyleafPlaybackStatusOverlay : Grid
 {
     public static readonly DependencyProperty OptionsProperty = DependencyProperty.Register(nameof(Options), typeof(FlyleafOSDOptions), typeof(FlyleafPlaybackStatusOverlay), new PropertyMetadata(null, OptionsChanged));
     public FlyleafOSDOptions? Options { get => (FlyleafOSDOptions?)GetValue(OptionsProperty); set => SetValue(OptionsProperty, value); }
-    readonly Border card = Surface(), clockSurface = Surface(), recordSurface = Surface(), busySurface = Surface();
-    readonly TextBlock caption = Label(), clock = Label(), recording = Label(), busyLabel = Label();
+    readonly Border card = Surface(), clockSurface = Surface(), recordSurface = Surface(), busySurface = Surface(), queueSurface = Surface();
+    readonly TextBlock caption = Label(), clock = Label(), recording = Label(), busyLabel = Label(), queueLabel = Label();
     readonly Grid corners = new() { IsHitTestVisible = false };
     readonly StackPanel[] cornerPanels = new StackPanel[4];
     readonly StackPanel corner = new(), messages = new(), errorActions = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
@@ -24,7 +25,7 @@ public sealed class FlyleafPlaybackStatusOverlay : Grid
     FlyleafPlaybackDisplay display = Empty;
     static FlyleafPlaybackDisplay Empty => new(Status.Stopped, false, ActivityMode.Idle, 0, 0, false, false, false);
     string busy = "", blockingError = "", transientError = "";
-    bool busyVisible, buffering, seeking, obscured, dismissedFailure;
+    bool busyVisible, buffering, seeking, obscured, dismissedFailure, queueOpening;
     long seekTime;
     public event EventHandler? ErrorDetailsRequested;
     internal string StatusText => caption.Text.Length > 0 ? caption.Text : busyLabel.Text;
@@ -48,6 +49,9 @@ public sealed class FlyleafPlaybackStatusOverlay : Grid
             SetColumn(panel, left ? 0 : 1); corners.Children.Add(panel);
         }
         Children.Add(corners); Children.Add(card);
+        queueLabel.TextWrapping = TextWrapping.NoWrap; queueLabel.TextTrimming = TextTrimming.CharacterEllipsis;
+        queueSurface.Child = queueLabel; queueSurface.MaxWidth = 480; queueSurface.Margin = new Thickness(0, 0, 0, 6); corner.Children.Add(queueSurface);
+        Typography.SetNumeralAlignment(clock, FontNumeralAlignment.Tabular);
         clockSurface.Child = clock; clockSurface.Margin = new Thickness(0, 0, 0, 6); corner.Children.Add(clockSurface);
         recordSurface.Child = recording; recordSurface.Margin = new Thickness(0, 0, 0, 6);
         recording.Text = "● REC"; recording.Foreground = Brushes.OrangeRed; corner.Children.Add(recordSurface);
@@ -82,7 +86,7 @@ public sealed class FlyleafPlaybackStatusOverlay : Grid
         var clockCorner = cornerPanels[(int)o.ClockPosition];
         var messageCorner = cornerPanels[(int)o.Position];
         Place(corner, clockCorner, true); Place(messages, messageCorner, false);
-        clockSurface.HorizontalAlignment = recordSurface.HorizontalAlignment = clockCorner.HorizontalAlignment;
+        queueSurface.HorizontalAlignment = clockSurface.HorizontalAlignment = recordSurface.HorizontalAlignment = clockCorner.HorizontalAlignment;
         busySurface.HorizontalAlignment = messageCorner.HorizontalAlignment;
     }
     static Border Surface()
@@ -104,6 +108,12 @@ public sealed class FlyleafPlaybackStatusOverlay : Grid
     }
     void Changed(object? sender, PropertyChangedEventArgs e) { if (Dispatcher.CheckAccess()) Refresh(); else Dispatcher.BeginInvoke(new Action(Refresh)); }
     internal void Update(FlyleafPlaybackDisplay value) { display = value; Refresh(); }
+    internal void UpdateQueue(string text, bool opening)
+    {
+        bool changed = queueLabel.Text != text || queueOpening != opening;
+        queueLabel.Text = text; queueOpening = opening;
+        if (changed) Refresh();
+    }
     internal void SetBuffering(bool value) { buffering = value; Refresh(); }
     internal void Seek(bool started, int milliseconds)
     {
@@ -132,7 +142,7 @@ public sealed class FlyleafPlaybackStatusOverlay : Grid
     internal void ClearError() { ClearTransientError(); blockingError = ""; dismissedFailure = false; Refresh(); }
     internal void NewInput() { ClearTransientError(); blockingError = ""; dismissedFailure = false; buffering = seeking = false; seekReveal.Stop(); Refresh(); }
     internal void CancelOperations() { buffering = seeking = false; seekReveal.Stop(); Refresh(); }
-    internal void Reset() { busyDelay.Stop(); seekReveal.Stop(); ClearTransientError(); busy = blockingError = ""; busyVisible = buffering = seeking = dismissedFailure = false; display = Empty; Refresh(); }
+    internal void Reset() { busyDelay.Stop(); seekReveal.Stop(); queueLabel.Text = ""; queueOpening = false; ClearTransientError(); busy = blockingError = ""; busyVisible = buffering = seeking = dismissedFailure = false; display = Empty; Refresh(); }
     void Refresh()
     {
         var o = Options ?? defaults;
@@ -147,7 +157,7 @@ public sealed class FlyleafPlaybackStatusOverlay : Grid
         bool transient = transientError.Length > 0;
         string error = failed ? blockingError.Length > 0 ? blockingError : "Unable to open media." : transientError;
         caption.Text = failed || transient ? error.Length > 220 ? error[..220] + "…" : error : "";
-        caption.FontSize = clock.FontSize = recording.FontSize = busyLabel.FontSize = o.FontSize;
+        caption.FontSize = clock.FontSize = recording.FontSize = busyLabel.FontSize = queueLabel.FontSize = o.FontSize;
         card.Visibility = transient || !obscured && failed ? Visibility.Visible : Visibility.Collapsed;
         card.IsHitTestVisible = failed;
         errorActions.Visibility = failed ? Visibility.Visible : Visibility.Collapsed;
@@ -156,15 +166,23 @@ public sealed class FlyleafPlaybackStatusOverlay : Grid
         busySurface.Visibility = showBusy ? Visibility.Visible : Visibility.Collapsed;
         timedStatusHost.Visibility = showBusy ? Visibility.Collapsed : Visibility.Visible;
         PositionCorners(o);
-        clock.Text = FormatTime(seeking ? seekTime : display.Time, display.Duration, display.Live);
-        clockSurface.Visibility = !obscured && ShowTime(o.TimeDisplay, display.CanPlay, display.Activity, display.BarVisible, seeking || seekReveal.IsEnabled) ? Visibility.Visible : Visibility.Collapsed;
+        bool clockAvailable = display.ClockAvailable && display.Status != Status.Opening && !queueOpening;
+        bool showClock = !obscured && clockAvailable && ShowTime(o.TimeDisplay, display.CanPlay, display.Activity, display.BarVisible, seeking || seekReveal.IsEnabled);
+        clockSurface.Visibility = showClock ? Visibility.Visible : Visibility.Collapsed;
+        clock.Text = clockAvailable && display.CanPlay ? FormatTime(seeking ? seekTime : display.Time, display.Duration, display.Live, o.ShowMilliseconds) : "";
+        queueSurface.Visibility = !obscured && queueLabel.Text.Length > 0 && (o.QueueDisplay == FlyleafVisibilityPolicy.Always ||
+            o.QueueDisplay == FlyleafVisibilityPolicy.Auto && (display.Activity != ActivityMode.Idle)) ? Visibility.Visible : Visibility.Collapsed;
         recordSurface.Visibility = !obscured && display.Recording ? Visibility.Visible : Visibility.Collapsed;
     }
     internal static bool ShowTime(FlyleafVisibilityPolicy policy, bool canPlay, ActivityMode activity, bool barVisible, bool seek)
         => canPlay && (policy == FlyleafVisibilityPolicy.Always || policy == FlyleafVisibilityPolicy.Auto && !barVisible && (activity != ActivityMode.Idle || seek));
-    internal static string FormatTime(long time, long duration, bool live)
+    internal static string FormatTime(long time, long duration, bool live, bool milliseconds = false)
     {
-        static string Time(long ticks) => TimeSpan.FromTicks(Math.Max(0, ticks)).ToString(ticks >= TimeSpan.TicksPerDay ? @"d\.hh\:mm\:ss" : @"hh\:mm\:ss");
+        string Time(long ticks)
+        {
+            string format = ticks >= TimeSpan.TicksPerDay ? @"d\.hh\:mm\:ss" : @"hh\:mm\:ss";
+            return TimeSpan.FromTicks(Math.Max(0, ticks)).ToString(milliseconds ? format + @"\.fff" : format);
+        }
         return live ? duration > 0 ? $"LIVE · {Time(time)} / {Time(duration)}" : "LIVE" : duration > 0 ? $"{Time(time)} / {Time(duration)}" : Time(time);
     }
 }

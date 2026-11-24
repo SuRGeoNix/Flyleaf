@@ -165,14 +165,17 @@ public sealed class FlyleafOSDOptionsEditor : FlyleafTextOptionsEditor
         Toggle("Show playback status", () => o.ShowStatus, v => o.ShowStatus = v);
         Toggle("Show error messages", () => o.ShowErrors, v => o.ShowErrors = v);
         Choice("Time display", Enum.GetValues<FlyleafVisibilityPolicy>(), () => o.TimeDisplay, v => o.TimeDisplay = v);
-        Children.Add(Text("Auto shows playback time during mouse or keyboard activity and seeking while the playback bar is hidden. Always shows it when media can play; Never hides it. Recording keeps a separate REC indicator.", true));
+        Children.Add(Text("Auto shows playback time during mouse or keyboard activity and seeking while the playback bar is hidden. Static images have no playback clock. Recording keeps a separate REC indicator.", true));
+        Toggle("Show milliseconds", () => o.ShowMilliseconds, v => o.ShowMilliseconds = v);
+        Choice("Queue display", Enum.GetValues<FlyleafVisibilityPolicy>(), () => o.QueueDisplay, v => o.QueueDisplay = v);
+        Children.Add(Text("Auto shows the queue position and title during activity and temporarily when changing items. Always keeps them visible; Never hides them. Only queues with more than one item are shown.", true));
         Number("Duration · s", () => o.DurationSeconds, v => o.DurationSeconds = v);
-        Children.Add(Text("Duration applies to timed action and status messages, not ongoing playback operations or errors.", true));
+        Children.Add(Text("Duration applies to timed action and status messages and automatic queue feedback, not ongoing playback operations or errors.", true));
         Number("Text size", () => o.FontSize, v => o.FontSize = v);
         var positions = Enum.GetValues<FlyleafOSDPosition>().Select(p => new PositionChoice(p, FlyleafPluginOptionDescriptions.Label(p.ToString()))).ToArray();
         Choice("Messages", positions, () => positions.Single(p => p.Value == o.Position), v => o.Position = v.Value);
-        Choice("Clock position", positions, () => positions.Single(p => p.Value == o.ClockPosition), v => o.ClockPosition = v.Value);
-        Children.Add(Text("The Messages position applies to status and action messages, which are displayed independently. Clock and recording share a corner. Errors always appear in the center; transient errors time out after 7 seconds or clear on recovery. Blocking errors remain until recovery or dismissal.", true));
+        Choice("Clock / queue position", positions, () => positions.Single(p => p.Value == o.ClockPosition), v => o.ClockPosition = v.Value);
+        Children.Add(Text("The Messages position applies to status and action messages, which are displayed independently. Queue information, clock and recording share a corner. Errors always appear in the center; transient errors time out after 7 seconds or clear on recovery. Blocking errors remain until recovery or dismissal.", true));
         var preview = Button("Preview message"); preview.HorizontalAlignment = HorizontalAlignment.Left; preview.Margin = new Thickness(0, 8, 0, 0);
         RefreshWith(() => preview.IsEnabled = o.Enabled);
         preview.Click += (_, _) => PreviewRequested?.Invoke(this, EventArgs.Empty); Children.Add(preview);
@@ -201,6 +204,8 @@ public sealed class FlyleafOSDOptionsEditor : FlyleafTextOptionsEditor
             o.ShowStatus = defaults.ShowStatus;
             o.ShowErrors = defaults.ShowErrors;
             o.TimeDisplay = defaults.TimeDisplay;
+            o.ShowMilliseconds = defaults.ShowMilliseconds;
+            o.QueueDisplay = defaults.QueueDisplay;
         });
     }
 }

@@ -11,6 +11,7 @@ public partial class FlyleafME
     long seekFeedbackGeneration;
     string lastFeedbackError = "";
     long lastFeedbackErrorAt;
+
     void ObservePlaybackFeedback(bool attach)
     {
         if (overlayPlayer is not { } p) return;
@@ -27,6 +28,7 @@ public partial class FlyleafME
             p.SnapshotCompleted += DisplaySnapshot;
             Queue.PropertyChanged += DisplayQueueChanged;
             previousFeedbackStatus = p.Status; lastFeedbackError = "";
+            UpdateQueueDisplay(p);
         }
         else
         {
@@ -56,7 +58,11 @@ public partial class FlyleafME
     {
         if (overlayPlayer is not { IsDisposed: false } p) { playbackDisplay.Reset(); return; }
         bool bar = osdBarVisible;
-        playbackDisplay.Update(new(p.Status, p.CanPlay, p.Activity.Mode, p.CurTime, p.Duration, p.IsLive && !FlyleafQueueProgression.IsImageFormat(p.MainDemuxer?.Name), p.IsRecording, bar));
+        bool image = FlyleafQueueProgression.IsImageFormat(p.MainDemuxer?.Name);
+        bool singleFrameImage = image && p.Video.FramesTotal == 1 && !p.Audio.IsOpened;
+        // Match slideshow progression: synthetic one-frame durations do not establish timed playback.
+        bool clockAvailable = !image || p.Audio.IsOpened || p.CurTime > 0 || p.Duration > 0 && !singleFrameImage;
+        playbackDisplay.Update(new(p.Status, p.CanPlay, p.Activity.Mode, p.CurTime, p.Duration, p.IsLive && !image, p.IsRecording, bar, clockAvailable && !Queue.IsOpening));
     }
     void DisplayPlayerProperty(object? sender, PropertyChangedEventArgs e)
     {
@@ -177,9 +183,30 @@ public partial class FlyleafME
         if (!e.Success) ReportPlaybackError(e.Error, false);
         else { Information.ReportCapture(e.Filename); osd.ShowMessage("Snapshot saved · " + System.IO.Path.GetFileName(e.Filename)); }
     });
+    void UpdateQueueDisplay(Player p)
+    {
+        int number = Queue.CurrentItemNumber, total = Queue.TotalItems;
+        bool opening = Queue.IsOpening;
+        var source = number > 0 && total > 1 ? Queue.Sources.FirstOrDefault(s => number >= s.ItemNumber && number - s.ItemNumber < Math.Max(1, s.Children.Count)) : null;
+        if (source == null)
+        {
+            playbackDisplay.UpdateQueue("", opening);
+            return;
+        }
+        int position = number - source.ItemNumber;
+        var item = (source.Id, position);
+        string? title = source.Children.Count > 0 ? source.Children[position].Title : source.Title;
+        if (!opening && ReferenceEquals(source, Queue.CurrentSource) && source.Children.Count == 0 && !source.HasCustomTitle && p.Playlist.Selected is { Title: { Length: > 0 } resolvedTitle })
+            title = resolvedTitle;
+        string text = $"{number} / {total}";
+        if (!string.IsNullOrWhiteSpace(title)) text += " · " + title.Trim();
+        playbackDisplay.UpdateQueue(text, opening);
+    }
     void DisplayQueueChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(FlyleafQueue.IsAutoAdvancing)) UpdatePlaybackDisplay();
+        if ((e.PropertyName is nameof(FlyleafQueue.ItemCountText) or nameof(FlyleafQueue.IsOpening)) && overlayPlayer is { IsDisposed: false } p)
+            UpdateQueueDisplay(p);
+        if (e.PropertyName is nameof(FlyleafQueue.IsAutoAdvancing) or nameof(FlyleafQueue.IsOpening)) UpdatePlaybackDisplay();
         if (e.PropertyName == nameof(FlyleafQueue.Repeat))
             ShowOSD(Queue.Repeat ? "Repeat queue on" : "Repeat queue off");
         else if (e.PropertyName == nameof(FlyleafQueue.AutoAdvance))

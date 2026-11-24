@@ -24,19 +24,21 @@ public sealed class FlyleafSubtitleOptions : NotifyPropertyChanged
 public sealed class FlyleafOSDOptions : NotifyPropertyChanged
 {
     bool enabled = true;
-    bool status = true, errors = true;
-    FlyleafVisibilityPolicy timeDisplay = FlyleafVisibilityPolicy.Auto;
+    bool status = true, errors = true, showMilliseconds = true;
+    FlyleafVisibilityPolicy timeDisplay = FlyleafVisibilityPolicy.Auto, queueDisplay = FlyleafVisibilityPolicy.Auto;
     double duration = 3.5, size = 16;
     FlyleafOSDPosition position = FlyleafOSDPosition.TopRight, clockPosition = FlyleafOSDPosition.TopLeft;
     public bool Enabled { get => enabled; set => Set(ref enabled, value); }
     public bool ShowStatus { get => status; set => Set(ref status, value); }
     public bool ShowErrors { get => errors; set => Set(ref errors, value); }
     public FlyleafVisibilityPolicy TimeDisplay { get => timeDisplay; set { if (!Enum.IsDefined(value)) throw new ArgumentOutOfRangeException(nameof(value)); Set(ref timeDisplay, value); } }
+    public bool ShowMilliseconds { get => showMilliseconds; set => Set(ref showMilliseconds, value); }
+    public FlyleafVisibilityPolicy QueueDisplay { get => queueDisplay; set { if (!Enum.IsDefined(value)) throw new ArgumentOutOfRangeException(nameof(value)); Set(ref queueDisplay, value); } }
     public double DurationSeconds { get => duration; set => Set(ref duration, FlyleafTextValues.Number(value, 0.5, 15)); }
     public double FontSize { get => size; set => Set(ref size, FlyleafTextValues.Number(value, 10, 48)); }
     public FlyleafOSDPosition Position { get => position; set { if (!Enum.IsDefined(value)) throw new ArgumentOutOfRangeException(nameof(value)); Set(ref position, value); } }
     public FlyleafOSDPosition ClockPosition { get => clockPosition; set { if (!Enum.IsDefined(value)) throw new ArgumentOutOfRangeException(nameof(value)); Set(ref clockPosition, value); } }
-    public FlyleafOSDOptions Clone() => new() { Enabled = Enabled, ShowStatus = ShowStatus, ShowErrors = ShowErrors, TimeDisplay = TimeDisplay, DurationSeconds = DurationSeconds, FontSize = FontSize, Position = Position, ClockPosition = ClockPosition };
+    public FlyleafOSDOptions Clone() => new() { Enabled = Enabled, ShowStatus = ShowStatus, ShowErrors = ShowErrors, TimeDisplay = TimeDisplay, ShowMilliseconds = ShowMilliseconds, QueueDisplay = QueueDisplay, DurationSeconds = DurationSeconds, FontSize = FontSize, Position = Position, ClockPosition = ClockPosition };
 }
 internal static class FlyleafTextValues
 {
