@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.12.1</Version>
+	<Version>3.12.2</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,11 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- OpenDefault: Fixes playback of remote PLS entries in M3U playlists
-		- Player: Adds cancellation-aware open handling using DecoderContext results and lightweight cancellation tracking
-		- Player: Adds `CancelCurrentOperation()` to interrupt operations without stopping the player
-		- Player: Adds `SeekResultCompleted` with cancellation tracking and deprecates `SeekCompleted`
-		- Player: Adds `OperationCancellationRequested` for cancellation notifications
+		- Player: Fixes seek completion notifications during video, audio-only and reverse playback
+		- Downloader: Improves pause, resume and stop handling
+		- Downloader: Fixes premature completion with separate video and audio inputs
+		- Downloader: Introduces explicit completion results and improved error reporting
+		- Downloader: Adds improved progress, output file size, throughput and packet error statistics
+		- Downloader: Handles recoverable packet write errors without interrupting downloads
+		- Demuxer: Tracks terminal read errors for improved download error reporting
+		- Remuxer: Improves timestamp handling, packet validation and output finalization
 	</PackageReleaseNotes>
   </PropertyGroup>
 
