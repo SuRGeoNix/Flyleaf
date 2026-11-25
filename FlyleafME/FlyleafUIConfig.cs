@@ -12,14 +12,21 @@ public enum FlyleafVisibilityPolicy
 public class FlyleafAppearanceOptions : NotifyPropertyChanged
 {
     internal const FlyleafAccent DefaultAccent = FlyleafAccent.Firebrick;
+    internal const string DefaultCustomAccentColor = "#4F8CC9";
 
     FlyleafTheme theme = FlyleafTheme.Dark;
     FlyleafAccent accent = DefaultAccent;
+    string customAccentColor = DefaultCustomAccentColor;
 
     public FlyleafTheme Theme { get => theme; set => Set(ref theme, value); }
     public FlyleafAccent Accent { get => accent; set => Set(ref accent, value); }
+    public string CustomAccentColor
+    {
+        get => customAccentColor;
+        set => Set(ref customAccentColor, "#" + FlyleafTextValues.Color(value)[^6..]);
+    }
 
-    public FlyleafAppearanceOptions Clone() => new() { Theme = Theme, Accent = Accent };
+    public FlyleafAppearanceOptions Clone() => new() { Theme = Theme, Accent = Accent, CustomAccentColor = CustomAccentColor };
 }
 
 public enum FlyleafPlaybackBarDesign
@@ -42,7 +49,7 @@ public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
     FlyleafPlaybackBarMode mode = FlyleafPlaybackBarMode.Dynamic;
     bool floating = true;
     bool classicFloating = true;
-    bool dynamicPinned;
+    bool dynamicPinned = true;
     bool seekWhileDragging = true;
     int autoHideDelayMilliseconds = 2800;
 

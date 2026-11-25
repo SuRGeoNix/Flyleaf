@@ -36,6 +36,9 @@ public abstract class FlyleafTextOptionsEditor : StackPanel
         row.Children.Add(label); Grid.SetColumn(editor, 1); row.Children.Add(editor); Children.Add(row);
     }
     protected TextBox Entry(string title, Func<string> read, Action<string> write, double width = 90)
+        => Entry(title, read, write, out _, width);
+
+    TextBox Entry(string title, Func<string> read, Action<string> write, out Action<string> choose, double width)
     {
         var input = new TextBox { Width = width, HorizontalAlignment = HorizontalAlignment.Left, VerticalContentAlignment = VerticalAlignment.Center };
         input.SetResourceReference(StyleProperty, "FlyleafME.InputStyle");
@@ -43,6 +46,7 @@ public abstract class FlyleafTextOptionsEditor : StackPanel
         discardDrafts.Add(() => dirty = false);
         input.TextChanged += (_, _) => { if (!Updating) dirty = true; };
         void Commit() { if (!dirty || Updating) return; Apply(() => { write(input.Text); dirty = false; }); }
+        choose = value => { input.Text = value; Commit(); };
         input.LostKeyboardFocus += (_, _) => Commit(); input.KeyDown += (_, e) => { if (e.Key == Key.Enter) { Commit(); e.Handled = true; } };
         refreshers.Add(() => { if (!dirty && !input.IsKeyboardFocusWithin) input.Text = read(); });
         Row(title, input); return input;
@@ -65,22 +69,31 @@ public abstract class FlyleafTextOptionsEditor : StackPanel
     }
     protected void Color(string title, Func<string> read, Action<string> write)
     {
-        var input = Entry(title, read, write, 108);
+        var input = Entry(title, read, write, out var choose, 108);
         input.ToolTip = "#RRGGBB or #AARRGGBB · alpha controls transparency";
         var row = (Grid)Children[^1]; row.Children.Remove(input);
         var body = new StackPanel { Orientation = Orientation.Horizontal };
-        var swatch = Button(""); swatch.Width = 30; swatch.MinWidth = 0; swatch.Padding = new Thickness(4); swatch.HorizontalContentAlignment = HorizontalAlignment.Center; swatch.Margin = new Thickness(6, 0, 0, 0); swatch.ToolTip = "Choose a color";
-        var chip = new Border { Width = 14, Height = 14, BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1) }; swatch.Content = chip;
+        var swatch = FlyleafColorPicker.Swatch(title, out var chip);
         body.Children.Add(input); body.Children.Add(swatch); Grid.SetColumn(body, 1); row.Children.Add(body);
         refreshers.Add(() => chip.Background = FlyleafTextValues.Brush(read()));
         swatch.Click += (_, _) =>
         {
-            var menu = new ContextMenu { PlacementTarget = swatch };
+            var menu = new ContextMenu { PlacementTarget = swatch, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
             menu.SetResourceReference(StyleProperty, "FlyleafME.ThemeContextMenuStyle");
+            var picker = new MenuItem { Header = "Pick a color…" };
+            picker.Click += (_, _) =>
+            {
+                menu.IsOpen = false;
+                var current = (System.Windows.Media.Color)ColorConverter.ConvertFromString(read());
+                if (FlyleafColorPicker.Pick(Window.GetWindow(swatch), current) is { } color && input.IsLoaded)
+                    choose(color.ToString());
+            };
+            menu.Items.Add(picker);
+            menu.Items.Add(new Separator());
             foreach (var (name, value) in new[] { ("White", "#FFFFFFFF"), ("Black", "#FF000000"), ("Yellow", "#FFFFFF00"), ("Warm white", "#FFFFE8C0"), ("Cyan", "#FF80E8FF"), ("Transparent", "#00000000") })
             {
                 var item = new MenuItem { Header = name, Icon = new Border { Width = 14, Height = 14, Background = FlyleafTextValues.Brush(value), BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1) } };
-                item.Click += (_, _) => Apply(() => write(value)); menu.Items.Add(item);
+                item.Click += (_, _) => choose(value); menu.Items.Add(item);
             }
             menu.IsOpen = true;
         };

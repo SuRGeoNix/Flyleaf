@@ -70,7 +70,8 @@ public partial class FlyleafME : Grid, IHostPlayer, IDisposable
 
     public void RefreshAppearance()
     {
-        FlyleafThemeManager.Apply(Resources, UIConfig.Appearance.Theme, UIConfig.Appearance.Accent);
+        var appearance = UIConfig.Appearance;
+        FlyleafThemeManager.Apply(Resources, appearance.Theme, appearance.Accent, appearance.CustomAccentColor);
         Host.Resources = Resources;
         if (Host.Overlay != null) Host.Overlay.Resources = Resources;
         RefreshPanelThemes();

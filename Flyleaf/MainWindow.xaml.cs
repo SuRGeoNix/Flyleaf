@@ -14,6 +14,7 @@ using FlyleafLib.MediaPlayer;
 using FlyleafLib;
 using Flyleaf.Controls.WPF;
 using Flyleaf.FFmpeg;
+using Media = System.Windows.Media;
 
 namespace Flyleaf;
 
@@ -75,8 +76,8 @@ public partial class MainWindow : Window
         public PointNative MaxTrackSize;
     }
 
-    FlyleafTheme theme => MediaElement.UIConfig.Appearance.Theme;
-    FlyleafAccent accent => MediaElement.UIConfig.Appearance.Accent;
+    FlyleafAppearanceOptions Appearance => MediaElement.UIConfig.Appearance;
+    FlyleafTheme theme => Appearance.Theme;
     bool headerVisible = true;
     bool playbackBarVisible = true;
     bool outlineVisible = true;
@@ -208,6 +209,7 @@ public partial class MainWindow : Window
         Player.Activity.PropertyChanged += Activity_PropertyChanged;
         if (ThemeButton.ContextMenu is ContextMenu themeMenu)
         {
+            themeMenu.Resources = MediaElement.Resources;
             themeMenu.Opened += ThemeMenu_Opened;
             themeMenu.Closed += ThemeMenu_Closed;
         }
@@ -460,26 +462,39 @@ public partial class MainWindow : Window
         UpdateWindowOutlineVisibility();
     }
 
-    void ToggleTheme_Click(object sender, RoutedEventArgs e)
+    void OpenThemeMenu_Click(object sender, RoutedEventArgs e)
     {
-        MediaElement.UIConfig.Appearance.Theme = FlyleafThemeManager.Resolve(theme) == FlyleafTheme.Dark
-            ? FlyleafTheme.Light : FlyleafTheme.Dark;
+        var menu = ThemeButton.ContextMenu;
+        menu.PlacementTarget = ThemeButton;
+        menu.IsOpen = true;
     }
 
     void ThemeMenu_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuItem { Tag: string value } && Enum.TryParse(value, out FlyleafTheme selected))
         {
-            MediaElement.UIConfig.Appearance.Theme = selected;
+            Appearance.Theme = selected;
         }
     }
 
     void AccentMenu_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is MenuItem { Tag: string value } && Enum.TryParse(value, out FlyleafAccent selected))
+        if (sender is MenuItem { Tag: FlyleafAccent selected })
         {
-            MediaElement.UIConfig.Appearance.Accent = selected;
+            Appearance.Accent = selected;
         }
+    }
+
+    void EditCustomAccent_Click(object sender, RoutedEventArgs e)
+    {
+        using var activity = FlyleafPopupActivity.Hold(Player);
+        ThemeButton.ContextMenu.IsOpen = false;
+        var appearance = Appearance;
+        var current = FlyleafThemeManager.GetAccentColor(appearance.Theme, FlyleafAccent.Custom, appearance.CustomAccentColor);
+        if (FlyleafColorPicker.Pick(this, current) is not { } color) return;
+
+        appearance.CustomAccentColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+        appearance.Accent = FlyleafAccent.Custom;
     }
 
     void RememberNormalBounds(bool enteringFullscreen = false)
@@ -557,16 +572,17 @@ public partial class MainWindow : Window
 
     void UpdateThemeMenu()
     {
+        var appearance = Appearance;
         DarkThemeMenuItem.IsChecked = theme == FlyleafTheme.Dark;
         LightThemeMenuItem.IsChecked = theme == FlyleafTheme.Light;
         SystemThemeMenuItem.IsChecked = theme == FlyleafTheme.System;
         var currentTheme = FlyleafThemeManager.Resolve(theme);
-        foreach (MenuItem item in AccentMenu.Items)
+        foreach (var item in AccentMenu.Items.OfType<MenuItem>())
         {
-            var value = Enum.Parse<FlyleafAccent>((string)item.Tag);
-            item.IsChecked = accent == value;
+            if (item.Tag is not FlyleafAccent value) continue;
+            item.IsChecked = appearance.Accent == value;
             var swatch = ((StackPanel)item.Header).Children.OfType<Border>().Single();
-            swatch.Background = new System.Windows.Media.SolidColorBrush(FlyleafThemeManager.GetAccentColor(currentTheme, value));
+            swatch.Background = new Media.SolidColorBrush(FlyleafThemeManager.GetAccentColor(currentTheme, value, appearance.CustomAccentColor));
         }
     }
 
@@ -577,10 +593,18 @@ public partial class MainWindow : Window
             var header = new StackPanel { Orientation = Orientation.Horizontal };
             header.Children.Add(new Border { Width = 12, Height = 12, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 9, 0), VerticalAlignment = VerticalAlignment.Center });
             header.Children.Add(new TextBlock { Text = value.ToString(), VerticalAlignment = VerticalAlignment.Center });
-            var item = new MenuItem { Header = header, Tag = value.ToString(), IsCheckable = true };
+            var item = new MenuItem { Header = header, Tag = value, IsCheckable = true };
             item.SetResourceReference(StyleProperty, "FlyleafME.ThemeMenuItemStyle"); item.Click += AccentMenu_Click;
             AccentMenu.Items.Add(item);
         }
+        var separator = new Separator();
+        separator.SetResourceReference(StyleProperty, "FlyleafME.ThemeMenuSeparatorStyle");
+        AccentMenu.Items.Add(separator);
+
+        var edit = new MenuItem { Header = "Edit custom color…" };
+        edit.SetResourceReference(StyleProperty, "FlyleafME.ThemeMenuItemStyle");
+        edit.Click += EditCustomAccent_Click;
+        AccentMenu.Items.Add(edit);
     }
 
     void Window_DpiChanged(object sender, DpiChangedEventArgs e)

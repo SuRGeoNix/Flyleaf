@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using InputType = FlyleafLib.InputType;
 using FlyleafLib.MediaPlayer;
 using Microsoft.Win32;
@@ -245,6 +246,10 @@ public abstract class FlyleafSettingsEditor : StackPanel
 
     protected TextBox TextEntry(StackPanel parent, string title, Func<string> get, Action<string> set,
         Func<string, string?>? validate = null, bool trim = true, Button? browseButton = null)
+        => TextEntry(parent, title, get, set, out _, validate, trim, browseButton);
+
+    TextBox TextEntry(StackPanel parent, string title, Func<string> get, Action<string> set, out Action<string> choose,
+        Func<string, string?>? validate, bool trim, Button? browseButton)
     {
         var input = new TextBox { MinWidth = 160, MaxWidth = 380, HorizontalAlignment = HorizontalAlignment.Left };
         input.SetResourceReference(StyleProperty, "FlyleafME.InputStyle");
@@ -270,10 +275,27 @@ public abstract class FlyleafSettingsEditor : StackPanel
             if (message != null) return;
             dirty = false; Run(() => set(value));
         }
+        choose = value => { input.Text = value; Commit(); };
         input.LostKeyboardFocus += (_, _) => Commit();
         input.KeyDown += (_, e) => { if (e.Key == Key.Enter) { Commit(); e.Handled = true; } };
         refreshers.Add(() => { if (!dirty && !input.IsKeyboardFocusWithin) input.Text = get(); });
         return input;
+    }
+
+    protected void ColorEntry(StackPanel parent, string title, Func<Color> get, Action<Color> set)
+    {
+        var swatch = FlyleafColorPicker.Swatch(title, out var chip);
+        var input = TextEntry(parent, title, () => get().ToString(), value => set((Color)ColorConverter.ConvertFromString(value)),
+            out var choose, value => FlyleafTextValues.IsColor(value) ? null : "Enter #RRGGBB or #AARRGGBB.", trim: true, browseButton: swatch);
+        input.ToolTip = "#RRGGBB or #AARRGGBB · alpha controls transparency";
+        RefreshWith(() => chip.Background = new SolidColorBrush(get()));
+        swatch.Click += (_, _) =>
+        {
+            var target = player;
+            using var activity = FlyleafPopupActivity.Hold(target);
+            if (FlyleafColorPicker.Pick(Window.GetWindow(swatch), get()) is { } color && input.IsLoaded && player == target)
+                choose(color.ToString());
+        };
     }
 
     protected void FilePath(StackPanel parent, string title, Func<string> get, Action<string> set)

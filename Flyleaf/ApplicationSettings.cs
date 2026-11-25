@@ -22,6 +22,7 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
             var defaults = new FlyleafAppearanceOptions();
             ui.Appearance.Theme = defaults.Theme;
             ui.Appearance.Accent = defaults.Accent;
+            ui.Appearance.CustomAccentColor = defaults.CustomAccentColor;
         });
         Choice(appearance, "Theme", () => ui.Appearance.Theme, v => ui.Appearance.Theme = v,
             Enum.GetValues<FlyleafTheme>().Select(v => (v, v.ToString())).ToArray());

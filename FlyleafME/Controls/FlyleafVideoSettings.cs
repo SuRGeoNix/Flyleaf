@@ -1,4 +1,3 @@
-using System.Windows.Media;
 using FlyleafLib.MediaPlayer;
 using static Flyleaf.Controls.WPF.FlyleafPanelUI;
 
@@ -25,8 +24,7 @@ public sealed class FlyleafVideoSettings : FlyleafSettingsEditor
         Number(display, "Maximum output frame rate", "fps", () => c.MaxOutputFps, v => c.MaxOutputFps = v, 1, 1000);
         display.Children.Add(Text("Limits rendered frames, particularly at increased speed. The decoder recalculates its frame-skipping policy as playback timing changes.", true));
         Toggle(display, "Clear video on open, stop and close", "Applies to subsequent clear operations.", () => c.ClearScreen, v => c.ClearScreen = v);
-        TextEntry(display, "Video background · #RRGGBB or #AARRGGBB", () => c.BackColor.ToString(), v => c.BackColor = (Color)ColorConverter.ConvertFromString(v),
-            v => IsColor(v) ? null : "Enter #RRGGBB or #AARRGGBB.");
+        ColorEntry(display, "Video background", () => c.BackColor, v => c.BackColor = v);
         Toggle(display, "Allow HDR output", "Requests swapchain reconfiguration now. HDR output also requires Windows HDR on the active display; SDR remains the fallback.", () => c.AllowHDRSwapchain, v => c.AllowHDRSwapchain = v, background: true);
         Toggle(display, "Super resolution", "Updates the current viewport when supported by the GPU and D3D11 video processor.", () => c.SuperResolution, v => c.SuperResolution = v, background: true);
         Toggle(display, "Present both deinterlaced fields", "Uses double-rate output for supported deinterlacing. Current deinterlace mode stays in Video adjustments.", () => c.DoubleRate, v => c.DoubleRate = v);
@@ -63,6 +61,4 @@ public sealed class FlyleafVideoSettings : FlyleafSettingsEditor
         Options(decoder, () => c.CodecOpt, v => c.CodecOpt = v);
         Refresh();
     }
-
-    static bool IsColor(string value) => (value.Length == 7 || value.Length == 9) && value[0] == '#' && value.AsSpan(1).ToString().All(Uri.IsHexDigit);
 }

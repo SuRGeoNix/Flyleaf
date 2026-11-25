@@ -15,6 +15,7 @@ internal sealed class TrayIcon : IDisposable
     Drawing.Icon? image;
     FlyleafTheme theme;
     FlyleafAccent accent;
+    string? customAccentColor;
 
     public TrayIcon(Action open, Action closeAll, Action exit, Action? downloads = null)
     {
@@ -43,10 +44,11 @@ internal sealed class TrayIcon : IDisposable
     public void ApplyAppearance(FlyleafAppearanceOptions appearance)
     {
         var actualTheme = FlyleafThemeManager.Resolve(appearance.Theme);
-        if (image != null && theme == actualTheme && accent == appearance.Accent) return;
+        var selectedCustomColor = appearance.Accent == FlyleafAccent.Custom ? appearance.CustomAccentColor : null;
+        if (image != null && theme == actualTheme && accent == appearance.Accent && customAccentColor == selectedCustomColor) return;
 
         var resources = new ResourceDictionary();
-        FlyleafThemeManager.Apply(resources, actualTheme, appearance.Accent);
+        FlyleafThemeManager.Apply(resources, actualTheme, appearance.Accent, appearance.CustomAccentColor);
         Brush Brush(string name) => (Brush)resources[$"FlyleafME.Logo{name}Brush"];
         var logo = FlyleafLogo.CreateImageSource(Brush("Mark"), Brush("Fold"), Brush("Play"), Brush("Outline"));
         var replacement = Rasterize(logo);
@@ -57,6 +59,7 @@ internal sealed class TrayIcon : IDisposable
         image = replacement;
         theme = actualTheme;
         accent = appearance.Accent;
+        customAccentColor = selectedCustomColor;
     }
 
     static Drawing.Icon Rasterize(ImageSource logo)

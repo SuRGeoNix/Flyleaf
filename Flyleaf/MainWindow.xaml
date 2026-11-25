@@ -70,11 +70,12 @@
                                         </Button.Style>
                                     </Button>
                                     <StackPanel x:Name="PlayerActions" Orientation="Horizontal">
-                                        <Button x:Name="ThemeButton" Content="&#xE790;" ToolTip="Switch theme (right-click for options)" Focusable="False"
-                                                Click="ToggleTheme_Click" Foreground="{DynamicResource FlyleafME.AccentBrush}"
+                                        <Button x:Name="ThemeButton" Content="&#xE790;" ToolTip="Theme and accent options" Focusable="False"
+                                                AutomationProperties.Name="Theme and accent options" ContextMenuService.IsEnabled="False"
+                                                Click="OpenThemeMenu_Click" Foreground="{DynamicResource FlyleafME.AccentBrush}"
                                                 Style="{StaticResource FlyleafME.OverlayIconButtonStyle}">
                                             <Button.ContextMenu>
-                                                <ContextMenu Style="{StaticResource FlyleafME.ThemeContextMenuStyle}">
+                                                <ContextMenu Placement="Bottom" Style="{StaticResource FlyleafME.ThemeContextMenuStyle}">
                                                     <MenuItem x:Name="DarkThemeMenuItem" Header="Dark" Tag="Dark" IsCheckable="True"
                                                               Style="{StaticResource FlyleafME.ThemeMenuItemStyle}" Click="ThemeMenu_Click"/>
                                                     <MenuItem x:Name="LightThemeMenuItem" Header="Light" Tag="Light" IsCheckable="True"

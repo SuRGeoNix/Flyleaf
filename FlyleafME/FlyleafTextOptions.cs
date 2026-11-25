@@ -43,9 +43,10 @@ public sealed class FlyleafOSDOptions : NotifyPropertyChanged
 internal static class FlyleafTextValues
 {
     internal static double Number(double value, double min, double max) => double.IsFinite(value) && value >= min && value <= max ? value : throw new ArgumentOutOfRangeException(nameof(value), $"Enter a value from {min} to {max}.");
+    internal static bool IsColor(string? value) => value is { Length: 7 or 9 } && value[0] == '#' && value.Skip(1).All(Uri.IsHexDigit);
     internal static string Color(string value)
     {
-        if (value == null || value.Length is not (7 or 9) || value[0] != '#' || !value.AsSpan(1).ToString().All(Uri.IsHexDigit)) throw new ArgumentException("Use #RRGGBB or #AARRGGBB.");
+        if (!IsColor(value)) throw new ArgumentException("Use #RRGGBB or #AARRGGBB.");
         return value.ToUpperInvariant();
     }
     internal static Brush Brush(string value)
