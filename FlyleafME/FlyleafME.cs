@@ -88,6 +88,7 @@ public partial class FlyleafME : Grid, IHostPlayer, IDisposable
 
     public FlyleafME()
     {
+        debugOverlay = new(Information);
         InitializeComposition();
         SetCurrentValue(UIConfigProperty, new FlyleafUIConfig());
         Queue.SlideShowIntervalProvider = () => UIConfig.Queue.SlideShowIntervalMilliseconds;

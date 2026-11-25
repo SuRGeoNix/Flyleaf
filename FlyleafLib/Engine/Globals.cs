@@ -288,10 +288,28 @@ public struct CropRect(uint top = 0, uint left= 0, uint bottom= 0, uint right= 0
 
 class PlayerStats
 {
-    public long TotalBytes      { get; set; }
-    public long VideoBytes      { get; set; }
-    public long AudioBytes      { get; set; }
-    public long FramesDisplayed { get; set; }
+    long? lastSample;
+    long totalBytes, videoBytes, audioBytes;
+    public double TotalBitRate { get; private set; }
+    public double VideoBitRate { get; private set; }
+    public double AudioBitRate { get; private set; }
+    public long? FramesDisplayed { get; set; }
+    public double FramesPerSecond { get; set; }
+
+    public double SampleBitRates(long timestamp, long total, long video, long audio)
+    {
+        double seconds = lastSample is long previous
+            ? System.Diagnostics.Stopwatch.GetElapsedTime(previous, timestamp).TotalSeconds : 0;
+        double kbpsPerByte = seconds > 0 ? 8.0 / (1000 * seconds) : 0;
+        TotalBitRate = Math.Max(total - totalBytes, 0) * kbpsPerByte;
+        VideoBitRate = Math.Max(video - videoBytes, 0) * kbpsPerByte;
+        AudioBitRate = Math.Max(audio - audioBytes, 0) * kbpsPerByte;
+        lastSample = timestamp;
+        totalBytes = total;
+        videoBytes = video;
+        audioBytes = audio;
+        return seconds;
+    }
 }
 
 public class NotifyPropertyChanged : INotifyPropertyChanged

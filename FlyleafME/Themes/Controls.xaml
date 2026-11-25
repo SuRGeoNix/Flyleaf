@@ -85,6 +85,73 @@
         </Setter>
     </Style>
 
+    <Style x:Key="FlyleafME.DebugTabStyle" TargetType="TabItem">
+        <Setter Property="Padding" Value="14,8"/>
+        <Setter Property="Foreground" Value="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border x:Name="Surface" Background="Transparent" Padding="{TemplateBinding Padding}"
+                            BorderThickness="0,0,0,2" BorderBrush="Transparent">
+                        <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{DynamicResource FlyleafME.OverlayHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentHoverBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource FlyleafME.OverlayTextBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FlyleafME.DebugTabsStyle" TargetType="TabControl">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" Padding="8,0" BorderThickness="0,0,0,1"
+                                BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}">
+                            <TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1"/>
+                        </Border>
+                        <ScrollViewer Focusable="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/>
+                        </ScrollViewer>
+                    </DockPanel>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <DataTemplate x:Key="FlyleafME.DebugRowTemplate">
+        <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}" Padding="0,4">
+            <Grid TextElement.FontSize="13">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="3*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="Label" Text="{Binding Label}" TextWrapping="Wrap" Margin="0,0,8,0"
+                           Foreground="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}"/>
+                <TextBlock x:Name="Value" Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"/>
+            </Grid>
+        </Border>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding Label}" Value="">
+                <Setter TargetName="Label" Property="Visibility" Value="Collapsed"/>
+                <Setter TargetName="Value" Property="Grid.Column" Value="0"/>
+                <Setter TargetName="Value" Property="Grid.ColumnSpan" Value="2"/>
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
     <DataTemplate x:Key="FlyleafME.InformationRowTemplate">
         <Grid Margin="0,3" TextElement.FontSize="12">
             <Grid.ColumnDefinitions>
@@ -927,6 +994,9 @@
 
     <Style TargetType="me:FlyleafPlaybackBar">
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="KeyboardNavigation.TabNavigation" Value="None"/>
+        <Setter Property="KeyboardNavigation.ControlTabNavigation" Value="None"/>
         <Setter Property="Template" Value="{StaticResource FlyleafME.PlaybackBarClassicTemplate}"/>
         <Style.Triggers>
             <DataTrigger Binding="{Binding Options.Design, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafPlaybackBarDesign.Modern}">

@@ -9,8 +9,16 @@ using FlyleafLib.MediaFramework.MediaStream;
 
 namespace FlyleafLib.MediaPlayer;
 
+/// <summary>The format of an active XAudio2 voice.</summary>
+public sealed record AudioVoiceFormat(int SampleRate, string ChannelLayout, int? BitsPerSample = null, bool? FloatingPoint = null);
+
 public class Audio : NotifyPropertyChanged
 {
+    /// <summary>The PCM format submitted to XAudio2.</summary>
+    public AudioVoiceFormat SourceVoiceFormat { get; private set; }
+    /// <summary>The rate and layout of the active XAudio2 mastering voice.</summary>
+    public AudioVoiceFormat MasteringVoiceFormat { get; private set; }
+
     /// <summary>Whether audio processing is enabled for this player.</summary>
     public bool Enabled
     {
@@ -315,6 +323,10 @@ public class Audio : NotifyPropertyChanged
                 masterSampleRateTb      = 1000 * 10000.0 / masterDetails.InputSampleRate;
                 masteringVoice.Volume   = Config.Audio.VolumeMax / 100.0f;
                 sourceVoice.Volume      = mute ? 0 : Math.Max(0, _Volume / 100.0f);
+                SetVoiceFormats(
+                    new(waveFormat.SampleRate, decoder.AudioDecoder.ChannelLayoutStr,
+                        waveFormat.BitsPerSample, waveFormat.GuidSubFormat == SubTypeIeeeFloat),
+                    new((int)masterDetails.InputSampleRate, GetChannelLayoutStr((ulong)masteringVoice.ChannelMask)));
             }
             catch (Exception e)
             {
@@ -336,7 +348,16 @@ public class Audio : NotifyPropertyChanged
             xaudio2         = null;
             sourceVoice     = null;
             masteringVoice  = null;
+            SetVoiceFormats(null, null);
         }
+    }
+
+    void SetVoiceFormats(AudioVoiceFormat source, AudioVoiceFormat mastering)
+    {
+        SourceVoiceFormat = source;
+        MasteringVoiceFormat = mastering;
+        RaiseUI(nameof(SourceVoiceFormat));
+        RaiseUI(nameof(MasteringVoiceFormat));
     }
 
     // TBR: Very rarely could crash the app on audio device change while playing? Requires two locks (Audio's locker and aFrame)

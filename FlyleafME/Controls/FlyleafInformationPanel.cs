@@ -49,9 +49,9 @@ public sealed class FlyleafInformationPanel : StackPanel
         if (source == null) return;
         UpdateLease();
         feedback.Visibility = Visibility.Collapsed;
-        var overlay = new CheckBox { Content = "Show statistics overlay" };
+        var overlay = new CheckBox { Content = "Show debug overlay" };
         overlay.SetResourceReference(StyleProperty, "FlyleafME.CheckBoxStyle");
-        overlay.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(FlyleafMediaInformation.ShowStatisticsOverlay))
+        overlay.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(FlyleafMediaInformation.ShowDebugOverlay))
         {
             Source = source, Mode = BindingMode.TwoWay
         });
@@ -72,6 +72,7 @@ public sealed class FlyleafInformationPanel : StackPanel
         content.Children.Add(CollapsibleSection("Processing", Details(source.ProcessingSection), expanded: true));
         content.Children.Add(CollapsibleSection("Video", Details(source.VideoSection), expanded: true));
         content.Children.Add(CollapsibleSection("Audio", Details(source.AudioSection), expanded: true));
+        content.Children.Add(CollapsibleSection("Audio output", Details(source.AudioOutputSection), expanded: true));
         content.Children.Add(CollapsibleSection("Subtitles", Details(source.SubtitleSection), expanded: true));
         content.Children.Add(CollapsibleSection("Data", Details(source.DataSection), expanded: true));
         content.Children.Add(CollapsibleSection("Statistics", Details(source.StatisticsSection), expanded: true));

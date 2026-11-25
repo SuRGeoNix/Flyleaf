@@ -96,7 +96,17 @@ public unsafe partial class Demuxer : RunThreadBase
     public bool                     IsReversePlayback
                                                     { get; private set; }
 
-    public long                     TotalBytes      { get; private set; } = 0;
+    public long                     TotalBytes
+    {
+        get
+        {
+            long start = Volatile.Read(ref bytesAtClose);
+            return LifetimeBytesRead - start;
+        }
+    }
+    // Rates span queue clears and input reopenings. Public byte counts keep their existing reset points.
+    internal long                   LifetimeBytesRead => Volatile.Read(ref bytesRead);
+    long bytesRead, bytesAtClose;
 
     // Interrupt
     public Interrupter              Interrupter     { get; private set; }
@@ -290,7 +300,7 @@ public unsafe partial class Demuxer : RunThreadBase
 
                 CustomIOContext.Dispose();
 
-                TotalBytes = 0;
+                Volatile.Write(ref bytesAtClose, LifetimeBytesRead);
                 Status = Status.Stopped;
                 Disposed = true;
             }
@@ -1161,7 +1171,7 @@ public unsafe partial class Demuxer : RunThreadBase
                     continue;
                 }
 
-                TotalBytes += packet->size;
+                Volatile.Write(ref bytesRead, bytesRead + packet->size);
 
                 // Skip Disabled Streams | TODO: It's possible that the streams will changed (add/remove or even update/change of codecs)
                 if (!EnabledStreams.Contains(packet->stream_index)) { av_packet_unref(packet); continue; }
@@ -1772,7 +1782,16 @@ public unsafe class PacketQueue : Queue<nint>
     readonly Demuxer demuxer;
     public long frameDuration = 30 * 1000 * 10000; // in case of negative buffer duration calculate it based on packets count / FPS
 
-    public long Bytes               { get; private set; }
+    public long Bytes
+    {
+        get
+        {
+            long start = Volatile.Read(ref bytesAtClear);
+            return LifetimeBytesEnqueued - start;
+        }
+    }
+    internal long LifetimeBytesEnqueued => Volatile.Read(ref bytesEnqueued);
+    long bytesEnqueued, bytesAtClear;
     public long BufferedDuration    { get; private set; }
     public long CurTime             { get; private set; }
 
@@ -1803,7 +1822,7 @@ public unsafe class PacketQueue : Queue<nint>
 
             FirstTimestamp  = NoTs;
             LastTimestamp   = NoTs;
-            Bytes           = 0;
+            Volatile.Write(ref bytesAtClear, LifetimeBytesEnqueued);
             BufferedDuration= 0;
             CurTime         = 0;
         }
@@ -1836,7 +1855,7 @@ public unsafe class PacketQueue : Queue<nint>
             else
                 BufferedDuration = Count * frameDuration;
 
-            Bytes += packet->size;
+            Volatile.Write(ref bytesEnqueued, bytesEnqueued + packet->size);
         }
     }
 

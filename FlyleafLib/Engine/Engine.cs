@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 
 using FlyleafLib.MediaPlayer;
@@ -260,10 +261,8 @@ public static class Engine
         // TBR: Auto Stop/Start instead of UIRefresh config (based on current Players status/mode/bufferduration/stats etc)
         Log.Info("Thread started");
 
-        int curLoop     = 0;
-        int secondLoops = 1000 / Config.UIRefreshInterval;
-        long prevTicks  = DateTime.UtcNow.Ticks;
-        double curSecond= 0;
+        int curLoop = 0;
+        int secondLoops = Math.Max(1, 1000 / Math.Max(1, Config.UIRefreshInterval));
 
         do
         {
@@ -275,13 +274,8 @@ public static class Engine
                     continue;
                 }
 
-                curLoop++;
-                if (curLoop == secondLoops)
-                {
-                    long curTicks = DateTime.UtcNow.Ticks;
-                    curSecond = (curTicks - prevTicks) / 10000000.0;
-                    prevTicks = curTicks;
-                }
+                bool refreshSecond = ++curLoop == secondLoops;
+                if (refreshSecond) curLoop = 0;
 
                 lock (Players)
                     foreach (var player in Players)
@@ -289,45 +283,9 @@ public static class Engine
                         /* Every UIRefreshInterval */
                         player.Activity.RefreshMode();
 
-                        /* Every Second */ 
-                        if (curLoop == secondLoops) // Calculations here to be second accurate
-                        {
-                            if (player.Stats)
-                            {
-                                var curStats        = player.stats;
-                                long curTotalBytes  = player.VideoDemuxer.TotalBytes + player.AudioDemuxer.TotalBytes + player.SubtitlesDemuxer.TotalBytes;
-                                long curVideoBytes  = player.VideoDemuxer.VideoPackets.Bytes + player.AudioDemuxer.VideoPackets.Bytes + player.SubtitlesDemuxer.VideoPackets.Bytes;
-                                long curAudioBytes  = player.VideoDemuxer.AudioPackets.Bytes + player.AudioDemuxer.AudioPackets.Bytes + player.SubtitlesDemuxer.AudioPackets.Bytes;
-
-                                player.bitRate      = Math.Max(curTotalBytes - curStats.TotalBytes, 0) * 8 / 1000.0;
-                                player.Video.bitRate= Math.Max(curVideoBytes - curStats.VideoBytes, 0) * 8 / 1000.0;
-                                player.Audio.bitRate= Math.Max(curAudioBytes - curStats.AudioBytes, 0) * 8 / 1000.0;
-
-                                curStats.TotalBytes = curTotalBytes;
-                                curStats.VideoBytes = curVideoBytes;
-                                curStats.AudioBytes = curAudioBytes;
-
-                                // TBR: Let Fps enable even for Idle
-                                //if (player.status == Status.Playing)
-                                //{
-                                if (player.Renderer?.SwapChain is { Disposed: false } statsSwapChain)
-                                {
-                                    var presentCount = statsSwapChain.GetFrameStatistics().PresentCount; // might cause a delay, keep it last
-                                    player.Video.fpsCurrent  = (presentCount - curStats.FramesDisplayed) / curSecond;
-                                    curStats.FramesDisplayed = presentCount;
-                                }
-                                else
-                                {
-                                    player.Video.fpsCurrent = 0;
-                                    curStats.FramesDisplayed = 0;
-                                }
-                                //}
-                            }
-                        }
+                        if (refreshSecond && player.stats is { } stats)
+                            SampleStatistics(player, stats);
                     }
-
-                if (curLoop == secondLoops)
-                    curLoop = 0;
 
                 void UIAction()
                 {
@@ -346,33 +304,24 @@ public static class Engine
                             // Buffered Duration Refresh from Demuxer (TBR: RefreshType?)
                             player.BufferedDuration = player.MainDemuxer.BufferedDuration;
 
-                            // CurTime (PerUIRefreshInterval)
-                            if (isPlaying && config.UICurTime == UIRefreshType.PerUIRefreshInterval)
+                            if ((isPlaying && config.UICurTime == UIRefreshType.PerUIRefreshInterval) ||
+                                (refreshSecond && config.UICurTime == UIRefreshType.PerUISecond))
                                 player.SetCurTime();
 
-                            /* Every Second */
-                            if (curLoop == 0)
+                            // Stats Refresh (BitRates / FrameDisplayed / FramesDropped / FPS)
+                            if (refreshSecond && player.stats is { } stats)
                             {
-                                // CurTime (PerUISecond)
-                                if (config.UICurTime == UIRefreshType.PerUISecond)
-                                    player.SetCurTime();
+                                player.BitRate = player.bitRate = stats.TotalBitRate;
+                                player.Video.BitRate = player.Video.bitRate = stats.VideoBitRate;
+                                player.Audio.BitRate = player.Audio.bitRate = stats.AudioBitRate;
+                                player.Video.FPSCurrent = player.Video.fpsCurrent = stats.FramesPerSecond;
 
-                                // Stats Refresh (BitRates / FrameDisplayed / FramesDropped / FPS)
-                                if (player.Stats)
+                                if (isPlaying) // Otherwise Screamers should fire the last update
                                 {
-                                    player.BitRate          = player.BitRate;
-                                    player.Video.BitRate    = player.Video.BitRate;
-                                    player.Audio.BitRate    = player.Audio.BitRate;
-
-                                    player.Video.FPSCurrent = player.Video.fpsCurrent;
-
-                                    if (isPlaying) // Otherwise Screamers should fire the last update
-                                    {
-                                        player.Audio.FramesDisplayed= player.Audio.FramesDisplayed;
-                                        player.Audio.FramesDropped  = player.Audio.FramesDropped;
-                                        if (player.Renderer?.SwapChain is { Disposed: false })
-                                            (player.Video.FramesDisplayed,player.Video.FramesDropped) = player.FramesDisplayedDropped(); // dynamic update to be closer to 'now'
-                                    }
+                                    player.Audio.FramesDisplayed= player.Audio.FramesDisplayed;
+                                    player.Audio.FramesDropped  = player.Audio.FramesDropped;
+                                    if (player.Renderer?.SwapChain is { Disposed: false })
+                                        (player.Video.FramesDisplayed,player.Video.FramesDropped) = player.FramesDisplayedDropped(); // dynamic update to be closer to 'now'
                                 }
                             }
                         }
@@ -388,5 +337,31 @@ public static class Engine
         } while (Config.UIRefresh);
 
         Log.Info("Thread stopped");
+    }
+
+    static void SampleStatistics(Player player, PlayerStats stats)
+    {
+        long timestamp = Stopwatch.GetTimestamp();
+        var video = player.VideoDemuxer;
+        var audio = player.AudioDemuxer;
+        var subtitles = player.SubtitlesDemuxer;
+        double seconds = stats.SampleBitRates(timestamp,
+            video.LifetimeBytesRead + audio.LifetimeBytesRead + subtitles.LifetimeBytesRead + player.DataDemuxer.LifetimeBytesRead,
+            video.VideoPackets.LifetimeBytesEnqueued + audio.VideoPackets.LifetimeBytesEnqueued + subtitles.VideoPackets.LifetimeBytesEnqueued,
+            video.AudioPackets.LifetimeBytesEnqueued + audio.AudioPackets.LifetimeBytesEnqueued + subtitles.AudioPackets.LifetimeBytesEnqueued);
+
+        if (!ReferenceEquals(player.stats, stats)) return;
+        if (player.Renderer?.SwapChain is { Disposed: false } swapChain)
+        {
+            var presentCount = swapChain.GetFrameStatistics().PresentCount;
+            stats.FramesPerSecond = seconds > 0 && stats.FramesDisplayed is long previous && presentCount >= previous
+                ? (presentCount - previous) / seconds : 0;
+            stats.FramesDisplayed = presentCount;
+        }
+        else
+        {
+            stats.FramesPerSecond = 0;
+            stats.FramesDisplayed = null;
+        }
     }
 }

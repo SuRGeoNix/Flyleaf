@@ -22,9 +22,8 @@ public partial class FlyleafME
         statusOsd.SetBinding(FlyleafOSDOverlay.OptionsProperty, new Binding("UIConfig.OSD") { Source = this });
         playbackDisplay.SetBinding(FlyleafPlaybackStatusOverlay.OptionsProperty, new Binding("UIConfig.OSD") { Source = this });
         SetZIndex(subtitleText, -1); overlayRoot.Children.Add(subtitleText);
-        // Messages remain visible over the Settings preview, while never intercepting input.
         playbackDisplay.AttachMessages(osd, statusOsd);
-        SetZIndex(playbackDisplay, 31); overlayRoot.Children.Add(playbackDisplay);
+        SetZIndex(playbackDisplay, 1); overlayRoot.Children.Add(playbackDisplay);
         playbackDisplay.ErrorDetailsRequested += (_, _) => { if (panelDefinitions.ContainsKey("information")) ShowPanel("information"); };
         overlayRoot.SizeChanged += (_, e) =>
         {

@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using FlyleafLib.Controls;
@@ -24,6 +25,7 @@ public partial class FlyleafME
 
     public FlyleafHost Host { get; private set; } = null!;
     readonly Grid overlayRoot = new();
+    readonly FlyleafDebugOverlay debugOverlay;
     readonly FlyleafStatisticsOverlay statisticsOverlay = new();
     readonly Canvas statisticsLayer = new() { ClipToBounds = true, IsHitTestVisible = false };
     readonly Grid statisticsViewport = new() { ClipToBounds = true };
@@ -198,6 +200,7 @@ public partial class FlyleafME
         statisticsViewport.Children.Add(statisticsOverlay);
         statisticsLayer.Children.Add(statisticsViewport);
         SetZIndex(statisticsLayer, -1); overlayRoot.Children.Add(statisticsLayer);
+        SetZIndex(debugOverlay, 5); overlayRoot.Children.Add(debugOverlay);
         overlayHeader.SizeChanged += (_, _) =>
         {
             UpdateFullAreaPanelBounds();
@@ -217,6 +220,44 @@ public partial class FlyleafME
         if (e.OriginalSource is TextBox { Tag: "FlyleafKeyCapture" }) return;
         if (e.OriginalSource is TextBox { Tag: FlyleafLanguageEntry { IsSuggestionOpen: true } }) return;
         if (e.Key == Key.Escape && overlayPanel != null) { ClosePanel(overlayPanel); e.Handled = true; }
+    }
+
+    bool HandleDebugOverlayKey(object sender, KeyEventArgs e, ModifierKeys modifiers)
+    {
+        if (e.Handled || e.Key != Key.Tab || IsQueueSearchOpen || overlayPanel?.Definition.FillOverlayArea == true ||
+            KeyBindings == AvailableWindows.None ||
+            KeyBindings == AvailableWindows.Surface && !ReferenceEquals(sender, inputSurface) ||
+            KeyBindings == AvailableWindows.Overlay && !ReferenceEquals(sender, inputOverlay) ||
+            !IsDebugShortcutTarget(sender, e.OriginalSource))
+            return false;
+
+        bool cycle = modifiers == ModifierKeys.Control || modifiers == (ModifierKeys.Control | ModifierKeys.Shift);
+        if (cycle ? !Information.ShowDebugOverlay : modifiers != ModifierKeys.None)
+            return false;
+
+        if (!e.IsRepeat)
+        {
+            if (cycle) debugOverlay.CycleTab((modifiers & ModifierKeys.Shift) != 0);
+            else
+            {
+                bool hadFocus = debugOverlay.IsKeyboardFocusWithin;
+                Information.ShowDebugOverlay = !Information.ShowDebugOverlay;
+                if (hadFocus && !Information.ShowDebugOverlay) FocusPlayback();
+            }
+        }
+        return e.Handled = true;
+    }
+
+    bool IsDebugShortcutTarget(object sender, object original)
+    {
+        if (ReferenceEquals(original, sender) || ReferenceEquals(original, overlayRoot)) return true;
+        for (var item = original as DependencyObject; item != null; item = item is Visual or System.Windows.Media.Media3D.Visual3D
+            ? VisualTreeHelper.GetParent(item) : LogicalTreeHelper.GetParent(item))
+        {
+            if (item is TextBoxBase or PasswordBox or ComboBox or MenuBase or FlyleafPanel) return false;
+            if (item is FlyleafPlaybackBar || ReferenceEquals(item, debugOverlay)) return true;
+        }
+        return false;
     }
 
     internal void UpdateHostKeyBindings()
@@ -258,7 +299,7 @@ public partial class FlyleafME
             for (DependencyObject? item = source; item != null; item = item is Visual or System.Windows.Media.Media3D.Visual3D
                 ? VisualTreeHelper.GetParent(item) : LogicalTreeHelper.GetParent(item))
                 if (item is System.Windows.Controls.Primitives.ButtonBase or Slider or FlyleafPanel ||
-                    ReferenceEquals(item, overlayHeader)) return;
+                    ReferenceEquals(item, overlayHeader) || ReferenceEquals(item, debugOverlay)) return;
         bool enabled = ToggleFullScreenOnDoubleClick == AvailableWindows.Both ||
             (ReferenceEquals(sender, inputSurface) && ToggleFullScreenOnDoubleClick == AvailableWindows.Surface) ||
             (ReferenceEquals(sender, inputOverlay) && ToggleFullScreenOnDoubleClick == AvailableWindows.Overlay);

@@ -833,7 +833,7 @@ public class EngineConfig
     public bool     UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; if (value && Engine.IsLoaded) Engine.StartThread(); } }
     bool _UIRefresh = true;
 
-    /// <summary>Engine polling interval in milliseconds. Use a divisor of 1000 for accurate per-second statistics.</summary>
+    /// <summary>Engine polling interval in milliseconds. Use an exact divisor of 1000 for once-per-second updates.</summary>
     public int      UIRefreshInterval       { get; set; } = 250;
 
     /// <summary>Requests that Windows keep the display powered on during playback.</summary>

@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 using FlyleafLib.MediaPlayer;
@@ -149,9 +150,13 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
     bool compact, volumeCompact, arranging, modernLayout;
     ButtonBase? dynamicHandle, modernStop, modernAutoNext;
     bool dynamicExpanded;
+    TranslateTransform? dynamicHandleOffset;
+    double? dynamicHandleLeft;
+    DispatcherOperation? dynamicHandleReset;
     IDisposable? dynamicDragActivity;
     readonly DispatcherTimer dynamicCollapse = new() { Interval = TimeSpan.FromMilliseconds(300) };
     readonly HashSet<ContextMenu> openPlaybackMenus = [];
+    const double DynamicHandleEdgeInset = 8;
     const double CompactTimelineTargetWidth = 220;
     const double ModernFullLayoutHeadroom = 24;
     (double Width, bool Navigation, bool AutoNext, bool Live, bool Duration, bool Full, bool TimelineOnly, int CurrentTimeLength, int DurationLength,
@@ -304,7 +309,11 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         };
         dynamicCollapse.Tick += DynamicCollapse_Tick;
         MouseEnter += (_, _) => dynamicCollapse.Stop();
-        MouseLeave += (_, _) => ScheduleDynamicCollapse();
+        MouseLeave += (_, _) =>
+        {
+            QueueDynamicHandleReset();
+            ScheduleDynamicCollapse();
+        };
         Unloaded += (_, _) =>
         {
             ResetDynamic();
@@ -475,10 +484,19 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         dynamicHandleBand = GetTemplateChild("PART_DynamicHandleBand") as FrameworkElement;
         modernStop = modernLayout ? GetTemplateChild("PART_Stop") as ButtonBase : null;
         modernAutoNext = modernLayout ? GetTemplateChild("PART_AutoNext") as ButtonBase : null;
+        dynamicHandleOffset = null;
         if (dynamicHandle != null)
         {
+            dynamicHandleOffset = new TranslateTransform();
+            dynamicHandle.SetCurrentValue(RenderTransformProperty, dynamicHandleOffset);
             dynamicHandle.MouseEnter += DynamicHandle_MouseEnter;
             dynamicHandle.Click += DynamicHandle_Click;
+        }
+        if (dynamicHandleBand != null)
+        {
+            dynamicHandleBand.MouseEnter += DynamicHandleBand_MouseEnter;
+            dynamicHandleBand.MouseLeave += DynamicHandleBand_MouseLeave;
+            dynamicHandleBand.SizeChanged += DynamicHandleBand_SizeChanged;
         }
         controlsRow = GetTemplateChild("PART_ControlsRow") as FrameworkElement;
         transportGroup = GetTemplateChild("PART_TransportGroup") as FrameworkElement;
@@ -497,15 +515,23 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         UpdateResponsiveLayout();
     }
     /// <summary>Tests the Dynamic handle against a point in physical screen coordinates.</summary>
-    public bool IsOverDynamicHandle(Point screenPoint) => IsDynamicMode && ContainsScreenPoint(dynamicHandle, screenPoint);
+    public bool IsOverDynamicHandle(Point screenPoint) =>
+        IsDynamicMode && (dynamicHandleLeft.HasValue || dynamicHandle?.IsKeyboardFocused == true) &&
+        ContainsScreenPoint(dynamicHandle, screenPoint);
 
     /// <summary>Updates handle visibility while the pointer crosses the host's resize border. Pass null when it leaves.</summary>
     public bool UpdateNonClientDynamicHandleHover(Point? screenPoint)
     {
-        bool overBand = IsDynamicMode && screenPoint is { } point && ContainsScreenPoint(dynamicHandleBand, point);
+        bool overBand = false;
+        if (IsDynamicMode && dynamicHandleBand is { } band && screenPoint is { } point && ContainsScreenPoint(band, point))
+        {
+            overBand = true;
+            PositionDynamicHandle(band.PointFromScreen(point).X);
+        }
         if (IsNonClientPointerOverDynamicHandleBand != overBand)
         {
             SetValue(IsNonClientPointerOverDynamicHandleBandPropertyKey, overBand);
+            if (!overBand) QueueDynamicHandleReset();
             ScheduleDynamicCollapse();
         }
         return overBand;
@@ -515,9 +541,77 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         element is { IsVisible: true, IsHitTestVisible: true } && PresentationSource.FromVisual(element) != null &&
         new Rect(element.RenderSize).Contains(element.PointFromScreen(screenPoint));
 
+    void DynamicHandleBand_MouseEnter(object sender, MouseEventArgs e) =>
+        PositionDynamicHandle(e.GetPosition((FrameworkElement)sender).X);
+
+    void DynamicHandleBand_MouseLeave(object sender, MouseEventArgs e) => QueueDynamicHandleReset();
+
+    void DynamicHandleBand_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (e.WidthChanged) UpdateDynamicHandleOffset();
+    }
+
+    void PositionDynamicHandle(double pointerX)
+    {
+        if (!IsDynamicMode || dynamicHandleLeft.HasValue ||
+            dynamicHandleBand is not { } band || dynamicHandle is not { } handle ||
+            pointerX < 0 || pointerX > band.ActualWidth)
+            return;
+
+        const double gap = 8;
+        double right = pointerX + gap;
+        dynamicHandleLeft = right + handle.ActualWidth + DynamicHandleEdgeInset <= band.ActualWidth
+            ? right
+            : pointerX - gap - handle.ActualWidth;
+        UpdateDynamicHandleOffset();
+    }
+
+    void UpdateDynamicHandleOffset()
+    {
+        if (dynamicHandleOffset is not { } offset || dynamicHandleBand is not { } band ||
+            dynamicHandle is not { } handle || dynamicHandleLeft is not { } left)
+            return;
+
+        double maxLeft = Math.Max(0, band.ActualWidth - handle.ActualWidth);
+        // Keep the handle clear of the docked window's corner resize targets.
+        double inset = Math.Min(DynamicHandleEdgeInset, maxLeft / 2);
+        offset.X = Math.Clamp(left, inset, maxLeft - inset) - maxLeft / 2;
+    }
+
+    void QueueDynamicHandleReset()
+    {
+        if (!dynamicHandleLeft.HasValue || dynamicHandleReset != null) return;
+
+        // Client and non-client leave messages can arrive during the same visit to the strip.
+        dynamicHandleReset = Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            dynamicHandleReset = null;
+            if (dynamicHandleBand is not { } band || band.IsMouseOver || IsNonClientPointerOverDynamicHandleBand ||
+                (dynamicExpanded && (!DynamicPinned || IsMouseOver)) ||
+                new Rect(band.RenderSize).Contains(Mouse.GetPosition(band)))
+                return;
+
+            ResetDynamicHandlePosition();
+        }));
+    }
+
+    void ResetDynamicHandlePosition()
+    {
+        dynamicHandleReset?.Abort();
+        dynamicHandleReset = null;
+        dynamicHandleLeft = null;
+        if (dynamicHandleOffset != null) dynamicHandleOffset.X = 0;
+    }
+
     void DynamicHandle_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (IsDynamicMode && !DynamicInteractionActive) SetDynamicExpanded(true);
+        if (!IsDynamicMode || dynamicHandleBand is not { } band) return;
+        PositionDynamicHandle(e.GetPosition(band).X);
+
+        // The first enter event can still target the handle's previous position.
+        var handle = (ButtonBase)sender;
+        if (!DynamicInteractionActive && new Rect(handle.RenderSize).Contains(e.GetPosition(handle)))
+            SetDynamicExpanded(true);
     }
 
     void DynamicHandle_Click(object sender, RoutedEventArgs e)
@@ -559,6 +653,7 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
     void DynamicAvailabilityChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (IsVisible && IsHitTestVisible) return;
+        ResetDynamicHandlePosition();
         UpdateNonClientDynamicHandleHover(null);
         if (!DynamicPinned && !DynamicInteractionActive) SetDynamicExpanded(false);
     }
@@ -570,6 +665,7 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         dynamicExpanded = expanded;
         Notify(nameof(DynamicExpanded));
         if (expanded) ScheduleDynamicCollapse();
+        else QueueDynamicHandleReset();
     }
 
     void ScheduleDynamicCollapse()
@@ -586,6 +682,7 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
 
     void ResetDynamic()
     {
+        ResetDynamicHandlePosition();
         UpdateNonClientDynamicHandleHover(null);
         SetDynamicPinned(false);
         SetDynamicExpanded(false);
@@ -728,6 +825,12 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         {
             dynamicHandle.MouseEnter -= DynamicHandle_MouseEnter;
             dynamicHandle.Click -= DynamicHandle_Click;
+        }
+        if (dynamicHandleBand != null)
+        {
+            dynamicHandleBand.MouseEnter -= DynamicHandleBand_MouseEnter;
+            dynamicHandleBand.MouseLeave -= DynamicHandleBand_MouseLeave;
+            dynamicHandleBand.SizeChanged -= DynamicHandleBand_SizeChanged;
         }
         ClosePlaybackPopups();
         if (!modernLayout && controlsRow != null) controlsRow.SizeChanged -= ControlsRow_SizeChanged;
@@ -993,10 +1096,10 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         if (InformationSource is { } information)
         {
             if (menu.Items.Count > 0) FlyleafMenuItems.Separator(menu);
-            AddItem(menu, "Show statistics overlay", () =>
+            AddItem(menu, "Show debug overlay", () =>
             {
-                if (ReferenceEquals(InformationSource, information)) information.ShowStatisticsOverlay = !information.ShowStatisticsOverlay;
-            }, information.ShowStatisticsOverlay);
+                if (ReferenceEquals(InformationSource, information)) information.ShowDebugOverlay = !information.ShowDebugOverlay;
+            }, information.ShowDebugOverlay);
         }
         if (GeneralMenuRequested != null || MediaElement != null)
         {

@@ -149,8 +149,21 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     public Usage Usage { get; }
 
     /// <summary>Whether to collect and refresh bitrate, frame-rate and drop statistics.</summary>
-    public bool Stats { get => _Stats; set => Set(ref _Stats, value); }
-    bool _Stats;
+    public bool Stats
+    {
+        get => stats != null;
+        set
+        {
+            if (Stats == value) return;
+            if (value)
+            {
+                bitRate = Video.bitRate = Audio.bitRate = 0;
+                Video.fpsCurrent = 0;
+            }
+            stats = value ? new PlayerStats() : null;
+            Raise();
+        }
+    }
 
     /// <summary>Player's configuration (set once in the constructor).</summary>
     public Config       Config              { get; protected set; }
@@ -420,7 +433,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
     internal VideoFrame     vFrame;
     internal SubtitlesFrame sFrame, sFramePrev;
     internal DataFrame      dFrame;
-    internal PlayerStats    stats = new();
+    internal volatile PlayerStats stats;
     internal LogHandler     Log;
 
     internal volatile bool requiresBuffering;

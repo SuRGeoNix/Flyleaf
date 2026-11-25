@@ -265,7 +265,7 @@ public partial class FlyleafME
         PanelLink(subtitles, "subtitles");
 
         var information = Group(menu, "Media information");
-        Add(information, "Show statistics overlay", () => Information.ShowStatisticsOverlay = !Information.ShowStatisticsOverlay, Information.ShowStatisticsOverlay);
+        Add(information, "Show debug overlay", () => Information.ShowDebugOverlay = !Information.ShowDebugOverlay, Information.ShowDebugOverlay);
         PanelLink(information, "information");
         MenuBuilding?.Invoke(this, new FlyleafMenuBuildingEventArgs(menu));
         Separator(menu);
@@ -388,7 +388,9 @@ public partial class FlyleafME
         if (original is not DependencyObject source) return true;
         for (DependencyObject? item = source; item != null; item = item is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(item) : LogicalTreeHelper.GetParent(item))
         {
-            if (item is ButtonBase or TextBoxBase or Slider or ComboBox or FlyleafPanel || ReferenceEquals(item, overlayHeader) || item is FrameworkElement { ContextMenu: not null }) return false;
+            if (item is ButtonBase or TextBoxBase or Slider or ComboBox or FlyleafPanel ||
+                ReferenceEquals(item, overlayHeader) || ReferenceEquals(item, debugOverlay) ||
+                item is FrameworkElement { ContextMenu: not null }) return false;
             if (item is FlyleafPlaybackBar bar) playbackBar = bar;
         }
         return true;
@@ -400,6 +402,7 @@ public partial class FlyleafME
     }
     void HostMenuKeyDown(object sender, KeyEventArgs e)
     {
+        if (HandleDebugOverlayKey(sender, e, Keyboard.Modifiers)) return;
         if (IsQueueSearchOpen || e.Handled || !(e.Key == Key.Apps || e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.Shift) ||
             !IsGeneralMenuTarget(e.OriginalSource, out var playbackBar)) return;
         ShowContextMenu(e.OriginalSource as FrameworkElement, PlacementMode.Bottom, playbackBar); e.Handled = true;

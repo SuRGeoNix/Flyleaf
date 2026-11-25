@@ -21,6 +21,10 @@ public class SwapChain
     public nint                     ControlHwnd     { get; private set; }
     public bool                     CanPresent      { get; internal set; } // Don't render / present during minimize (or invalid size)
     public bool                     HDR             { get; private set; }
+    /// <summary>The format of the active swap-chain back buffer.</summary>
+    public Format?                  ActiveFormat    { get; private set; }
+    /// <summary>The last color space successfully applied to the current swap chain.</summary>
+    public ColorSpaceType?          ActiveColorSpace { get; private set; }
 
     public ID3D11VideoProcessorOutputView
                                     VPOV            { get; internal set; }
@@ -78,6 +82,13 @@ public class SwapChain
             Flags               = SwapChainFlags.None
     };
 
+    void CreateSwapChain()
+    {
+        var description = Desc();
+        sc = Engine.Video.Factory.CreateSwapChainForComposition(Renderer.Device, description);
+        ActiveFormat = description.Format;
+    }
+
     public void Setup(nint hwnd)
     {
         lock (Renderer.lockDevice)
@@ -120,7 +131,7 @@ public class SwapChain
             controlWidth    = rect.Right  - rect.Left;
             controlHeight   = rect.Bottom - rect.Top;
 
-            sc = Engine.Video.Factory.CreateSwapChainForComposition(Renderer.Device, Desc()); // we will resize on rendering
+            CreateSwapChain(); // we will resize on rendering
             DComp.DCompositionCreateDevice(Renderer.DXGIDevice, out dcDevice).CheckError();
             dcDevice.CreateTargetForHwnd(ControlHwnd, false, out dcTarget).CheckError();
             dcDevice.CreateVisual(out dcVisual).CheckError();
@@ -141,7 +152,7 @@ public class SwapChain
 
             SetupLocalHelper();
 
-            if (CanInfo) Log.Info($"SC Initialized [Hwnd: {ControlHwnd}, Fmt: {OutputFormat}]");
+            if (CanInfo) Log.Info($"SC Initialized [Hwnd: {ControlHwnd}, Fmt: {ActiveFormat}]");
         }
         catch (Exception e) // Should handle device lost etc..
         {
@@ -181,7 +192,7 @@ public class SwapChain
 
             Disposed = false;
 
-            sc = Engine.Video.Factory.CreateSwapChainForComposition(Renderer.Device, Desc());
+            CreateSwapChain();
 
             SetupLocalHelper();
 
@@ -237,6 +248,7 @@ public class SwapChain
             Renderer.ClearScreen(force: true, rendererFrame: rendererFrame);
             Disposed = true;
             CanPresent = false;
+            ActiveFormat = null;
 
             if (WinUIClbk != null)
             {
@@ -284,6 +296,7 @@ public class SwapChain
             }
 
             HDR = false;
+            ActiveColorSpace = null;
             currentMonitor = 0;
 
             if (CanInfo)
@@ -306,6 +319,7 @@ public class SwapChain
         }
 
         HDR = false;
+        ActiveColorSpace = null;
         currentMonitor = 0;
 
         if (CanInfo) Log.Info($"SC Disposed [Hwnd: {ControlHwnd}]");
@@ -348,7 +362,7 @@ public class SwapChain
         }
 
         ReleaseBackBuffer();
-        sc.ResizeBuffers(0, (uint)Renderer.ControlWidth, (uint)Renderer.ControlHeight, OutputFormat, SwapChainFlags.None).CheckError();
+        ResizeBuffers((uint)Renderer.ControlWidth, (uint)Renderer.ControlHeight);
         AcquireBackBuffer();
     }
 
@@ -375,7 +389,7 @@ public class SwapChain
             uint width  = (uint)Math.Max(Renderer.ControlWidth,  2);
             uint height = (uint)Math.Max(Renderer.ControlHeight, 2);
 
-            sc.ResizeBuffers(0, width, height, OutputFormat, SwapChainFlags.None).CheckError();
+            ResizeBuffers(width, height);
 
             if (!ApplyColorSpace(requireSupport: enabled))
                 throw new InvalidOperationException("scRGB color space is not supported for presentation");
@@ -383,7 +397,7 @@ public class SwapChain
             AcquireBackBuffer();
 
             if (CanInfo)
-                Log.Info($"SC Output {(HDR ? "HDR/scRGB" : "SDR")} [Fmt: {OutputFormat}]");
+                Log.Info($"SC Output {(HDR ? "HDR/scRGB" : "SDR")} [Fmt: {ActiveFormat}]");
 
             return true;
         }
@@ -400,7 +414,7 @@ public class SwapChain
                 uint width  = (uint)Math.Max(Renderer.ControlWidth,  2);
                 uint height = (uint)Math.Max(Renderer.ControlHeight, 2);
 
-                sc.ResizeBuffers(0, width, height, OutputFormat, SwapChainFlags.None).CheckError();
+                ResizeBuffers(width, height);
                 ApplyColorSpace(requireSupport: false);
                 AcquireBackBuffer();
             }
@@ -408,6 +422,14 @@ public class SwapChain
 
             return false;
         }
+    }
+
+    void ResizeBuffers(uint width, uint height)
+    {
+        var format = OutputFormat;
+        sc.ResizeBuffers(0, width, height, format, SwapChainFlags.None).CheckError();
+        if (format != Format.Unknown)
+            ActiveFormat = format;
     }
 
     bool ApplyColorSpace(bool requireSupport)
@@ -428,7 +450,10 @@ public class SwapChain
 
         // Setting it explicitly also makes SDR restoration deterministic.
         if (present || !requireSupport)
+        {
             sc3.SetColorSpace1(colorSpace);
+            ActiveColorSpace = colorSpace;
+        }
 
         return true;
     }
