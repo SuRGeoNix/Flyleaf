@@ -26,9 +26,6 @@ public partial class FlyleafME
     public FlyleafHost Host { get; private set; } = null!;
     readonly Grid overlayRoot = new();
     readonly FlyleafDebugOverlay debugOverlay;
-    readonly FlyleafStatisticsOverlay statisticsOverlay = new();
-    readonly Canvas statisticsLayer = new() { ClipToBounds = true, IsHitTestVisible = false };
-    readonly Grid statisticsViewport = new() { ClipToBounds = true };
     public FlyleafMediaInformation Information { get; } = new();
     public FlyleafQueue Queue { get; } = new();
     readonly ContentPresenter overlayHeader = new();
@@ -193,13 +190,7 @@ public partial class FlyleafME
 
     void FinishOverlayComposition()
     {
-        statisticsOverlay.Source = Information;
         InitializeTextOverlays();
-        statisticsOverlay.VerticalAlignment = VerticalAlignment.Center;
-        statisticsOverlay.Margin = new Thickness(8);
-        statisticsViewport.Children.Add(statisticsOverlay);
-        statisticsLayer.Children.Add(statisticsViewport);
-        SetZIndex(statisticsLayer, -1); overlayRoot.Children.Add(statisticsLayer);
         SetZIndex(debugOverlay, 5); overlayRoot.Children.Add(debugOverlay);
         overlayHeader.SizeChanged += (_, _) =>
         {

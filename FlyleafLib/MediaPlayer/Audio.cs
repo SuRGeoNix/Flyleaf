@@ -41,6 +41,17 @@ public class Audio : NotifyPropertyChanged
     public ObservableCollection<AudioStream>
                     Streams         => decoder?.VideoDemuxer.AudioStreams; // TBR: We miss AudioDemuxer embedded streams
 
+    /// <summary>The currently opened audio stream. Notifies when its format is refreshed.</summary>
+    public AudioStream Stream => IsOpened ? decoder.AudioStream : null;
+
+    /// <summary>Duration of queued packets for the opened audio stream, in ticks.</summary>
+    public long BufferedDuration
+    {
+        get => Stream?.Demuxer.AudioPackets.BufferedDuration ?? 0;
+        internal set => Set(ref bufferedDuration, value);
+    }
+    long bufferedDuration;
+
     public int      StreamIndex     { get => streamIndex;       internal set => Set(ref _StreamIndex, value); }
     int _StreamIndex, streamIndex = -1;
 
@@ -254,6 +265,8 @@ public class Audio : NotifyPropertyChanged
 
             FramesDisplayed = framesDisplayed;
             FramesDropped   = framesDropped;
+            BufferedDuration = BufferedDuration;
+            Raise(nameof(Stream));
         };
 
         Volume = Config.Audio.VolumeMax / 2;

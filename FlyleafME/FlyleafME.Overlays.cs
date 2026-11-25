@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Data;
 using FlyleafLib.MediaFramework.MediaRenderer;
 using FlyleafLib.MediaPlayer;
@@ -25,32 +24,11 @@ public partial class FlyleafME
         playbackDisplay.AttachMessages(osd, statusOsd);
         SetZIndex(playbackDisplay, 1); overlayRoot.Children.Add(playbackDisplay);
         playbackDisplay.ErrorDetailsRequested += (_, _) => { if (panelDefinitions.ContainsKey("information")) ShowPanel("information"); };
-        overlayRoot.SizeChanged += (_, e) =>
-        {
-            UpdateOSDMargin();
-            UpdateStatisticsViewport(e.NewSize);
-        };
+        overlayRoot.SizeChanged += (_, _) => UpdateOSDMargin();
         InitializeOSDBarObservation();
         UpdateOSDMargin();
     }
-    void UpdateStatisticsViewport(Size surface)
-    {
-        var viewport = subtitleText.VideoViewport;
-        var picture = new Rect(viewport.X * surface.Width, viewport.Y * surface.Height,
-            viewport.Width * surface.Width, viewport.Height * surface.Height);
-        picture.Intersect(new Rect(surface));
-        if (picture.IsEmpty) picture = new Rect();
-        Canvas.SetLeft(statisticsViewport, picture.X);
-        Canvas.SetTop(statisticsViewport, picture.Y);
-        statisticsViewport.Width = picture.Width;
-        statisticsViewport.Height = picture.Height;
-    }
 
-    internal void UpdateVideoViewport(Rect viewport)
-    {
-        subtitleText.VideoViewport = viewport;
-        UpdateStatisticsViewport(overlayRoot.RenderSize);
-    }
     static bool TryGetVideoViewport(Renderer renderer, out Rect viewport)
     {
         var pixels = renderer.Viewport;
@@ -106,7 +84,7 @@ public partial class FlyleafME
         if (overlayRenderer != null) { overlayRenderer.PropertyChanged -= TextRendererChanged; overlayRenderer.ViewportChanged -= TextViewportChanged; }
         overlayRenderer = target;
         if (target != null) { target.PropertyChanged += TextRendererChanged; target.ViewportChanged += TextViewportChanged; }
-        UpdateVideoViewport(target != null && TryGetVideoViewport(target, out var viewport) ? viewport : fullViewport);
+        subtitleText.VideoViewport = target != null && TryGetVideoViewport(target, out var viewport) ? viewport : fullViewport;
     }
     void TextPlayerChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -147,7 +125,7 @@ public partial class FlyleafME
         Dispatcher.BeginInvoke(new Action(() =>
         {
             if (!disposed && generation == Volatile.Read(ref textPlayerGeneration) && ReferenceEquals(renderer, overlayRenderer))
-                UpdateVideoViewport(viewport);
+                subtitleText.VideoViewport = viewport;
         }));
     }
     void Feedback(object? source, Func<string> text, bool playbackOnly = false)

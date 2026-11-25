@@ -32,6 +32,17 @@ public class Video : NotifyPropertyChanged
     public ObservableCollection<VideoStream>
                         Streams         => decoder?.VideoDemuxer.VideoStreams;
 
+    /// <summary>The currently opened video stream. Notifies when its format is refreshed.</summary>
+    public VideoStream Stream => IsOpened ? decoder.VideoStream : null;
+
+    /// <summary>Duration of queued packets for the opened video stream, in ticks.</summary>
+    public long BufferedDuration
+    {
+        get => Stream?.Demuxer.VideoPackets.BufferedDuration ?? 0;
+        internal set => Set(ref bufferedDuration, value);
+    }
+    long bufferedDuration;
+
     public int          StreamIndex     { get => streamIndex;       internal set => Set(ref _StreamIndex, value); }
     int _StreamIndex, streamIndex = -1;
 
@@ -119,6 +130,8 @@ public class Video : NotifyPropertyChanged
             PixelFormat     = pixelFormat;
             HWAcceleration  = hwAcceleration;
             ColorFormat     = colorFormat;
+            BufferedDuration = BufferedDuration;
+            Raise(nameof(Stream));
         };
     }
 

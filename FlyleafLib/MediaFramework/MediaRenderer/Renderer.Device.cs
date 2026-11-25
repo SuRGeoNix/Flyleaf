@@ -17,11 +17,22 @@ using static FlyleafLib.Config;
 
 namespace FlyleafLib.MediaFramework.MediaRenderer;
 
+/// <summary>The applied pixel format, color space and HDR mode of a renderer's swap chain.</summary>
+public sealed record SwapChainOutput(Format Format, ColorSpaceType? ColorSpace, bool HDR);
+
 public unsafe partial class Renderer : NotifyPropertyChanged
 {
     public int                  UniqueId        { get; private set; }
     public bool                 Disposed        { get; private set; } = true;
     public SwapChain            SwapChain       { get; private set; }
+    /// <summary>The output of the active swap chain, or null when no swap chain is active.</summary>
+    public SwapChainOutput      SwapChainOutput => swapChainOutput;
+    SwapChainOutput swapChainOutput;
+
+    internal void RefreshSwapChainOutput() => SetUI(ref swapChainOutput,
+        SwapChain is { Disposed: false, ActiveFormat: { } format } chain
+            ? new SwapChainOutput(format, chain.ActiveColorSpace, chain.HDR) : null,
+        propertyName: nameof(SwapChainOutput));
     public VideoDecoder         VideoDecoder    { get; private set; }
     public readonly VideoCache  Frames;
     public Config               Config          { get; private set; }

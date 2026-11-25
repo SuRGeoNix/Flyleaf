@@ -768,7 +768,7 @@ public class Config : NotifyPropertyChanged
 }
 
 /// <summary>Process-wide settings used by <see cref="Engine"/> and saved separately from player configuration.</summary>
-public class EngineConfig
+public class EngineConfig : NotifyPropertyChanged
 {
     /// <summary>Skips audio engine initialization at startup and disables audio process-wide.</summary>
     public bool     DisableAudio            { get; set; }
@@ -830,7 +830,7 @@ public class EngineConfig
     public string   PluginsPath             { get; set; } = "Plugins";
 
     /// <summary>Enables engine polling for player activity, statistics and paused buffering updates.</summary>
-    public bool     UIRefresh               { get => _UIRefresh; set { _UIRefresh = value; if (value && Engine.IsLoaded) Engine.StartThread(); } }
+    public bool     UIRefresh               { get => _UIRefresh; set { Set(ref _UIRefresh, value); if (value && Engine.IsLoaded) Engine.StartThread(); } }
     bool _UIRefresh = true;
 
     /// <summary>Engine polling interval in milliseconds. Use an exact divisor of 1000 for once-per-second updates.</summary>

@@ -544,6 +544,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
 
         Audio.Dispose();
         decoder.Dispose(); // with lockActions, Deadlock with Pause (from Renderer.Dispose)
+        RaiseUI(nameof(IsDisposed));
         Host?.Player_Disposed();
         Log.Info("Disposed");
     }

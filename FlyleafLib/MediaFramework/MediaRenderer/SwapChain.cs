@@ -227,6 +227,7 @@ public class SwapChain
         }
 
         Renderer.VPRequest(requests);
+        Renderer.RefreshSwapChainOutput();
     }
 
     public void Dispose(bool rendererFrame = true)
@@ -249,6 +250,7 @@ public class SwapChain
             Disposed = true;
             CanPresent = false;
             ActiveFormat = null;
+            Renderer.RefreshSwapChainOutput();
 
             if (WinUIClbk != null)
             {
@@ -362,7 +364,7 @@ public class SwapChain
         }
 
         ReleaseBackBuffer();
-        ResizeBuffers((uint)Renderer.ControlWidth, (uint)Renderer.ControlHeight);
+        sc.ResizeBuffers(0, (uint)Renderer.ControlWidth, (uint)Renderer.ControlHeight, Format.Unknown, SwapChainFlags.None).CheckError();
         AcquireBackBuffer();
     }
 
@@ -379,6 +381,7 @@ public class SwapChain
         }
 
         bool previous = HDR;
+        var previousFormat = ActiveFormat;
 
         try
         {
@@ -389,7 +392,7 @@ public class SwapChain
             uint width  = (uint)Math.Max(Renderer.ControlWidth,  2);
             uint height = (uint)Math.Max(Renderer.ControlHeight, 2);
 
-            ResizeBuffers(width, height);
+            ResizeBuffers(width, height, OutputFormat);
 
             if (!ApplyColorSpace(requireSupport: enabled))
                 throw new InvalidOperationException("scRGB color space is not supported for presentation");
@@ -414,7 +417,7 @@ public class SwapChain
                 uint width  = (uint)Math.Max(Renderer.ControlWidth,  2);
                 uint height = (uint)Math.Max(Renderer.ControlHeight, 2);
 
-                ResizeBuffers(width, height);
+                ResizeBuffers(width, height, previousFormat ?? OutputFormat);
                 ApplyColorSpace(requireSupport: false);
                 AcquireBackBuffer();
             }
@@ -422,11 +425,11 @@ public class SwapChain
 
             return false;
         }
+        finally { Renderer.RefreshSwapChainOutput(); }
     }
 
-    void ResizeBuffers(uint width, uint height)
+    void ResizeBuffers(uint width, uint height, Format format)
     {
-        var format = OutputFormat;
         sc.ResizeBuffers(0, width, height, format, SwapChainFlags.None).CheckError();
         if (format != Format.Unknown)
             ActiveFormat = format;

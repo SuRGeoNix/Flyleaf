@@ -303,6 +303,8 @@ public static class Engine
 
                             // Buffered Duration Refresh from Demuxer (TBR: RefreshType?)
                             player.BufferedDuration = player.MainDemuxer.BufferedDuration;
+                            player.Video.BufferedDuration = player.Video.BufferedDuration;
+                            player.Audio.BufferedDuration = player.Audio.BufferedDuration;
 
                             if ((isPlaying && config.UICurTime == UIRefreshType.PerUIRefreshInterval) ||
                                 (refreshSecond && config.UICurTime == UIRefreshType.PerUISecond))

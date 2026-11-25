@@ -2217,54 +2217,12 @@ internal static class Program
         view.HeaderContent = new Border { Height = 32 };
         var root = Field<Grid>("overlayRoot"); root.Measure(new Size(1280, 700)); root.Arrange(new Rect(0, 0, 1280, 700)); root.UpdateLayout();
         Check(Field<FlyleafOSDOverlay>("osd").Margin.Top == Field<ContentPresenter>("overlayHeader").ActualHeight + 12 && Field<FlyleafPlaybackStatusOverlay>("playbackDisplay").Margin.Top == Field<ContentPresenter>("overlayHeader").ActualHeight + 12, $"Left/right OSD did not retain top spacing below the header: {Field<FlyleafOSDOverlay>("osd").Margin.Top}, {Field<FlyleafPlaybackStatusOverlay>("playbackDisplay").Margin.Top}, header={Field<ContentPresenter>("overlayHeader").ActualHeight}");
-        var statistics = Field<FlyleafStatisticsOverlay>("statisticsOverlay");
         var messages = Field<FlyleafOSDOverlay>("osd");
         view.UIConfig.OSD.Position = FlyleafOSDPosition.TopLeft;
-        var videoArea = Field<Grid>("statisticsViewport");
-        var layer = Field<Canvas>("statisticsLayer");
-        Check(statistics.Parent == videoArea && videoArea.Parent == layer && layer.Parent == root && videoArea.ClipToBounds &&
-            statistics.HorizontalAlignment == HorizontalAlignment.Left && statistics.VerticalAlignment == VerticalAlignment.Center &&
-            statistics.Margin == new Thickness(8), "Statistics is not vertically centered at the left edge of the picture");
-
-        void ResizeOverlay(int width, int height)
-        {
-            root.Width = width;
-            root.Height = height;
-            root.Measure(new Size(width, height));
-            root.Arrange(new Rect(0, 0, width, height));
-            root.UpdateLayout();
-        }
-        Rect PictureArea() => new(Canvas.GetLeft(videoArea), Canvas.GetTop(videoArea), videoArea.Width, videoArea.Height);
-        var letterbox = new Rect(0, .125, 1, .75);
-        var pillarbox = new Rect(.25, 0, .5, 1);
-
-        ResizeOverlay(1280, 720);
-        view.UpdateVideoViewport(letterbox);
-        Check(PictureArea() == new Rect(0, 90, 1280, 540), $"Statistics letterbox geometry was {PictureArea()} on {root.RenderSize}");
         messages.ShowMessage("An OSD message");
         root.UpdateLayout();
-        Check(messages.Visibility == Visibility.Visible && PictureArea() == new Rect(0, 90, 1280, 540),
-            "An OSD message changed the statistics position");
-
-        // Exercise both delivery orders while the video surface narrows, restores and resizes again.
-        view.UpdateVideoViewport(pillarbox);
-        ResizeOverlay(960, 640);
-        Check(PictureArea() == new Rect(240, 0, 480, 640), "Docking left statistics outside the rendered picture");
-        ResizeOverlay(1280, 720);
-        view.UpdateVideoViewport(letterbox);
-        Check(PictureArea() == new Rect(0, 90, 1280, 540), "Undocking left statistics in the letterbox bars");
-        ResizeOverlay(1920, 1080);
-        Check(PictureArea() == new Rect(0, 135, 1920, 810), "Fullscreen resize left stale statistics bounds");
-        ResizeOverlay(960, 640);
-        view.UpdateVideoViewport(pillarbox);
-        Check(PictureArea() == new Rect(240, 0, 480, 640) && layer.DesiredSize == new Size(0, 0),
-            "Restoring from fullscreen left stale bounds or forced the overlay size");
-        view.UpdateVideoViewport(new Rect(-.25, -.25, 1.5, 1.5));
-        Check(PictureArea() == new Rect(0, 0, 960, 640), "Statistics exceeded the visible part of a zoomed picture");
-        view.UpdateVideoViewport(new Rect(0, 0, 1, 1));
+        Check(messages.Visibility == Visibility.Visible, "OSD message was not shown");
         messages.Clear();
-        root.ClearValue(FrameworkElement.WidthProperty);
-        root.ClearValue(FrameworkElement.HeightProperty);
         void Layout(int width)
         {
             typeof(FlyleafME).GetMethod("UpdateDockLayout", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(view, null);
