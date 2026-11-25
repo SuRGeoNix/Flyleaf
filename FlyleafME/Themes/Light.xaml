@@ -20,6 +20,14 @@
     <SolidColorBrush x:Key="FlyleafME.LogoOutlineBrush" Color="#F3F5F8"/>
     <SolidColorBrush x:Key="FlyleafME.VideoBackgroundBrush" Color="#080A0D"/>
 
+    <SolidColorBrush x:Key="FlyleafME.PlaybackTrackBrush" Color="#CBD4DF"/>
+    <SolidColorBrush x:Key="FlyleafME.PlaybackBufferedBrush" Color="#929FAF"/>
+
+    <LinearGradientBrush x:Key="FlyleafME.PlaybackVolumeBrush" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#B22222" Offset="0"/>
+        <GradientStop Color="#8E1B1B" Offset="1"/>
+    </LinearGradientBrush>
+
     <!-- Overlay contrast is defined separately from normal application surfaces. -->
     <SolidColorBrush x:Key="FlyleafME.OverlayBrush" Color="#EDF5F8FC"/>
     <SolidColorBrush x:Key="FlyleafME.OverlayBorderBrush" Color="#B1C5D2E2"/>

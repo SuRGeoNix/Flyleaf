@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.MediaFramework.MediaStream;
@@ -98,6 +99,40 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         set => SetValue(OptionsProperty, value);
     }
 
+    public static readonly DependencyProperty IsDynamicModeProperty = DependencyProperty.Register(
+        nameof(IsDynamicMode), typeof(bool), typeof(FlyleafPlaybackBar), new PropertyMetadata(false, (d, e) =>
+        {
+            var bar = (FlyleafPlaybackBar)d;
+            bar.ResetDynamic();
+            bar.ClosePlaybackPopups();
+            bar.ApplyDynamicPinPreference();
+        }));
+    public bool IsDynamicMode { get => (bool)GetValue(IsDynamicModeProperty); set => SetValue(IsDynamicModeProperty, value); }
+
+    public static readonly DependencyProperty IsModernFullLayoutProperty = DependencyProperty.Register(
+        nameof(IsModernFullLayout), typeof(bool), typeof(FlyleafPlaybackBar),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsMeasure, (d, _) =>
+        {
+            var bar = (FlyleafPlaybackBar)d;
+            if (!bar.IsDynamicMode) bar.ClosePlaybackPopups();
+        }));
+    public bool IsModernFullLayout { get => (bool)GetValue(IsModernFullLayoutProperty); set => SetValue(IsModernFullLayoutProperty, value); }
+
+    static readonly DependencyProperty DynamicPinPreferenceProperty = DependencyProperty.Register(
+        "DynamicPinPreference", typeof(bool), typeof(FlyleafPlaybackBar), new PropertyMetadata(false, (d, _) =>
+            ((FlyleafPlaybackBar)d).ApplyDynamicPinPreference()));
+
+    static readonly DependencyPropertyKey DynamicPinnedPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(DynamicPinned), typeof(bool), typeof(FlyleafPlaybackBar), new PropertyMetadata(false));
+    public static readonly DependencyProperty DynamicPinnedProperty = DynamicPinnedPropertyKey.DependencyProperty;
+    public bool DynamicPinned => (bool)GetValue(DynamicPinnedProperty);
+    public bool DynamicExpanded => dynamicExpanded;
+
+    static readonly DependencyPropertyKey IsNonClientPointerOverDynamicHandleBandPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(IsNonClientPointerOverDynamicHandleBand), typeof(bool), typeof(FlyleafPlaybackBar), new PropertyMetadata(false));
+    public static readonly DependencyProperty IsNonClientPointerOverDynamicHandleBandProperty = IsNonClientPointerOverDynamicHandleBandPropertyKey.DependencyProperty;
+    public bool IsNonClientPointerOverDynamicHandleBand => (bool)GetValue(IsNonClientPointerOverDynamicHandleBandProperty);
+
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? SettingsRequested
     {
@@ -111,13 +146,24 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
     ButtonBase? videoButton, audioButton, subtitlesButton, playlistButton, speedButton, moreButton, settingsButton, volumeButton;
     Popup? volumePopup;
     IDisposable? volumePopupActivity;
-    bool compact, volumeCompact, arranging;
+    bool compact, volumeCompact, arranging, modernLayout;
+    ButtonBase? dynamicHandle, modernStop, modernAutoNext;
+    bool dynamicExpanded;
+    IDisposable? dynamicDragActivity;
+    readonly DispatcherTimer dynamicCollapse = new() { Interval = TimeSpan.FromMilliseconds(300) };
+    readonly HashSet<ContextMenu> openPlaybackMenus = [];
+    const double CompactTimelineTargetWidth = 220;
+    const double ModernFullLayoutHeadroom = 24;
+    (double Width, bool Navigation, bool AutoNext, bool Live, bool Duration, bool Full, bool TimelineOnly, int CurrentTimeLength, int DurationLength,
+        string? Video, string? Audio, string? Subtitles)? lastModernLayout;
     FrameworkElement? controlsRow, transportGroup, sourceGroup, utilityGroup, horizontalVolume;
-    FrameworkElement? videoDetail, audioDetail, subtitleDetail;
+    FrameworkElement? videoDetail, audioDetail, subtitleDetail, compactTimeline, compactCurrentTime, compactDuration;
     Border? surface;
+    FrameworkElement? modernFrame, dynamicHandleBand;
 
     public string CurrentTimeText => Player?.CanPlay == true ? FormatTime(Player.CurTime) : "--:--:--";
     public string DurationText => Player?.Duration > 0 ? FormatTime(Player.Duration) : "--:--:--";
+    public bool ShowDuration => !IsLive || Player?.Duration != 0;
     public bool IsLive => Player is { CanPlay: true, IsLive: true, Status: not Status.Stopped } p && !FlyleafQueueProgression.IsImageFormat(p.MainDemuxer?.Name);
     public bool IsPlaying => Player?.IsPlaying == true;
     public bool CanPlay => Player?.CanPlay == true;
@@ -242,6 +288,7 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         });
         Loaded += (_, _) =>
         {
+            ApplyDynamicPinPreference();
             AttachQueue();
             if (MediaElement is { } owner)
             {
@@ -255,8 +302,20 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
             if (QueueSource != null) QueueSource.PropertyChanged -= QueueChanged;
             if (MediaElement is { } owner) owner.PanelRegistryChanged -= PanelRegistryChanged;
         };
+        dynamicCollapse.Tick += DynamicCollapse_Tick;
+        MouseEnter += (_, _) => dynamicCollapse.Stop();
+        MouseLeave += (_, _) => ScheduleDynamicCollapse();
+        Unloaded += (_, _) =>
+        {
+            ResetDynamic();
+            ClosePlaybackPopups();
+        };
+        IsVisibleChanged += DynamicAvailabilityChanged;
+        IsHitTestVisibleChanged += DynamicAvailabilityChanged;
+        IsMouseCaptureWithinChanged += DynamicCaptureChanged;
         CoerceValue(OptionsProperty);
-        SizeChanged += (_, _) => UpdateResponsiveLayout();
+        SetBinding(DynamicPinPreferenceProperty, new Binding(nameof(Options) + "." + nameof(FlyleafPlaybackBarOptions.DynamicPinned)) { Source = this });
+        SizeChanged += (_, _) => { if (!modernLayout) UpdateResponsiveLayout(); };
         Unloaded += (_, _) => Detach(Player);
         Loaded += (_, _) => Attach(Player);
     }
@@ -266,6 +325,8 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
     static void OnPlayerChanged(DependencyObject obj, DependencyPropertyChangedEventArgs e)
     {
         var bar = (FlyleafPlaybackBar)obj;
+        bar.ClosePlaybackPopups();
+        if (!bar.DynamicPinned) bar.SetDynamicExpanded(false);
         bar.Detach(e.OldValue as Player);
         bar.Attach(e.NewValue as Player);
         bar.NotifyAll();
@@ -361,7 +422,7 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         }
         foreach (string property in new[]
         {
-            nameof(CurrentTimeText), nameof(DurationText), nameof(IsLive), nameof(IsPlaying), nameof(CanPlay),
+            nameof(CurrentTimeText), nameof(DurationText), nameof(ShowDuration), nameof(IsLive), nameof(IsPlaying), nameof(CanPlay),
             nameof(CanSeek), nameof(CanStop),
             nameof(HasVideo), nameof(HasAudio), nameof(HasSubtitles), nameof(HasPlaylist), nameof(HasPrevious),
             nameof(HasNext), nameof(CanOpenQueue), nameof(ShowAutoNext), nameof(ShowItemNavigation),
@@ -406,26 +467,175 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         if (speedButton != null) speedButton.Click += Speed_Click;
         if (moreButton != null) moreButton.Click += More_Click;
         if (settingsButton != null) settingsButton.Click += Settings_Click;
+        modernLayout = GetTemplateChild("PART_Seek") is FlyleafSeekBar { IsModern: true };
+        lastModernLayout = null;
         surface = GetTemplateChild("PART_Surface") as Border;
+        modernFrame = GetTemplateChild("PART_ModernFrame") as FrameworkElement;
+        dynamicHandle = GetTemplateChild("PART_DynamicHandle") as ButtonBase;
+        dynamicHandleBand = GetTemplateChild("PART_DynamicHandleBand") as FrameworkElement;
+        modernStop = modernLayout ? GetTemplateChild("PART_Stop") as ButtonBase : null;
+        modernAutoNext = modernLayout ? GetTemplateChild("PART_AutoNext") as ButtonBase : null;
+        if (dynamicHandle != null)
+        {
+            dynamicHandle.MouseEnter += DynamicHandle_MouseEnter;
+            dynamicHandle.Click += DynamicHandle_Click;
+        }
         controlsRow = GetTemplateChild("PART_ControlsRow") as FrameworkElement;
         transportGroup = GetTemplateChild("PART_TransportGroup") as FrameworkElement;
         sourceGroup = GetTemplateChild("PART_SourceGroup") as FrameworkElement;
+        compactTimeline = GetTemplateChild("PART_CompactTimeline") as FrameworkElement;
+        compactCurrentTime = GetTemplateChild("PART_CompactCurrentTime") as FrameworkElement;
+        compactDuration = GetTemplateChild("PART_CompactDuration") as FrameworkElement;
         utilityGroup = GetTemplateChild("PART_UtilityGroup") as FrameworkElement;
         horizontalVolume = GetTemplateChild("PART_HorizontalVolume") as FrameworkElement;
         videoDetail = GetTemplateChild("PART_VideoDetail") as FrameworkElement;
         audioDetail = GetTemplateChild("PART_AudioDetail") as FrameworkElement;
         subtitleDetail = GetTemplateChild("PART_SubtitleDetail") as FrameworkElement;
-        if (controlsRow != null) controlsRow.SizeChanged += ControlsRow_SizeChanged;
+        if (!modernLayout && controlsRow != null) controlsRow.SizeChanged += ControlsRow_SizeChanged;
+        ApplyDynamicPinPreference();
         Notify(nameof(CanOpenSettings));
         UpdateResponsiveLayout();
     }
-    void ControlsRow_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateResponsiveLayout();
-    void UpdateResponsiveLayout()
+    /// <summary>Tests the Dynamic handle against a point in physical screen coordinates.</summary>
+    public bool IsOverDynamicHandle(Point screenPoint) => IsDynamicMode && ContainsScreenPoint(dynamicHandle, screenPoint);
+
+    /// <summary>Updates handle visibility while the pointer crosses the host's resize border. Pass null when it leaves.</summary>
+    public bool UpdateNonClientDynamicHandleHover(Point? screenPoint)
     {
-        if (arranging || controlsRow == null || transportGroup == null || sourceGroup == null || utilityGroup == null ||
-            controlsRow.ActualWidth <= 0) return;
-        double available = surface == null ? controlsRow.ActualWidth : ActualWidth - surface.Margin.Left - surface.Margin.Right -
+        bool overBand = IsDynamicMode && screenPoint is { } point && ContainsScreenPoint(dynamicHandleBand, point);
+        if (IsNonClientPointerOverDynamicHandleBand != overBand)
+        {
+            SetValue(IsNonClientPointerOverDynamicHandleBandPropertyKey, overBand);
+            ScheduleDynamicCollapse();
+        }
+        return overBand;
+    }
+
+    static bool ContainsScreenPoint(FrameworkElement? element, Point screenPoint) =>
+        element is { IsVisible: true, IsHitTestVisible: true } && PresentationSource.FromVisual(element) != null &&
+        new Rect(element.RenderSize).Contains(element.PointFromScreen(screenPoint));
+
+    void DynamicHandle_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (IsDynamicMode && !DynamicInteractionActive) SetDynamicExpanded(true);
+    }
+
+    void DynamicHandle_Click(object sender, RoutedEventArgs e)
+    {
+        if (IsDynamicMode) Options.DynamicPinned = !DynamicPinned;
+    }
+
+    void ApplyDynamicPinPreference()
+    {
+        bool pinned = IsDynamicMode && (bool)GetValue(DynamicPinPreferenceProperty);
+        SetDynamicPinned(pinned);
+        if (pinned) SetDynamicExpanded(true);
+        ScheduleDynamicCollapse();
+    }
+
+    void SetDynamicPinned(bool pinned)
+    {
+        if (DynamicPinned == pinned) return;
+        SetValue(DynamicPinnedPropertyKey, pinned);
+        Notify(nameof(DynamicPinned));
+    }
+
+    bool DynamicInteractionActive => IsMouseCaptureWithin || volumePopup?.IsOpen == true || openPlaybackMenus.Count != 0;
+    bool CanCollapseDynamic => dynamicExpanded && !DynamicPinned && !IsMouseOver &&
+        !IsNonClientPointerOverDynamicHandleBand && !DynamicInteractionActive;
+
+    void DynamicCaptureChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (IsDynamicMode && IsMouseCaptureWithin && Player is { } player && Mouse.Captured is FlyleafSeekBar or FlyleafVolumeWedge)
+            dynamicDragActivity ??= FlyleafPopupActivity.Hold(player);
+        else
+        {
+            dynamicDragActivity?.Dispose();
+            dynamicDragActivity = null;
+        }
+        ScheduleDynamicCollapse();
+    }
+
+    void DynamicAvailabilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (IsVisible && IsHitTestVisible) return;
+        UpdateNonClientDynamicHandleHover(null);
+        if (!DynamicPinned && !DynamicInteractionActive) SetDynamicExpanded(false);
+    }
+
+    void SetDynamicExpanded(bool expanded)
+    {
+        dynamicCollapse.Stop();
+        if (dynamicExpanded == expanded) return;
+        dynamicExpanded = expanded;
+        Notify(nameof(DynamicExpanded));
+        if (expanded) ScheduleDynamicCollapse();
+    }
+
+    void ScheduleDynamicCollapse()
+    {
+        dynamicCollapse.Stop();
+        if (CanCollapseDynamic) dynamicCollapse.Start();
+    }
+
+    void DynamicCollapse_Tick(object? sender, EventArgs e)
+    {
+        dynamicCollapse.Stop();
+        if (CanCollapseDynamic) SetDynamicExpanded(false);
+    }
+
+    void ResetDynamic()
+    {
+        UpdateNonClientDynamicHandleHover(null);
+        SetDynamicPinned(false);
+        SetDynamicExpanded(false);
+    }
+
+    void ClosePlaybackPopups()
+    {
+        foreach (var menu in openPlaybackMenus)
+        {
+            menu.Closed -= PlaybackMenu_Closed;
+            menu.IsOpen = false;
+        }
+        openPlaybackMenus.Clear();
+        if (volumePopup != null) volumePopup.IsOpen = false;
+        volumePopupActivity?.Dispose();
+        volumePopupActivity = null;
+        dynamicDragActivity?.Dispose();
+        dynamicDragActivity = null;
+    }
+
+    void ControlsRow_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateResponsiveLayout();
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        if (modernLayout) UpdateResponsiveLayout(availableSize.Width);
+        return base.MeasureOverride(availableSize);
+    }
+    void UpdateResponsiveLayout(double? measureWidth = null)
+    {
+        if (arranging || controlsRow == null || transportGroup == null || (!UsesCompactLayout && sourceGroup == null) || utilityGroup == null) return;
+        if (modernLayout && !measureWidth.HasValue)
+        {
+            // Decide which controls fit before the Grid's Auto columns can enlarge its arranged width.
+            InvalidateMeasure();
+            return;
+        }
+        if (!modernLayout && controlsRow.ActualWidth <= 0) return;
+        double available = surface == null ? measureWidth ?? controlsRow.ActualWidth : (measureWidth ?? ActualWidth) - surface.Margin.Left - surface.Margin.Right -
             surface.Padding.Left - surface.Padding.Right - surface.BorderThickness.Left - surface.BorderThickness.Right;
+        if (modernFrame != null) available -= modernFrame.Margin.Left + modernFrame.Margin.Right;
+        if (modernLayout)
+        {
+            // Text bindings may cause a measure on every time update. Only re-evaluate when the
+            // available width or the content affecting the natural widths actually changes.
+            var layout = (available, ShowItemNavigation, ShowAutoNext, IsLive, ShowDuration, IsModernFullLayout, UsesTimelineOnlyLayout,
+                UsesCompactLayout ? (compactCurrentTime as TextBlock)?.Text.Length ?? 0 : 0,
+                UsesCompactLayout ? (compactDuration as TextBlock)?.Text.Length ?? 0 : 0,
+                (videoDetail as TextBlock)?.Text, (audioDetail as TextBlock)?.Text, (subtitleDetail as TextBlock)?.Text);
+            if (lastModernLayout == layout) return;
+            lastModernLayout = layout;
+        }
         void VisibilityOf(FrameworkElement? element, Visibility value)
         {
             if (element == null || element.Visibility == value) return;
@@ -442,31 +652,65 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         arranging = true;
         try
         {
-            foreach (var detail in new[] { videoDetail, audioDetail, subtitleDetail })
-                VisibilityOf(detail, Visibility.Visible);
-            foreach (var action in new[] { settingsButton, videoButton, audioButton, subtitlesButton, playlistButton, speedButton })
-                VisibilityOf(action, Visibility.Visible);
+            VisibilityOf(compactCurrentTime, Visibility.Visible);
+            VisibilityOf(compactDuration, ShowDuration ? Visibility.Visible : Visibility.Collapsed);
+            if (UsesTimelineOnlyLayout)
+            {
+                if (!compact) { compact = true; Notify(nameof(IsCompact)); }
+                return;
+            }
+
+            bool singleRow = UsesCompactLayout;
+            if (compactTimeline != null)
+            {
+                VisibilityOf(modernStop, singleRow ? Visibility.Collapsed : Visibility.Visible);
+                VisibilityOf(modernAutoNext, !singleRow && ShowAutoNext ? Visibility.Visible : Visibility.Collapsed);
+                VisibilityOf(speedButton, singleRow ? Visibility.Collapsed : Visibility.Visible);
+            }
+            if (!singleRow)
+            {
+                foreach (var detail in new[] { videoDetail, audioDetail, subtitleDetail })
+                    VisibilityOf(detail, Visibility.Visible);
+                foreach (var action in new[] { settingsButton, videoButton, audioButton, subtitlesButton, playlistButton, speedButton })
+                    VisibilityOf(action, Visibility.Visible);
+            }
+            else
+            {
+                foreach (var action in new[] { settingsButton, playlistButton })
+                    VisibilityOf(action, Visibility.Visible);
+            }
             VisibilityOf(horizontalVolume, Visibility.Visible);
             bool Fits()
             {
                 var size = new Size(double.PositiveInfinity, 36);
-                transportGroup.Measure(size); sourceGroup.Measure(size); utilityGroup.Measure(size);
-                return transportGroup.DesiredSize.Width + sourceGroup.DesiredSize.Width + utilityGroup.DesiredSize.Width <= available + 0.5;
+                var middle = singleRow ? compactTimeline! : sourceGroup!;
+                transportGroup.Measure(size); middle.Measure(size); utilityGroup.Measure(size);
+                // The seek bar has zero natural width. Reserve a useful timeline before dropping optional controls.
+                double reserve = singleRow ? (modernLayout ? CompactTimelineTargetWidth : 56) : (modernLayout ? ModernFullLayoutHeadroom : 0);
+                return transportGroup.DesiredSize.Width + middle.DesiredSize.Width + utilityGroup.DesiredSize.Width + reserve <= available + 0.5;
             }
-            foreach (var detail in new[] { videoDetail, audioDetail, subtitleDetail })
+            if (!singleRow)
             {
-                if (Fits()) break;
-                VisibilityOf(detail, Visibility.Collapsed);
+                foreach (var detail in new[] { videoDetail, audioDetail, subtitleDetail })
+                {
+                    if (Fits()) break;
+                    VisibilityOf(detail, Visibility.Collapsed);
+                }
+                if (!Fits()) VisibilityOf(speedButton, Visibility.Collapsed);
             }
-            if (!Fits()) VisibilityOf(speedButton, Visibility.Collapsed);
-            bool nextVolumeCompact = !Fits();
+            bool nextVolumeCompact = (modernLayout && volumePopup?.IsOpen == true) || !Fits();
             if (nextVolumeCompact) VisibilityOf(horizontalVolume, Visibility.Collapsed);
-            foreach (var action in new[] { settingsButton, videoButton, audioButton, subtitlesButton, playlistButton })
+            if (singleRow && !Fits())
+            {
+                VisibilityOf(compactCurrentTime, Visibility.Collapsed);
+                VisibilityOf(compactDuration, Visibility.Collapsed);
+            }
+            foreach (var action in singleRow ? new[] { settingsButton, playlistButton } : new[] { settingsButton, videoButton, audioButton, subtitlesButton, playlistButton })
             {
                 if (Fits()) break;
                 VisibilityOf(action, Visibility.Collapsed);
             }
-            bool nextCompact = videoDetail?.Visibility == Visibility.Collapsed;
+            bool nextCompact = singleRow || videoDetail?.Visibility == Visibility.Collapsed;
             if (compact != nextCompact) { compact = nextCompact; Notify(nameof(IsCompact)); }
             if (volumeCompact != nextVolumeCompact)
             {
@@ -479,16 +723,20 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
 
     void Unhook()
     {
-        if (controlsRow != null) controlsRow.SizeChanged -= ControlsRow_SizeChanged;
+        ResetDynamic();
+        if (dynamicHandle != null)
+        {
+            dynamicHandle.MouseEnter -= DynamicHandle_MouseEnter;
+            dynamicHandle.Click -= DynamicHandle_Click;
+        }
+        ClosePlaybackPopups();
+        if (!modernLayout && controlsRow != null) controlsRow.SizeChanged -= ControlsRow_SizeChanged;
         if (volumeButton != null) volumeButton.Click -= Volume_Click;
         if (volumePopup != null)
         {
-            volumePopup.IsOpen = false;
             volumePopup.Opened -= VolumePopup_Opened;
             volumePopup.Closed -= VolumePopup_Closed;
         }
-        volumePopupActivity?.Dispose();
-        volumePopupActivity = null;
 
         if (videoButton != null) videoButton.Click -= Video_Click;
         if (audioButton != null) audioButton.Click -= Audio_Click;
@@ -535,30 +783,61 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
     }
 
     void VolumePopup_Opened(object? sender, EventArgs e)
-        => volumePopupActivity ??= FlyleafPopupActivity.Hold(Player);
+    {
+        volumePopupActivity ??= FlyleafPopupActivity.Hold(Player);
+        dynamicCollapse.Stop();
+    }
 
     void VolumePopup_Closed(object? sender, EventArgs e)
     {
         volumePopupActivity?.Dispose();
         volumePopupActivity = null;
+        if (modernLayout)
+        {
+            lastModernLayout = null;
+            InvalidateMeasure();
+        }
+        ScheduleDynamicCollapse();
+    }
+
+    bool UsesTimelineOnlyLayout => compactTimeline != null && IsDynamicMode && !IsModernFullLayout;
+    bool UsesCompactLayout => compactTimeline != null && !IsDynamicMode && !IsModernFullLayout;
+    bool ActionVisible(ButtonBase? button) => button?.Visibility == Visibility.Visible && (!UsesCompactLayout || button.IsVisible);
+
+    internal void TrackOpenPlaybackMenu(ContextMenu menu)
+    {
+        if (!openPlaybackMenus.Add(menu)) return;
+        menu.Closed += PlaybackMenu_Closed;
+        dynamicCollapse.Stop();
+    }
+
+    void PlaybackMenu_Closed(object sender, RoutedEventArgs e)
+    {
+        var menu = (ContextMenu)sender;
+        menu.Closed -= PlaybackMenu_Closed;
+        openPlaybackMenus.Remove(menu);
+        ScheduleDynamicCollapse();
     }
 
     ContextMenu NewMenu(ButtonBase anchor)
     {
-        if (anchor.Visibility != Visibility.Visible && moreButton != null) anchor = moreButton;
+        if (!ActionVisible(anchor) && moreButton != null) anchor = moreButton;
         var menu = new ContextMenu
         {
             PlacementTarget = anchor,
             Placement = PlacementMode.Top,
-            MinWidth = 185,
-            MaxHeight = 350
+            MinWidth = 185
         };
         if (TryFindResource("FlyleafME.ThemeContextMenuStyle") is Style style)
             menu.Style = style;
         if (TryFindResource("FlyleafME.ThemeMenuItemStyle") is Style itemStyle)
             menu.ItemContainerStyle = itemStyle;
         IDisposable? activity = null;
-        menu.Opened += (_, _) => activity ??= FlyleafPopupActivity.Hold(Player);
+        menu.Opened += (_, _) =>
+        {
+            activity ??= FlyleafPopupActivity.Hold(Player);
+            TrackOpenPlaybackMenu(menu);
+        };
         menu.Closed += (_, _) =>
         {
             activity?.Dispose();
@@ -645,7 +924,7 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         foreach (var (button, label) in new[] { (settingsButton, "Settings…"), (videoButton, "Video streams…"),
             (audioButton, "Audio streams…"), (subtitlesButton, "Subtitles…"), (playlistButton, "Queue…") })
         {
-            if (button?.Visibility != Visibility.Collapsed) continue;
+            if (button == null || (!UsesCompactLayout ? button.Visibility != Visibility.Collapsed : ActionVisible(button))) continue;
             if (ReferenceEquals(button, playlistButton) && QueueSource != null && CanRequestPanel("queue")) continue;
             var action = button;
             AddItem(menu, label, action.IsEnabled ? () => action.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)) : null);
@@ -677,10 +956,18 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         var menu = NewMenu(anchor);
         AddOverflowActions(menu);
         var target = Player;
+        if (UsesCompactLayout)
+        {
+            bool addStop = !ActionVisible(modernStop), addAutoNext = !ActionVisible(modernAutoNext) && ShowAutoNext;
+            if ((addStop || addAutoNext) && menu.HasItems) FlyleafMenuItems.Separator(menu);
+            if (addStop) AddItem(menu, "Stop", CanStop && target != null ? () => target.Commands.Stop.Execute(null) : null);
+            if (addAutoNext && QueueSource is { } queue)
+                AddItem(menu, "Auto-next", () => queue.AutoAdvance = !queue.AutoAdvance, queue.AutoAdvance);
+        }
         if (target != null)
         {
             if (menu.Items.Count > 0) FlyleafMenuItems.Separator(menu);
-            if (speedButton?.Visibility != Visibility.Visible)
+            if (!ActionVisible(speedButton))
             {
                 var speeds = FlyleafMenuItems.Group(menu, "Speed");
                 speeds.IsEnabled = FlyleafPlaybackActions.CanPlay(target);
@@ -720,7 +1007,8 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
                 else if (MediaElement is { } owner)
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        if (IsLoaded && ReferenceEquals(owner, MediaElement)) owner.ShowContextMenu(anchor, PlacementMode.Top);
+                        if (IsLoaded && ReferenceEquals(anchor, moreButton) && ReferenceEquals(owner, MediaElement) && ReferenceEquals(target, Player))
+                            owner.ShowContextMenu(anchor, PlacementMode.Top, this);
                     }));
             });
         }

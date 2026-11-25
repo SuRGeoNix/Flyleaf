@@ -27,7 +27,33 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
             Enum.GetValues<FlyleafTheme>().Select(v => (v, v.ToString())).ToArray());
         Choice(appearance, "Accent", () => ui.Appearance.Accent, v => ui.Appearance.Accent = v,
             Enum.GetValues<FlyleafAccent>().Select(v => (v, v.ToString())).ToArray());
-        var playbackBar = Group("Playback bar", () => { ui.PlaybackBar.Visibility = FlyleafVisibilityPolicy.Auto; ui.PlaybackBar.SeekWhileDragging = true; ui.PlaybackBar.AutoHideDelayMilliseconds = 2800; });
+        var playbackBar = Group("Playback bar", () =>
+        {
+            var defaults = new FlyleafPlaybackBarOptions();
+            ui.PlaybackBar.Visibility = FlyleafVisibilityPolicy.Auto;
+            ui.PlaybackBar.Design = defaults.Design;
+            ui.PlaybackBar.Mode = defaults.Mode;
+            ui.PlaybackBar.Floating = defaults.Floating;
+            ui.PlaybackBar.ClassicFloating = defaults.ClassicFloating;
+            ui.PlaybackBar.DynamicPinned = defaults.DynamicPinned;
+            ui.PlaybackBar.SeekWhileDragging = true;
+            ui.PlaybackBar.AutoHideDelayMilliseconds = 2800;
+        });
+        Choice(playbackBar, "Design", () => ui.PlaybackBar.Design, v => ui.PlaybackBar.Design = v,
+            Enum.GetValues<FlyleafPlaybackBarDesign>().Select(v => (v, v.ToString())).ToArray());
+        bool IsModern() => ui.PlaybackBar.Design == FlyleafPlaybackBarDesign.Modern;
+        var modernMode = new StackPanel();
+        playbackBar.Children.Add(modernMode);
+        Choice(modernMode, "Modern mode", () => ui.PlaybackBar.Mode, v => ui.PlaybackBar.Mode = v,
+            Enum.GetValues<FlyleafPlaybackBarMode>().Select(v => (v, v.ToString())).ToArray());
+        RefreshWith(() => modernMode.Visibility = IsModern() ? Visibility.Visible : Visibility.Collapsed);
+
+        Toggle(playbackBar, "Floating bar", "Inset the playback bar and round its corners.",
+            () => IsModern() ? ui.PlaybackBar.Floating : ui.PlaybackBar.ClassicFloating, v =>
+            {
+                if (IsModern()) ui.PlaybackBar.Floating = v;
+                else ui.PlaybackBar.ClassicFloating = v;
+            });
         Choice(playbackBar, "Visibility", () => ui.PlaybackBar.Visibility, v => ui.PlaybackBar.Visibility = v,
             Enum.GetValues<FlyleafVisibilityPolicy>().Select(v => (v, v.ToString())).ToArray());
         Toggle(playbackBar, "Seek while dragging", "Seek continuously while dragging the timeline; turn off to seek once on release.", () => ui.PlaybackBar.SeekWhileDragging, v => ui.PlaybackBar.SeekWhileDragging = v);

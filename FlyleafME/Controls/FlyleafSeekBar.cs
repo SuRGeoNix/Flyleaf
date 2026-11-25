@@ -21,12 +21,19 @@ public class FlyleafSeekBar : FrameworkElement
     public static readonly DependencyProperty PlayedBrushProperty = RegisterBrush(nameof(PlayedBrush), Brushes.CornflowerBlue);
     public static readonly DependencyProperty ChapterBrushProperty = RegisterBrush(nameof(ChapterBrush), Brushes.LightGray);
     public static readonly DependencyProperty ThumbOutlineBrushProperty = RegisterBrush(nameof(ThumbOutlineBrush), Brushes.White);
+    public static readonly DependencyProperty OutlineBrushProperty = RegisterBrush(nameof(OutlineBrush), Brushes.DimGray);
 
     public Brush TrackBrush { get => (Brush)GetValue(TrackBrushProperty); set => SetValue(TrackBrushProperty, value); }
     public Brush BufferedBrush { get => (Brush)GetValue(BufferedBrushProperty); set => SetValue(BufferedBrushProperty, value); }
     public Brush PlayedBrush { get => (Brush)GetValue(PlayedBrushProperty); set => SetValue(PlayedBrushProperty, value); }
     public Brush ChapterBrush { get => (Brush)GetValue(ChapterBrushProperty); set => SetValue(ChapterBrushProperty, value); }
     public Brush ThumbOutlineBrush { get => (Brush)GetValue(ThumbOutlineBrushProperty); set => SetValue(ThumbOutlineBrushProperty, value); }
+    public Brush OutlineBrush { get => (Brush)GetValue(OutlineBrushProperty); set => SetValue(OutlineBrushProperty, value); }
+
+    public static readonly DependencyProperty IsModernProperty =
+        DependencyProperty.Register(nameof(IsModern), typeof(bool), typeof(FlyleafSeekBar),
+            new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+    public bool IsModern { get => (bool)GetValue(IsModernProperty); set => SetValue(IsModernProperty, value); }
 
     public static readonly DependencyProperty PlayerProperty =
         DependencyProperty.Register(nameof(Player), typeof(Player), typeof(FlyleafSeekBar),
@@ -57,16 +64,13 @@ public class FlyleafSeekBar : FrameworkElement
 
     public FlyleafSeekBar()
     {
-        SetResourceReference(TrackBrushProperty, "FlyleafME.OverlayBorderBrush");
-        SetResourceReference(BufferedBrushProperty, "FlyleafME.OverlaySecondaryTextBrush");
-        SetResourceReference(PlayedBrushProperty, "FlyleafME.AccentBrush");
-        SetResourceReference(ChapterBrushProperty, "FlyleafME.OverlayTextBrush");
-        SetResourceReference(ThumbOutlineBrushProperty, "FlyleafME.OverlayTextBrush");
 
         MinHeight = 24;
         Cursor = Cursors.Hand;
+        Loaded += (_, _) => AttachPlayer(Player);
         Unloaded += (_, _) =>
         {
+            if (Player is { } player) player.PropertyChanged -= Player_PropertyChanged;
             HidePreview();
             EndDrag(false);
         };
@@ -77,12 +81,19 @@ public class FlyleafSeekBar : FrameworkElement
         var seekBar = (FlyleafSeekBar)d;
         if (e.OldValue is Player oldPlayer)
             oldPlayer.PropertyChanged -= seekBar.Player_PropertyChanged;
-        if (e.NewValue is Player newPlayer)
-            newPlayer.PropertyChanged += seekBar.Player_PropertyChanged;
+        if (seekBar.IsLoaded) seekBar.AttachPlayer(e.NewValue as Player);
 
         seekBar.HidePreview();
         seekBar.EndDrag(false);
         seekBar.InvalidateVisual();
+    }
+
+    void AttachPlayer(Player? player)
+    {
+        if (player == null) return;
+        player.PropertyChanged -= Player_PropertyChanged;
+        player.PropertyChanged += Player_PropertyChanged;
+        InvalidateVisual();
     }
 
     void Player_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -106,6 +117,12 @@ public class FlyleafSeekBar : FrameworkElement
         double width = RenderSize.Width;
         if (width <= 0)
             return;
+
+        if (IsModern)
+        {
+            RenderModern(dc, width);
+            return;
+        }
 
         var neutral = TrackBrush;
         var cached = BufferedBrush;
@@ -141,6 +158,60 @@ public class FlyleafSeekBar : FrameworkElement
 
         double thumbX = Math.Clamp(playedWidth, 0, width);
         dc.DrawEllipse(played, new Pen(ThumbOutlineBrush, 1), new Point(thumbX, y + 3), dragging || hovering ? 6 : 4, dragging || hovering ? 6 : 4);
+    }
+
+    void RenderModern(DrawingContext dc, double width)
+    {
+        double height = Math.Min(22, RenderSize.Height);
+        if (height <= 0) return;
+        double y = (RenderSize.Height - height) / 2;
+        var bounds = new Rect(0, y, width, height);
+        dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, width, RenderSize.Height));
+        dc.DrawRectangle(TrackBrush, null, bounds);
+
+        void DrawOutline()
+        {
+            if (width <= 1 || height <= 1) return;
+            dc.DrawRectangle(null, new Pen(OutlineBrush, 1), new Rect(0.5, y + 0.5, width - 1, height - 1));
+        }
+
+        long duration = Player?.Duration ?? 0;
+        bool canSeek = Player?.CanPlay == true && duration > 0;
+        if (!canSeek)
+        {
+            DrawOutline();
+            return;
+        }
+        long actual = Math.Clamp(Player?.CurTime ?? 0, 0, duration);
+        long current = Math.Clamp(dragging ? dragTime : actual, 0, duration);
+        double playedEnd = width * ((double)current / duration);
+        double actualX = width * ((double)actual / duration);
+        double bufferedEnd = width * Math.Clamp(((double)actual + Math.Max(0, Player!.BufferedDuration)) / duration, 0, 1);
+
+        void DrawRegion(Brush brush, double start, double end)
+        {
+            if (end <= start) return;
+            dc.DrawRectangle(brush, null, new Rect(start, y, end - start, height));
+        }
+
+        // Overlap the played region to avoid gaps at the boundary. When
+        // previewing a backward seek, retain the actual start of buffered data.
+        if (bufferedEnd > Math.Max(playedEnd, actualX))
+            DrawRegion(BufferedBrush, playedEnd >= actualX ? 0 : actualX, bufferedEnd);
+        DrawRegion(PlayedBrush, 0, playedEnd);
+        if (Player!.Chapters is { Count: > 0 } chapters)
+        {
+            var markerPen = new Pen(ChapterBrush, 1);
+            dc.PushClip(new RectangleGeometry(bounds));
+            foreach (Demuxer.Chapter chapter in chapters)
+            {
+                if (chapter.StartTime <= 0 || chapter.StartTime >= duration) continue;
+                double x = width * ((double)chapter.StartTime / duration);
+                dc.DrawLine(markerPen, new Point(x, y + 4), new Point(x, y + height - 4));
+            }
+            dc.Pop();
+        }
+        DrawOutline();
     }
 
     protected override void OnMouseEnter(MouseEventArgs e)

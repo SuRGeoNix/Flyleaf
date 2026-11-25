@@ -13,12 +13,14 @@ internal sealed class WindowResizeFrame : IDisposable
     internal const int NativeBottomFramePixels = 1;
     readonly Window owner;
     readonly FlyleafME view;
+    readonly FlyleafPlaybackBar playbackBar;
     readonly HwndSource main;
     readonly List<HwndSource> sources = new();
+    IntPtr nonClientHoverWindow;
 
-    internal WindowResizeFrame(Window owner, FlyleafME view, HwndSource main)
+    internal WindowResizeFrame(Window owner, FlyleafME view, FlyleafPlaybackBar playbackBar, HwndSource main)
     {
-        this.owner = owner; this.view = view; this.main = main;
+        this.owner = owner; this.view = view; this.playbackBar = playbackBar; this.main = main;
         AddSource(main);
         view.Host.SurfaceCreated += HostWindowsChanged;
         view.Host.OverlayCreated += HostWindowsChanged;
@@ -59,19 +61,50 @@ internal sealed class WindowResizeFrame : IDisposable
         sources.Add(source);
     }
 
+    static Point ScreenPoint(IntPtr location)
+    {
+        long packed = location.ToInt64();
+        return new Point(unchecked((short)(packed & 0xFFFF)), unchecked((short)((packed >> 16) & 0xFFFF)));
+    }
+
     int HitTest(IntPtr location)
     {
         if (!GetWindowRect(main.Handle, out var bounds)) return 0;
-        long packed = location.ToInt64();
-        int x = unchecked((short)(packed & 0xFFFF));
-        int y = unchecked((short)((packed >> 16) & 0xFFFF));
+        Point point = ScreenPoint(location);
+        int x = (int)point.X, y = (int)point.Y;
         var dpi = VisualTreeHelper.GetDpi(owner);
-        return WindowResizeGeometry.HitTest(x, y, bounds.Left, bounds.Top, bounds.Right, bounds.Bottom,
+        int edge = WindowResizeGeometry.HitTest(x, y, bounds.Left, bounds.Top, bounds.Right, bounds.Bottom,
             (int)Math.Ceiling(7 * dpi.DpiScaleX), (int)Math.Ceiling(7 * dpi.DpiScaleY));
+        // Let the Dynamic handle receive input through the bottom resize strip.
+        if (edge == 15 && y < bounds.Bottom - NativeBottomFramePixels && playbackBar.IsOverDynamicHandle(point))
+            return 1; // HTCLIENT
+        return edge;
+    }
+
+    void TrackNonClientHover(IntPtr hwnd, Point screenPoint)
+    {
+        if (!playbackBar.UpdateNonClientDynamicHandleHover(screenPoint) || hwnd == nonClientHoverWindow) return;
+
+        var tracking = new MouseTracking
+        {
+            Size = (uint)Marshal.SizeOf<MouseTracking>(),
+            Flags = 0x0012, // TME_LEAVE | TME_NONCLIENT
+            Window = hwnd
+        };
+        if (TrackMouseEvent(ref tracking)) nonClientHoverWindow = hwnd;
+        else playbackBar.UpdateNonClientDynamicHandleHover(null);
     }
 
     IntPtr WindowHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == 0x00A0 && CanResize) // WM_NCMOUSEMOVE
+            TrackNonClientHover(hwnd, ScreenPoint(lParam));
+        else if (hwnd == nonClientHoverWindow && msg is 0x02A2 or 0x0082) // WM_NCMOUSELEAVE or WM_NCDESTROY
+        {
+            nonClientHoverWindow = IntPtr.Zero;
+            playbackBar.UpdateNonClientDynamicHandleHover(null);
+        }
+
         if (hwnd == main.Handle && !owner.AllowsTransparency)
         {
             if (msg == 0x0083) // WM_NCCALCSIZE
@@ -128,7 +161,7 @@ internal sealed class WindowResizeFrame : IDisposable
         else if (msg == 0x00A1 && hwnd != main.Handle && wParam.ToInt64() is >= 10 and <= 17) // WM_NCLBUTTONDOWN
         {
             int edge = HitTest(lParam);
-            if (edge != 0)
+            if (edge is >= 10 and <= 17)
             {
                 handled = true;
                 ReleaseCapture();
@@ -140,6 +173,7 @@ internal sealed class WindowResizeFrame : IDisposable
 
     public void Dispose()
     {
+        playbackBar.UpdateNonClientDynamicHandleHover(null);
         view.Host.SurfaceCreated -= HostWindowsChanged;
         view.Host.OverlayCreated -= HostWindowsChanged;
         view.Loaded -= HostWindowsChanged;
@@ -149,6 +183,9 @@ internal sealed class WindowResizeFrame : IDisposable
 
     [StructLayout(LayoutKind.Sequential)]
     struct NativeRect { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct MouseTracking { public uint Size, Flags; public IntPtr Window; public uint HoverTime; }
+    [DllImport("user32.dll")] static extern bool TrackMouseEvent(ref MouseTracking tracking);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
     [DllImport("user32.dll")] static extern bool ReleaseCapture();
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam);

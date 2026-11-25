@@ -62,6 +62,9 @@ public static class FlyleafThemeManager
         palette["FlyleafME.AccentBrush"] = new SolidColorBrush(normal);
         palette["FlyleafME.AccentHoverBrush"] = new SolidColorBrush(hover);
         palette["FlyleafME.OnAccentBrush"] = new SolidColorBrush(onAccent);
+        var volumeGradient = new LinearGradientBrush(normal, hover, new Point(0, 0.5), new Point(1, 0.5));
+        volumeGradient.Freeze();
+        palette["FlyleafME.PlaybackVolumeBrush"] = volumeGradient;
         palette["FlyleafME.LogoMarkBrush"] = new SolidColorBrush(normal);
         palette["FlyleafME.LogoFoldBrush"] = new SolidColorBrush(Color.FromRgb((byte)(normal.R * 0.68), (byte)(normal.G * 0.68), (byte)(normal.B * 0.68)));
         var surface = ((SolidColorBrush)palette["FlyleafME.SurfaceBrush"]).Color;

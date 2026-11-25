@@ -9,6 +9,18 @@
 
     <BooleanToVisibilityConverter x:Key="FlyleafME.QueueControlVisibility"/>
 
+    <Style TargetType="me:FlyleafSeekBar">
+        <Setter Property="TrackBrush" Value="{DynamicResource FlyleafME.OverlayBorderBrush}"/>
+        <Setter Property="BufferedBrush" Value="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}"/>
+        <Setter Property="PlayedBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+        <Setter Property="ChapterBrush" Value="{DynamicResource FlyleafME.OverlayTextBrush}"/>
+        <Setter Property="ThumbOutlineBrush" Value="{DynamicResource FlyleafME.OverlayTextBrush}"/>
+    </Style>
+
+    <Style TargetType="me:FlyleafVolumeWedge">
+        <Setter Property="LevelBrush" Value="{DynamicResource FlyleafME.PlaybackVolumeBrush}"/>
+    </Style>
+
     <Style x:Key="FlyleafME.AutoNextToggleStyle" TargetType="ToggleButton">
         <Setter Property="Width" Value="44"/>
         <Setter Property="Height" Value="22"/>
@@ -553,9 +565,7 @@
             </Grid>
         </ControlTemplate></Setter.Value></Setter>
     </Style>
-    <Style TargetType="me:FlyleafPlaybackBar">
-        <Setter Property="HorizontalAlignment" Value="Stretch"/>
-        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="me:FlyleafPlaybackBar">
+    <ControlTemplate x:Key="FlyleafME.PlaybackBarClassicTemplate" TargetType="me:FlyleafPlaybackBar">
             <Border x:Name="PART_Surface" Margin="8,0,8,8" Padding="10,5,10,5" Background="{DynamicResource FlyleafME.OverlayBrush}"
                     BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}" BorderThickness="1" CornerRadius="8" SnapsToDevicePixels="True">
                 <Grid>
@@ -569,7 +579,7 @@
                             SeekWhileDragging="{Binding Options.SeekWhileDragging, RelativeSource={RelativeSource TemplatedParent}}"
                             IsEnabled="{Binding CanSeek, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center"/>
                         <TextBlock x:Name="PART_Duration" Grid.Column="2" FontFamily="Consolas" FontSize="11" Margin="10,0,0,0"
-                                   Foreground="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource FlyleafME.OverlayTextBrush}" VerticalAlignment="Center"
                                    Text="{Binding DurationText, RelativeSource={RelativeSource TemplatedParent}}"/>
                         <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
                             <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/>
@@ -677,8 +687,268 @@
                     </Grid>
                 </Grid>
             </Border>
-        </ControlTemplate></Setter.Value></Setter>
+        <ControlTemplate.Triggers>
+            <DataTrigger Binding="{Binding Options.ClassicFloating, RelativeSource={RelativeSource Self}}" Value="False">
+                <Setter TargetName="PART_Surface" Property="Margin" Value="0"/>
+                <Setter TargetName="PART_Surface" Property="BorderThickness" Value="0,1,0,0"/>
+                <Setter TargetName="PART_Surface" Property="CornerRadius" Value="0"/>
+            </DataTrigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <ControlTemplate x:Key="FlyleafME.PlaybackBarModernTemplate" TargetType="me:FlyleafPlaybackBar">
+        <Grid x:Name="PART_ModernFrame">
+            <Border x:Name="PART_Surface" Padding="6,4" Background="{DynamicResource FlyleafME.OverlayBrush}"
+                    BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}" BorderThickness="0,1,0,0" SnapsToDevicePixels="True" ClipToBounds="True">
+                <Grid x:Name="PART_ControlsRow">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition x:Name="ModernActionsRow" Height="36"/></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid x:Name="PART_CompactTimeline" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="PART_CompactCurrentTime" FontFamily="Consolas" FontSize="11" Margin="0,0,7,0"
+                                   Foreground="{DynamicResource FlyleafME.OverlayTextBrush}" VerticalAlignment="Center"
+                                   Text="{Binding CurrentTimeText, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        <me:FlyleafSeekBar x:Name="PART_Seek" Grid.Column="1" Player="{Binding Player, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekWhileDragging="{Binding Options.SeekWhileDragging, RelativeSource={RelativeSource TemplatedParent}}"
+                            IsEnabled="{Binding CanSeek, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center"
+                            IsModern="True" Height="28" TrackBrush="{DynamicResource FlyleafME.PlaybackTrackBrush}"
+                            PlayedBrush="{DynamicResource FlyleafME.AccentBrush}"
+                            BufferedBrush="{DynamicResource FlyleafME.PlaybackBufferedBrush}"
+                            OutlineBrush="{DynamicResource FlyleafME.BorderBrush}"/>
+                        <TextBlock x:Name="PART_CompactDuration" Grid.Column="2" FontFamily="Consolas" FontSize="11" Margin="7,0,0,0"
+                                   Foreground="{DynamicResource FlyleafME.OverlayTextBrush}" VerticalAlignment="Center"
+                                   Text="{Binding DurationText, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="7,0,0,0" VerticalAlignment="Center">
+                            <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers><DataTrigger Binding="{Binding IsLive, RelativeSource={RelativeSource TemplatedParent}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                            </Style></StackPanel.Style>
+                            <Ellipse Width="5" Height="5" Fill="#F26C67" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="LIVE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"/>
+                        </StackPanel>
+                    </Grid>
+                        <StackPanel x:Name="PART_TransportGroup" Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,7,0">
+                            <Button x:Name="PART_Previous" Content="&#xE892;" AutomationProperties.Name="Previous item" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    Visibility="{Binding ShowItemNavigation, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource FlyleafME.QueueControlVisibility}}"
+                                    Command="{Binding PreviousCommand, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding HasPrevious, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Button x:Name="PART_Play" Width="52" Height="28" Margin="2,0" FontSize="16" AutomationProperties.Name="Play / Pause"
+                                    Command="{Binding Player.Commands.TogglePlayPause, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding CanPlay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Button.Style><Style TargetType="Button" BasedOn="{StaticResource FlyleafME.PlaybackIconButtonStyle}">
+                                    <Setter Property="Background" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource FlyleafME.OnAccentBrush}"/>
+                                    <Setter Property="Content" Value="&#xE768;"/>
+                                    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                                        <Border x:Name="Plate" Background="{TemplateBinding Background}" CornerRadius="5">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Plate" Property="Background" Value="{DynamicResource FlyleafME.AccentHoverBrush}"/></Trigger>
+                                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Plate" Property="Opacity" Value="0.8"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate></Setter.Value></Setter>
+                                    <Style.Triggers><DataTrigger Binding="{Binding IsPlaying, RelativeSource={RelativeSource TemplatedParent}}" Value="True"><Setter Property="Content" Value="&#xE769;"/></DataTrigger></Style.Triggers>
+                                </Style></Button.Style>
+                            </Button>
+                            <Button x:Name="PART_Next" Content="&#xE893;" AutomationProperties.Name="Next item" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    Visibility="{Binding ShowItemNavigation, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource FlyleafME.QueueControlVisibility}}"
+                                    Command="{Binding NextCommand, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding HasNext, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Button x:Name="PART_Stop" Visibility="Collapsed" Content="&#xE71A;" AutomationProperties.Name="Stop" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    Command="{Binding Player.Commands.Stop, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding CanStop, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        </StackPanel>
+                        <StackPanel x:Name="PART_SourceGroup" Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Visibility="Collapsed">
+                            <Button x:Name="PART_Video" AutomationProperties.Name="Video format and streams" Style="{StaticResource FlyleafME.PlaybackTagButtonStyle}" IsEnabled="{Binding HasVideo, RelativeSource={RelativeSource TemplatedParent}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE714;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="PART_VideoDetail" Text="{Binding VideoLabel, RelativeSource={RelativeSource TemplatedParent}}" MaxWidth="144" TextTrimming="CharacterEllipsis" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="PART_Audio" AutomationProperties.Name="Audio streams" Style="{StaticResource FlyleafME.PlaybackTagButtonStyle}" IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="PART_AudioDetail" Text="{Binding AudioLabel, RelativeSource={RelativeSource TemplatedParent}}" MaxWidth="86" TextTrimming="CharacterEllipsis" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="PART_Subtitles" AutomationProperties.Name="Subtitle streams and appearance" Style="{StaticResource FlyleafME.PlaybackTagButtonStyle}" IsEnabled="{Binding CanPlay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="CC" FontFamily="Segoe UI" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="PART_SubtitleDetail" Text="{Binding SubtitlesLabel, RelativeSource={RelativeSource TemplatedParent}}" MaxWidth="38" TextTrimming="CharacterEllipsis" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel x:Name="PART_UtilityGroup" Grid.Row="1" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="7,0,0,0">
+                            <Button x:Name="PART_Speed" Visibility="Collapsed" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    AutomationProperties.Name="Playback speed"
+                                    IsEnabled="{Binding CanPlay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Grid Width="18" Height="18">
+                                    <Path Data="M 4.25,14.75 A 7,7 0 1 1 13.75,14.75 M 4.5,10 L 5.5,10 M 12.5,10 L 13.5,10"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                    <Path Data="M 9,11 L 9,5.75" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.55" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                                        <Path.RenderTransform>
+                                            <RotateTransform CenterX="9" CenterY="11" Angle="{Binding SpeedNeedleAngle, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                        </Path.RenderTransform>
+                                    </Path>
+                                    <Ellipse Width="2.75" Height="2.75" HorizontalAlignment="Center" VerticalAlignment="Top"
+                                             Margin="0,9.625,0,0" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Grid>
+                            </Button>
+                            <ToggleButton x:Name="PART_AutoNext" Margin="0,0,6,0" ToolTip="{x:Null}"
+                                          Style="{StaticResource FlyleafME.AutoNextToggleStyle}"
+                                          Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"
+                                          IsChecked="{Binding QueueSource.AutoAdvance, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                          Visibility="Collapsed"/>
+                            <Button x:Name="PART_Volume" AutomationProperties.Name="{Binding VolumeToolTip, RelativeSource={RelativeSource TemplatedParent}}" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}" IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <me:FlyleafVolumeWedge x:Name="PART_HorizontalVolume" Width="88" Height="28" Margin="2,0,5,0" Focusable="False" Cursor="Hand"
+                                    AutomationProperties.Name="Volume"
+                                    Minimum="0" Maximum="{Binding Player.Config.Audio.VolumeMax, RelativeSource={RelativeSource TemplatedParent}}"
+                                    Value="{Binding Player.Audio.Volume, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}">
+                                <me:FlyleafVolumeWedge.Template><ControlTemplate TargetType="me:FlyleafVolumeWedge"><Border Background="Transparent"/></ControlTemplate></me:FlyleafVolumeWedge.Template>
+                            </me:FlyleafVolumeWedge>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Button x:Name="PART_Settings" Content="&#xE713;" AutomationProperties.Name="Settings" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}" IsEnabled="{Binding CanOpenSettings, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <Button x:Name="PART_Playlist" Grid.Column="1" AutomationProperties.Name="Queue" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                        IsEnabled="{Binding CanOpenQueue, RelativeSource={RelativeSource TemplatedParent}}">
+                                    <Grid Width="18" Height="18">
+                                        <Path Data="M 8.5,5 L 15.5,5 M 8.5,9 L 15.5,9 M 8.5,13 L 15.5,13"
+                                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                              StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                        <Path Data="M 2.5,6.5 L 6.5,9 L 2.5,11.5 Z"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    </Grid>
+                                </Button>
+                            </Grid>
+                            <Button x:Name="PART_More" AutomationProperties.Name="More playback options" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}">
+                                <Grid Width="16" Height="18">
+                                    <Ellipse Width="2.5" Height="2.5" VerticalAlignment="Top" Margin="0,3,0,0" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    <Ellipse Width="2.5" Height="2.5" VerticalAlignment="Center" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    <Ellipse Width="2.5" Height="2.5" VerticalAlignment="Bottom" Margin="0,0,0,3" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="PART_Fullscreen" Content="&#xE740;" AutomationProperties.Name="Fullscreen / normal" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                                    Command="{Binding Player.Commands.ToggleFullScreen, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        </StackPanel>
+                        <Popup x:Name="PART_VolumePopup" Grid.Row="1" Grid.Column="2" Placement="Top" VerticalOffset="-8" AllowsTransparency="True" StaysOpen="False" PopupAnimation="Fade">
+                            <Border Padding="8,10" CornerRadius="7" DataContext="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                                    Background="{DynamicResource FlyleafME.OverlayBrush}" BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}" BorderThickness="1">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Volume" FontSize="10" Margin="0,0,0,6" Foreground="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}" HorizontalAlignment="Center"/>
+                                    <me:FlyleafVolumeWedge Orientation="Vertical" Width="28" Height="110" Focusable="False" Cursor="Hand" AutomationProperties.Name="Volume"
+                                            Minimum="0" Maximum="{Binding Player.Config.Audio.VolumeMax}"
+                                            Value="{Binding Player.Audio.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding HasAudio}">
+                                        <me:FlyleafVolumeWedge.Template><ControlTemplate TargetType="me:FlyleafVolumeWedge"><Border Background="Transparent"/></ControlTemplate></me:FlyleafVolumeWedge.Template>
+                                    </me:FlyleafVolumeWedge>
+                                    <Button Content="{Binding VolumeIcon}" AutomationProperties.Name="Mute / Unmute" Margin="0,6,0,0" Command="{Binding Player.Commands.ToggleMute}" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"/>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                </Grid>
+            </Border>
+            <Grid x:Name="PART_DynamicHandleBand" Height="8" VerticalAlignment="Bottom" Background="Transparent" Visibility="Collapsed">
+                <Button x:Name="PART_DynamicHandle" Width="46" Height="8" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                        Opacity="0" Focusable="True" FocusVisualStyle="{x:Null}"
+                        KeyboardNavigation.AcceptsReturn="True" Cursor="Hand"
+                        Background="{DynamicResource FlyleafME.PlaybackTrackBrush}" Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"
+                        AutomationProperties.Name="Pin full playback bar">
+                    <Button.Template><ControlTemplate TargetType="Button">
+                        <Border x:Name="Tab" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource FlyleafME.BorderBrush}"
+                                BorderThickness="1,1,1,0" CornerRadius="3,3,0,0">
+                            <Path Data="M 0,3 L 5,0 L 10,3" Stroke="{TemplateBinding Foreground}" StrokeThickness="1"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Tab" Property="Background" Value="{DynamicResource FlyleafME.RaisedSurfaceBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Tab" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate></Button.Template>
+                </Button>
+            </Grid>
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger SourceName="PART_DynamicHandleBand" Property="IsMouseOver" Value="True">
+                <Setter TargetName="PART_DynamicHandle" Property="Opacity" Value="1"/>
+            </Trigger>
+            <Trigger Property="IsNonClientPointerOverDynamicHandleBand" Value="True">
+                <Setter TargetName="PART_DynamicHandle" Property="Opacity" Value="1"/>
+            </Trigger>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition SourceName="PART_DynamicHandle" Property="IsMouseOver" Value="True"/>
+                    <Condition SourceName="PART_DynamicHandle" Property="IsKeyboardFocused" Value="False"/>
+                </MultiTrigger.Conditions>
+                <Setter TargetName="PART_DynamicHandle" Property="Focusable" Value="False"/>
+            </MultiTrigger>
+            <Trigger SourceName="PART_DynamicHandle" Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="PART_DynamicHandle" Property="Opacity" Value="1"/>
+            </Trigger>
+            <Trigger Property="IsModernFullLayout" Value="True">
+                <Setter TargetName="PART_CompactTimeline" Property="Grid.Row" Value="0"/>
+                <Setter TargetName="PART_CompactTimeline" Property="Grid.Column" Value="0"/>
+                <Setter TargetName="PART_CompactTimeline" Property="Grid.ColumnSpan" Value="3"/>
+                <Setter TargetName="PART_CompactTimeline" Property="Height" Value="32"/>
+                <Setter TargetName="PART_SourceGroup" Property="Visibility" Value="Visible"/>
+                <Setter TargetName="PART_TransportGroup" Property="Margin" Value="0,0,8,0"/>
+                <Setter TargetName="PART_UtilityGroup" Property="Margin" Value="8,0,0,0"/>
+                <Setter TargetName="PART_Settings" Property="Grid.Column" Value="1"/>
+                <Setter TargetName="PART_Playlist" Property="Grid.Column" Value="0"/>
+            </Trigger>
+            <Trigger Property="IsDynamicMode" Value="True">
+                <Setter TargetName="PART_DynamicHandleBand" Property="Visibility" Value="Visible"/>
+                <Setter TargetName="PART_CompactTimeline" Property="Grid.Row" Value="0"/>
+                <Setter TargetName="PART_CompactTimeline" Property="Grid.Column" Value="0"/>
+                <Setter TargetName="PART_CompactTimeline" Property="Grid.ColumnSpan" Value="3"/>
+                <Setter TargetName="PART_CompactTimeline" Property="Height" Value="36"/>
+            </Trigger>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="IsDynamicMode" Value="True"/>
+                    <Condition Property="IsModernFullLayout" Value="False"/>
+                </MultiTrigger.Conditions>
+                <Setter TargetName="ModernActionsRow" Property="RowDefinition.Height" Value="0"/>
+                <Setter TargetName="PART_TransportGroup" Property="Visibility" Value="Collapsed"/>
+                <Setter TargetName="PART_UtilityGroup" Property="Visibility" Value="Collapsed"/>
+            </MultiTrigger>
+            <DataTrigger Binding="{Binding Options.Floating, RelativeSource={RelativeSource Self}}" Value="True">
+                <Setter TargetName="PART_ModernFrame" Property="Margin" Value="8,0,8,10"/>
+                <Setter TargetName="PART_Surface" Property="BorderThickness" Value="1"/>
+                <Setter TargetName="PART_Surface" Property="CornerRadius" Value="7"/>
+            </DataTrigger>
+            <Trigger Property="DynamicPinned" Value="True">
+                <Setter TargetName="PART_DynamicHandle" Property="Foreground" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                <Setter TargetName="PART_DynamicHandle" Property="AutomationProperties.Name" Value="Unpin full playback bar"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style TargetType="me:FlyleafPlaybackBar">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Template" Value="{StaticResource FlyleafME.PlaybackBarClassicTemplate}"/>
         <Style.Triggers>
+            <DataTrigger Binding="{Binding Options.Design, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafPlaybackBarDesign.Modern}">
+                <Setter Property="Template" Value="{StaticResource FlyleafME.PlaybackBarModernTemplate}"/>
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding Options.Design, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafPlaybackBarDesign.Modern}"/>
+                    <Condition Binding="{Binding Options.Mode, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafPlaybackBarMode.Full}"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="IsModernFullLayout" Value="True"/>
+            </MultiDataTrigger>
+            <DataTrigger Binding="{Binding DynamicExpanded, RelativeSource={RelativeSource Self}}" Value="True">
+                <Setter Property="IsModernFullLayout" Value="True"/>
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding Options.Design, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafPlaybackBarDesign.Modern}"/>
+                    <Condition Binding="{Binding Options.Mode, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafPlaybackBarMode.Dynamic}"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="IsDynamicMode" Value="True"/>
+            </MultiDataTrigger>
             <DataTrigger Binding="{Binding Options.Visibility, RelativeSource={RelativeSource Self}}" Value="{x:Static me:FlyleafVisibilityPolicy.Never}">
                 <Setter Property="Visibility" Value="Collapsed"/>
             </DataTrigger>

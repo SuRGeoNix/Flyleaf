@@ -593,7 +593,7 @@ public partial class MainWindow : Window
         windowSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
         windowSource?.AddHook(WindowMessageHook);
         UpdateWindowOutlineVisibility();
-        if (windowSource != null) resizeFrame = new WindowResizeFrame(this, MediaElement, windowSource);
+        if (windowSource != null) resizeFrame = new WindowResizeFrame(this, MediaElement, PlaybackBar, windowSource);
         Dispatcher.BeginInvoke(new Action(ApplyVideoWindowRatio));
     }
 

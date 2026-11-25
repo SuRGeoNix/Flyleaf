@@ -43,6 +43,10 @@ public partial class FlyleafME
                     case "control.navigation.nextPage": control.NextItems(); break;
                     case "control.queue.autoAdvance": control.ToggleQueueAutoAdvance(); break;
                     case "control.queue.search": control.ShowQueueSearch(); break;
+                    case "control.playbackBar.pin" when control.UIConfig.PlaybackBar is
+                        { Design: FlyleafPlaybackBarDesign.Modern, Mode: FlyleafPlaybackBarMode.Dynamic } options:
+                        options.DynamicPinned = !options.DynamicPinned;
+                        break;
                 }
             }
             if (control.Dispatcher.CheckAccess()) Execute(); else control.Dispatcher.BeginInvoke(new Action(Execute));
@@ -90,7 +94,8 @@ internal static class FlyleafControlKeybindings
         ["control.navigation.previousPage"] = new(Key.PageUp, Ctrl: true, IsKeyUp: true),
         ["control.navigation.nextPage"] = new(Key.PageDown, Ctrl: true, IsKeyUp: true),
         ["control.queue.autoAdvance"] = new(Key.F5, IsKeyUp: true),
-        ["control.queue.search"] = new(Key.F, Ctrl: true, IsKeyUp: true)
+        ["control.queue.search"] = new(Key.F, Ctrl: true, IsKeyUp: true),
+        ["control.playbackBar.pin"] = new(Key.B, Ctrl: true, IsKeyUp: true)
     });
 
     internal static void Attach(KeysConfig keys, Action<string> execute, bool addDefaultGestures)
@@ -109,9 +114,9 @@ internal static class FlyleafControlKeybindings
                 var binding = new PlayerKeyBinding { Action = KeyBindingAction.Custom, ActionName = id };
                 // AddCustom overwrites a matching gesture (including None). Append
                 // distinct unassigned rows if defaults are disabled or occupied.
-                // Seed new queue actions in older configs only when their row
-                // is absent; existing remappings/unassignment never reach this branch.
-                ((addDefaultGestures || id is "control.queue.autoAdvance" or "control.queue.search") && gesture.Conflict(keys.Keys) == null ? gesture : new FlyleafShortcutGesture(Key.None)).Apply(binding);
+                // Seed newer shortcuts in older configs only when their row is absent.
+                bool seedDefault = addDefaultGestures || id is "control.queue.autoAdvance" or "control.queue.search" or "control.playbackBar.pin";
+                (seedDefault && gesture.Conflict(keys.Keys) == null ? gesture : new FlyleafShortcutGesture(Key.None)).Apply(binding);
                 keys.Keys.Add(binding); existing = [binding];
             }
             // Migrate only the previous default, without replacing custom gestures or an occupied Ctrl+F.

@@ -117,13 +117,14 @@ public partial class FlyleafME
         ShowContextMenu(null, PlacementMode.MousePoint);
     }
 
-    internal void ShowContextMenu(FrameworkElement? anchor, PlacementMode placement)
+    internal void ShowContextMenu(FrameworkElement? anchor, PlacementMode placement, FlyleafPlaybackBar? playbackBar = null)
     {
         if (!IsLoaded || disposed) return;
         CloseGeneralMenu();
         var menu = BuildContextMenu(); generalMenu = menu;
         menu.PlacementTarget = anchor ?? (Host.Overlay is { IsVisible: true } overlay ? overlay : Host.Surface is { IsVisible: true } surface ? surface : this);
         menu.Placement = placement;
+        if (playbackBar != null) menu.Opened += (_, _) => playbackBar.TrackOpenPlaybackMenu(menu);
         menu.IsOpen = true;
     }
     void CloseGeneralMenu() { if (generalMenu != null) generalMenu.IsOpen = false; generalMenu = null; }
@@ -381,21 +382,26 @@ public partial class FlyleafME
         dialog.Resources.MergedDictionaries.Add(Resources);
         return dialog.ShowDialog() == true && !disposed ? dialog.Input.Text.Trim() : null;
     }
-    bool IsGeneralMenuTarget(object original)
+    bool IsGeneralMenuTarget(object original, out FlyleafPlaybackBar? playbackBar)
     {
+        playbackBar = null;
         if (original is not DependencyObject source) return true;
         for (DependencyObject? item = source; item != null; item = item is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(item) : LogicalTreeHelper.GetParent(item))
+        {
             if (item is ButtonBase or TextBoxBase or Slider or ComboBox or FlyleafPanel || ReferenceEquals(item, overlayHeader) || item is FrameworkElement { ContextMenu: not null }) return false;
+            if (item is FlyleafPlaybackBar bar) playbackBar = bar;
+        }
         return true;
     }
     void HostRightClick(object sender, MouseButtonEventArgs e)
     {
-        if (IsQueueSearchOpen || e.Handled || !IsGeneralMenuTarget(e.OriginalSource)) return;
-        ShowContextMenu(); e.Handled = true;
+        if (IsQueueSearchOpen || e.Handled || !IsGeneralMenuTarget(e.OriginalSource, out var playbackBar)) return;
+        ShowContextMenu(null, PlacementMode.MousePoint, playbackBar); e.Handled = true;
     }
     void HostMenuKeyDown(object sender, KeyEventArgs e)
     {
-        if (IsQueueSearchOpen || e.Handled || !(e.Key == Key.Apps || e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.Shift) || !IsGeneralMenuTarget(e.OriginalSource)) return;
-        ShowContextMenu(e.OriginalSource as FrameworkElement, PlacementMode.Bottom); e.Handled = true;
+        if (IsQueueSearchOpen || e.Handled || !(e.Key == Key.Apps || e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.Shift) ||
+            !IsGeneralMenuTarget(e.OriginalSource, out var playbackBar)) return;
+        ShowContextMenu(e.OriginalSource as FrameworkElement, PlacementMode.Bottom, playbackBar); e.Handled = true;
     }
 }

@@ -22,13 +22,42 @@ public class FlyleafAppearanceOptions : NotifyPropertyChanged
     public FlyleafAppearanceOptions Clone() => new() { Theme = Theme, Accent = Accent };
 }
 
+public enum FlyleafPlaybackBarDesign
+{
+    Classic,
+    Modern
+}
+
+public enum FlyleafPlaybackBarMode
+{
+    Compact,
+    Full,
+    Dynamic
+}
+
 public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
 {
     FlyleafVisibilityPolicy visibility;
+    FlyleafPlaybackBarDesign design = FlyleafPlaybackBarDesign.Modern;
+    FlyleafPlaybackBarMode mode = FlyleafPlaybackBarMode.Dynamic;
+    bool floating = true;
+    bool classicFloating = true;
+    bool dynamicPinned;
     bool seekWhileDragging = true;
     int autoHideDelayMilliseconds = 2800;
 
     public FlyleafVisibilityPolicy Visibility { get => visibility; set => Set(ref visibility, value); }
+    public FlyleafPlaybackBarDesign Design { get => design; set => Set(ref design, value); }
+    public FlyleafPlaybackBarMode Mode { get => mode; set => Set(ref mode, value); }
+
+    /// <summary>Inset the Modern playback bar and round its corners.</summary>
+    public bool Floating { get => floating; set => Set(ref floating, value); }
+
+    /// <summary>Inset the Classic playback bar and round its corners.</summary>
+    public bool ClassicFloating { get => classicFloating; set => Set(ref classicFloating, value); }
+
+    /// <summary>Keep the controls row expanded in Dynamic mode.</summary>
+    public bool DynamicPinned { get => dynamicPinned; set => Set(ref dynamicPinned, value); }
 
     /// <summary>Seek continuously while dragging; false commits only on release.</summary>
     public bool SeekWhileDragging { get => seekWhileDragging; set => Set(ref seekWhileDragging, value); }
@@ -44,7 +73,7 @@ public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
         }
     }
 
-    public FlyleafPlaybackBarOptions Clone() => new() { Visibility = Visibility, SeekWhileDragging = SeekWhileDragging, AutoHideDelayMilliseconds = AutoHideDelayMilliseconds };
+    public FlyleafPlaybackBarOptions Clone() => new() { Visibility = Visibility, Design = Design, Mode = Mode, Floating = Floating, ClassicFloating = ClassicFloating, DynamicPinned = DynamicPinned, SeekWhileDragging = SeekWhileDragging, AutoHideDelayMilliseconds = AutoHideDelayMilliseconds };
 }
 
 public class FlyleafQueueOptions : NotifyPropertyChanged
