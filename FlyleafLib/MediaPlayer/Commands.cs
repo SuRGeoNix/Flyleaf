@@ -174,10 +174,10 @@ public class Commands
 
         if (vp == VideoProcessors.D3D11)
             foreach (var kv in cfg.D3Filters)
-                kv.Value.Value = kv.Value.Default;
+                kv.Value.Reset();
         else
             foreach (var kv in cfg.FLFilters)
-                kv.Value.Value = kv.Value.Default;
+                kv.Value.Reset();
 
         cfg.TargetSDRPeakNits = cfg.TargetSDRMinNits = cfg.TargetHDRPeakNits = cfg.TargetHDRMinNits =  -1;
     }

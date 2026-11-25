@@ -428,14 +428,6 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
         var prevKeys = KeyBindings;
         KeyBindings = AvailableWindows.None;
 
-        Dictionary<FLFilters, int> saveFilterValues = [];
-        Dictionary<VideoProcessorFilter, int> saveD3FilterValues = [];
-        foreach(var filter in Config.Video.FLFilters.Values)
-            saveFilterValues.Add(filter.Filter, filter.Value);
-
-        foreach (var filter in Config.Video.D3Filters.Values)
-            saveD3FilterValues.Add(filter.Filter, filter.Value);
-
         var wasOnTop    = DetachedTopMost;
         DetachedTopMost = false;
         var prevConfig  = Config.Video.Clone();
@@ -455,11 +447,7 @@ public class FlyleafME : FlyleafHost, INotifyPropertyChanged
             Config.Video.TargetHDRPeakNits  = prevConfig.TargetHDRPeakNits;
             Config.Video.TargetHDRMinNits   = prevConfig.TargetHDRMinNits;
 
-            foreach(var filter in saveFilterValues)
-                Config.Video.FLFilters[filter.Key].Value  = filter.Value;
-
-            foreach (var filter in saveD3FilterValues)
-                Config.Video.D3Filters[filter.Key].Value = filter.Value;
+            Player.Renderer?.RestoreVideoFilterPreferences(prevConfig);
         }
         else
         {

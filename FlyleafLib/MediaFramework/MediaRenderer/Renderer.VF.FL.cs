@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 using Vortice.Direct3D11;
 
@@ -7,61 +6,48 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
-    bool flFiltersFilled;
     bool hasFLFilters;
 
     void FLFiltersSetup()
     {
-        if (!flFiltersFilled)
-        {
-            flFiltersFilled = true;
-
-            foreach(var filterSpec in FLFilter.FLFilterSpecs)
+        lock (ucfg.lockFLFilters)
+            foreach (var spec in FLFilter.FLFilterSpecs)
             {
-                if (ucfg.FLFilters.TryGetValue(filterSpec.Filter, out var userFilter))
-                {
-                    userFilter.Initialize(this);
-                    if (userFilter.Value != userFilter.Default)
-                        { hasFLFilters = true; FLSetFilter(userFilter); }
-                }
+                if (ucfg.FLFilters.TryGetValue(spec.Filter, out var filter))
+                    filter.Initialize(this);
                 else
-                {
-                    lock (ucfg.lockFLFilters)
-                        ucfg.FLFilters.Add(filterSpec.Filter, new(this, filterSpec));
-                }
+                    ucfg.FLFilters.Add(spec.Filter, new(this, spec));
             }
-        }
-        else
-        {   // NOTE: psData will not be reset on each setup so make sure we set all
-            hasFLFilters = false;
-            foreach(var userFilter in ucfg.FLFilters.Values)
-                if (userFilter.Value != userFilter.Default)
-                    { hasFLFilters = true; FLSetFilter(userFilter); }
-        }
+
+        RefreshFLFilters();
     }
-    void FLFiltersSync()
+
+    void RefreshFLFilters(bool request = false)
     {
-        if (!ucfg.SyncVPFilters || (!hasD3Filters && !hasFLFilters))
-            return;
-
+        bool previous = hasFLFilters;
         hasFLFilters = false;
-
-        foreach(var flFilter in ucfg.FLFilters.Values)
-            if (ucfg.D3Filters.TryGetValue(ToVideoProcessorFilter(flFilter.Filter), out var d3Filter) && d3Filter.Available)
+        lock (ucfg.lockFLFilters)
+        lock (ucfg.lockD3Filters)
+            foreach (var filter in ucfg.FLFilters.Values)
             {
-                flFilter.Value = d3Filter.Minimum == d3Filter.Maximum ? flFilter.Default :
-                    Math.Clamp((int)Math.Round(Scale(d3Filter.Value, d3Filter.Minimum, d3Filter.Maximum, flFilter.Minimum, flFilter.Maximum)), flFilter.Minimum, flFilter.Maximum);
-                if (flFilter.Value != flFilter.Default)
-                    hasFLFilters = true;
-
-                FLSetFilter(flFilter);
+                int level = ucfg.SyncVPFilters
+                    ? ProjectFilterLevel(GetSyncedFilterLevel(filter.Filter), filter.Minimum, filter.Default, filter.Maximum)
+                    : Math.Clamp(filter.RequestedValue, filter.Minimum, filter.Maximum);
+                filter.SetEffectiveValue(level);
+                hasFLFilters |= level != filter.Default;
+                ApplyFLFilter(filter);
             }
-            else if (flFilter.Value != flFilter.Default)
-                hasFLFilters = true;
+
+        var requests = VPRequestType.UpdatePS;
+        if (request && previous != hasFLFilters && VideoProcessor != VideoProcessors.D3D11)
+            requests |= VPRequestType.ReConfigVP;
+        VPRequest(requests, execute: request);
     }
-    internal void FLSetFilter(FLFilter cfgFilter, bool request = false)
-    {   // Direct Call From Config
-        float value = Scale(cfgFilter.Value, cfgFilter.Minimum, cfgFilter.Maximum, cfgFilter.MinimumPS, cfgFilter.MaximumPS);
+
+    void ApplyFLFilter(FLFilter cfgFilter)
+    {
+        float value = cfgFilter.Minimum == cfgFilter.Maximum ? cfgFilter.MinimumPS :
+            Scale(cfgFilter.Value, cfgFilter.Minimum, cfgFilter.Maximum, cfgFilter.MinimumPS, cfgFilter.MaximumPS);
 
         switch (cfgFilter.Filter)
         {
@@ -81,31 +67,6 @@ public unsafe partial class Renderer
                 psData.Saturation   = value;
                 break;
         }
-
-        var vpRequests = VPRequestType.UpdatePS;
-
-        if (request)
-        {
-            if (!hasFLFilters)
-            {
-                if (cfgFilter.Value != cfgFilter.Default)
-                {
-                    hasFLFilters = true;
-                    if (VideoProcessor != VideoProcessors.D3D11)
-                        vpRequests |= VPRequestType.ReConfigVP;
-                }
-            }
-            else if (!ucfg.FLFilters.Where(f => f.Value.Value != f.Value.Default).Any())
-            {
-                hasFLFilters = false;
-                if (VideoProcessor != VideoProcessors.D3D11)
-                    vpRequests |= VPRequestType.ReConfigVP;
-            }
-
-            VPRequest(vpRequests);
-        }
-        else
-            VPRequest(vpRequests, execute: false); // during initialization (TBR which is actually the current VP?)
     }
 
     static VideoProcessorFilter ToVideoProcessorFilter(FLFilters filter) => filter switch
@@ -130,8 +91,12 @@ public class FLFilter : NotifyPropertyChanged
     public float        MaximumPS   { get; set; }
     public float        Step        { get; set; }
     public int          Default     { get; set; }
-    public int          Value       { get => _Value; set { if (Set(ref _Value, value)) renderer?.FLSetFilter(this, true); }}
+    [JsonIgnore]
+    public int          Value       { get => renderer == null ? RequestedValue : effectiveValue; set => SetPreference(value); }
+    [JsonInclude, JsonPropertyName("Value")]
+    internal int RequestedValue { get => _Value; set => _Value = value; }
     protected int _Value;
+    int effectiveValue;
 
     Renderer renderer;
 
@@ -145,12 +110,35 @@ public class FLFilter : NotifyPropertyChanged
         Maximum     = filterSpec.Maximum;
         MaximumPS   = filterSpec.MaximumPS;
         Step        = filterSpec.Step;
-        Default     = Value = filterSpec.Default;
+        Default     = RequestedValue = effectiveValue = filterSpec.Default;
         this.renderer = renderer;
     }
 
+    /// <summary>Restore the neutral filter level, including its shared preference.</summary>
+    public void Reset() => SetPreference(Default, force: true);
+
+    void SetPreference(int value, bool force = false)
+    {
+        if (!force && value == Value) return;
+        if (renderer is { } owner)
+            owner.EditFilter(this, value);
+        else
+            Set(ref _Value, value, propertyName: nameof(Value));
+    }
+
+    internal void SetEffectiveValue(int value) => SetUI(ref effectiveValue, value, propertyName: nameof(Value));
+
+    internal FLFilter ClonePreference() => new()
+    {
+        Filter = Filter, Minimum = Minimum, Maximum = Maximum, MinimumPS = MinimumPS, MaximumPS = MaximumPS,
+        Step = Step, Default = Default, RequestedValue = RequestedValue
+    };
+
     internal void Initialize(Renderer renderer)
-        => this.renderer = renderer;
+    {
+        if (this.renderer == null) effectiveValue = RequestedValue;
+        this.renderer = renderer;
+    }
 
     internal void Dispose()
         => renderer = null;

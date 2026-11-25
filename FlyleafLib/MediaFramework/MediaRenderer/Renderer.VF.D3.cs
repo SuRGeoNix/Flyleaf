@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 using Vortice.Direct3D11;
 
@@ -7,8 +6,6 @@ namespace FlyleafLib.MediaFramework.MediaRenderer;
 
 public unsafe partial class Renderer
 {
-    bool hasD3Filters;
-
     void D3FiltersSetup(D3CacheEntry d3CacheEntry, bool needsFillUnlock)
     {
         if (needsFillUnlock)
@@ -33,60 +30,36 @@ public unsafe partial class Renderer
 
         superResNvidiaAvailable = d3CacheEntry.SuperResNvidiaAvailable == 1;
 
-        hasD3Filters = false;
-        foreach (var filter in D3CacheEntry.AllFilters)
-            if (d3CacheEntry.Filters.TryGetValue(filter, out var filterSpec))
-            {
-                if (ucfg.D3Filters.TryGetValue(filter, out var userFilter))
-                    userFilter.Initialize(this, filterSpec);
-                else
+        lock (ucfg.lockD3Filters)
+            foreach (var filter in D3CacheEntry.AllFilters)
+                if (d3CacheEntry.Filters.TryGetValue(filter, out var range))
                 {
-                    userFilter = new(this, filter, filterSpec);
-                    lock (ucfg.lockD3Filters)
-                        ucfg.D3Filters.Add(filter, userFilter);
+                    if (ucfg.D3Filters.TryGetValue(filter, out var userFilter))
+                        userFilter.Initialize(this, range);
+                    else
+                        ucfg.D3Filters.Add(filter, new(this, filter, range));
                 }
-                if (userFilter.Value != userFilter.Default)
-                {
-                    hasD3Filters = true;
-                    vc.VideoProcessorSetStreamFilter(vp, 0, filter, true, userFilter.Value);
-                }
-            }
-            else if (ucfg.D3Filters.TryGetValue(filter, out var unsupported))
-                unsupported.Dispose();
+                else if (ucfg.D3Filters.TryGetValue(filter, out var unsupported))
+                    unsupported.Dispose();
 
+        RefreshD3Filters();
     }
-    void D3FiltersSync()
+
+    void RefreshD3Filters()
     {
-        if (!ucfg.SyncVPFilters || (!hasD3Filters && !hasFLFilters))
-            return;
-
-        hasD3Filters = false;
-
-        foreach(var flFilter in ucfg.FLFilters.Values)
-            if (ucfg.D3Filters.TryGetValue(ToVideoProcessorFilter(flFilter.Filter), out var d3Filter) && d3Filter.Available)
+        lock (ucfg.lockFLFilters)
+        lock (ucfg.lockD3Filters)
+            foreach (var filter in ucfg.D3Filters.Values)
             {
-                d3Filter.Value = flFilter.Minimum == flFilter.Maximum ? d3Filter.Default :
-                    Math.Clamp((int)Math.Round(Scale(flFilter.Value, flFilter.Minimum, flFilter.Maximum, d3Filter.Minimum, d3Filter.Maximum)), d3Filter.Minimum, d3Filter.Maximum);
-                if (d3Filter.Value != d3Filter.Default)
-                    hasD3Filters = true;
+                if (!filter.Available) continue;
 
-                vc.VideoProcessorSetStreamFilter(vp, 0, d3Filter.Filter, true, d3Filter.Value);
+                int level = ucfg.SyncVPFilters && ToFlyleafFilter(filter.Filter) is { } flyleaf
+                    ? ProjectFilterLevel(GetSyncedFilterLevel(flyleaf), filter.Minimum, filter.Default, filter.Maximum)
+                    : filter.ClampRequestedValue();
+                filter.SetEffectiveValue(level);
+                if (vc != null && vp != null)
+                    vc.VideoProcessorSetStreamFilter(vp, 0, filter.Filter, level != filter.Default, level);
             }
-        // Include device-specific filters that have no Flyleaf counterpart.
-        hasD3Filters = ucfg.D3Filters.Values.Any(filter => filter.Available && filter.Value != filter.Default);
-    }
-    internal void D3SetFilter(D3Filter filter)
-    {   // Direct Call from Config
-        if (filter.Value != filter.Default)
-            hasD3Filters = true;
-        else
-            hasD3Filters = ucfg.D3Filters.Values.Any(f => f.Available && f.Value != f.Default);
-
-        if (vc != null && vp != null)
-        {
-            vc.VideoProcessorSetStreamFilter(vp, 0, filter.Filter, true, filter.Value);
-            RenderRequest();
-        }
     }
 
     static VideoProcessorFilter ToVideoProcessorFilter(VideoProcessorFilterCaps filter) => filter switch
@@ -104,41 +77,96 @@ public unsafe partial class Renderer
 }
 
 public class D3Filter : NotifyPropertyChanged
-{   // NOTE: Serialization requires Public sets and constructor
-
+{
     [JsonIgnore]
     public bool         Available   => renderer != null;
     public VideoProcessorFilter
                         Filter      { get; set; }
-    public int          Minimum     { get; set; }
-    public int          Maximum     { get; set; }
-    public float        Step        { get; set; }
-    public int          Default     { get; set; }
-    public int          Value       { get => _Value; set { if (Set(ref _Value, value)) renderer?.D3SetFilter(this); }}
+    [JsonIgnore]
+    public int Minimum { get => activeRange?.Minimum ?? SavedMinimum; set => SavedMinimum = value; }
+    [JsonIgnore]
+    public int Maximum { get => activeRange?.Maximum ?? SavedMaximum; set => SavedMaximum = value; }
+    [JsonIgnore]
+    public float Step { get => activeRange?.Multiplier ?? SavedStep; set => SavedStep = value; }
+    [JsonIgnore]
+    public int Default { get => activeRange?.Default ?? SavedDefault; set => SavedDefault = value; }
+    [JsonIgnore]
+    public int Value { get => Available ? effectiveValue : RequestedValue; set => SetPreference(value); }
+
+    [JsonInclude, JsonPropertyName("Minimum")]
+    internal int SavedMinimum { get; set; }
+    [JsonInclude, JsonPropertyName("Maximum")]
+    internal int SavedMaximum { get; set; }
+    [JsonInclude, JsonPropertyName("Step")]
+    internal float SavedStep { get; set; }
+    [JsonInclude, JsonPropertyName("Default")]
+    internal int SavedDefault { get; set; }
+    [JsonInclude, JsonPropertyName("Value")]
+    internal int RequestedValue { get => _Value; set => _Value = value; }
     protected int _Value;
 
+    int effectiveValue;
+    VideoProcessorFilterRange? activeRange;
     internal Renderer renderer;
 
     public D3Filter() { }
 
-    internal D3Filter(Renderer renderer, VideoProcessorFilter filter, VideoProcessorFilterRange filterSpec)
+    internal D3Filter(Renderer renderer, VideoProcessorFilter filter, VideoProcessorFilterRange range)
     {
-        Filter      = filter;
-        Minimum     = filterSpec.Minimum;
-        Maximum     = filterSpec.Maximum;
-        Step        = filterSpec.Multiplier;
-        Default     = Value = filterSpec.Default;
+        Filter = filter;
+        activeRange = range;
+        CapturePreference(range.Default);
+        effectiveValue = range.Default;
         this.renderer = renderer;
+    }
+
+    /// <summary>Restore the neutral filter level, including its shared preference.</summary>
+    public void Reset() => SetPreference(Default, force: true);
+
+    void SetPreference(int value, bool force = false)
+    {
+        if (!force && value == Value) return;
+        if (renderer is { } owner)
+            owner.EditFilter(this, value);
+        else
+            Set(ref _Value, value, propertyName: nameof(Value));
+    }
+
+    internal void CapturePreference(int level)
+    {
+        SavedMinimum = Minimum;
+        SavedMaximum = Maximum;
+        SavedDefault = Default;
+        SavedStep = Step;
+        RequestedValue = level;
+    }
+
+    internal int ClampRequestedValue() => RequestedValue == SavedDefault ? Default :
+        Math.Clamp(RequestedValue, Minimum, Maximum);
+
+    internal void SetEffectiveValue(int value) => SetUI(ref effectiveValue, value, propertyName: nameof(Value));
+
+    internal D3Filter ClonePreference()
+    {
+        var copy = new D3Filter { Filter = Filter };
+        copy.CopyPreference(this);
+        return copy;
+    }
+
+    internal void CopyPreference(D3Filter source)
+    {
+        SavedMinimum = source.SavedMinimum;
+        SavedMaximum = source.SavedMaximum;
+        SavedDefault = source.SavedDefault;
+        SavedStep = source.SavedStep;
+        RequestedValue = source.RequestedValue;
     }
 
     internal void Initialize(Renderer renderer, VideoProcessorFilterRange range)
     {
         bool wasAvailable = Available;
-        Minimum = range.Minimum;
-        Maximum = range.Maximum;
-        Default = range.Default;
-        Step = range.Multiplier; // Raw integer levels are multiplied for display, not slider increments.
-        _Value = Math.Clamp(_Value, Minimum, Maximum);
+        activeRange = range;
+        effectiveValue = ClampRequestedValue();
         this.renderer = renderer;
         if (!wasAvailable) RaiseUI(nameof(Available));
         RaiseUI(nameof(Minimum));
@@ -152,6 +180,7 @@ public class D3Filter : NotifyPropertyChanged
     {
         bool wasAvailable = Available;
         renderer = null;
+        activeRange = null;
         if (wasAvailable) RaiseUI(nameof(Available));
     }
 }

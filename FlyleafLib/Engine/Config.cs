@@ -84,6 +84,7 @@ public class Config : NotifyPropertyChanged
 
         config.Playback.config = config;
         config.Demuxer.config = config;
+        config.Video.SyncedFilterLevels ??= [];
         config.Video.EnableFilterCollectionSynchronization();
         config.Loaded = true;
 
@@ -138,13 +139,9 @@ public class Config : NotifyPropertyChanged
         File.WriteAllText(path, Serialize());
     }
 
-    /// <summary>Serializes player settings as JSON and first synchronizes compatible filter values when enabled on an attached renderer.</summary>
+    /// <summary>Serializes saved player preferences as JSON.</summary>
     public string Serialize()
     {
-        // Serialize the effective values for both video processors.
-        if (Video.player != null && Video.player.Renderer != null)
-            Video.player.Renderer.SyncFilters();
-
         lock (Video.lockFLFilters)
         lock (Video.lockD3Filters)
             return JsonSerializer.Serialize(this, jsonOpts);
@@ -460,6 +457,20 @@ public class Config : NotifyPropertyChanged
             video.player = null;
 
             video.CodecOpt = CodecOpt == null ? null : new(CodecOpt);
+            video.lockFLFilters = new();
+            video.lockD3Filters = new();
+            video.FLFilters = [];
+            video.D3Filters = [];
+            lock (lockFLFilters)
+            lock (lockD3Filters)
+            {
+                foreach (var (key, filter) in FLFilters)
+                    video.FLFilters.Add(key, filter.ClonePreference());
+                foreach (var (key, filter) in D3Filters)
+                    video.D3Filters.Add(key, filter.ClonePreference());
+                video.SyncedFilterLevels = new(SyncedFilterLevels);
+            }
+            video.EnableFilterCollectionSynchronization();
 
             return video;
         }
@@ -563,9 +574,21 @@ public class Config : NotifyPropertyChanged
         internal void OnD2DDraw(Renderer renderer, ID2D1DeviceContext context)
             => D2DDraw?.Invoke(renderer, context);
 
-        /// <summary>Synchronizes compatible picture filter values across processors when switching or serializing.</summary>
-        public bool             SyncVPFilters               { get => _SyncVPFilters; set => Set(ref _SyncVPFilters, value); }
+        /// <summary>Share compatible picture adjustments across video processors.</summary>
+        public bool             SyncVPFilters
+        {
+            get => _SyncVPFilters;
+            set
+            {
+                if (Set(ref _SyncVPFilters, value))
+                    player?.Renderer?.SyncVideoFilterPreferenceChanged();
+            }
+        }
         bool _SyncVPFilters = true;
+
+        // The shared level keeps the precision of the explicit edit across processors.
+        [JsonInclude]
+        internal Dictionary<FLFilters, double> SyncedFilterLevels { get; set; } = [];
         /// <summary>Saved Flyleaf processor filter entries and their configured values.</summary>
         public ObservableDictionary<FLFilters, FLFilter>
                                 FLFilters                   { get ; set; } = [];
@@ -574,8 +597,8 @@ public class Config : NotifyPropertyChanged
                                 D3Filters                   { get ; set; } = [];
 
         // These locks belong to the config-owned dictionaries and their WPF registrations.
-        internal readonly object lockFLFilters  = new();
-        internal readonly object lockD3Filters  = new();
+        internal object lockFLFilters { get; private set; } = new();
+        internal object lockD3Filters { get; private set; } = new();
 
         // Decoder
 

@@ -312,14 +312,14 @@ public unsafe partial class AudioDecoder
             ProcessFilter();
 
             // Wait until Queue not Full or Stopped
-            if (Frames.Count >= Config.Audio.MaxFrames * cBufTimesCur)
+            if (Frames.Count >= EffectiveMaxFrames * cBufTimesCur)
             {
                 Monitor.Exit(lockCodecCtx);
                 lock (lockStatus)
                     if (Status == Status.Running)
                         Status = Status.QueueFull;
 
-                while (Frames.Count >= Config.Audio.MaxFrames * cBufTimesCur && (Status == Status.QueueFull || Status == Status.Draining))
+                while (Frames.Count >= EffectiveMaxFrames * cBufTimesCur && (Status == Status.QueueFull || Status == Status.Draining))
                     Thread.Sleep(20);
 
                 Monitor.Enter(lockCodecCtx);
@@ -361,8 +361,9 @@ public unsafe partial class AudioDecoder
     {
         var curLen = filtframe->nb_samples * SampleBytes;
 
-        if (filtframe->nb_samples > cBufSamples) // (min 10000)
-            AllocateCircularBuffer(filtframe->nb_samples);
+        int maxFrames = EffectiveMaxFrames;
+        if (filtframe->nb_samples > cBufSamples || maxFrames > cBufFrames)
+            AllocateCircularBuffer(Math.Max(filtframe->nb_samples, cBufSamples), maxFrames);
         else if (cBufPos + curLen >= cBuf.Length)
             cBufPos = 0;
 

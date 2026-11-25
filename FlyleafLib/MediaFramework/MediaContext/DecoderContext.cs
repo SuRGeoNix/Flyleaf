@@ -756,13 +756,11 @@ public unsafe partial class DecoderContext : PluginHandler
     public event EventHandler RecordingCompleted;
     internal string LastRecordingFilename { get; private set; }
     public bool IsRecording => VideoDecoder.isRecording || AudioDecoder.isRecording;
-    int oldMaxAudioFrames;
     bool recHasVideo;
     public void StartRecording(ref string filename, bool useRecommendedExtension = true)
     {
         if (IsRecording) StopRecording();
 
-        oldMaxAudioFrames = -1;
         recHasVideo = false;
 
         if (CanInfo) Log.Info("Record Start");
@@ -791,23 +789,16 @@ public unsafe partial class DecoderContext : PluginHandler
         if (!Recorder.HasStreams || Recorder.WriteHeader() != 0) return; //throw new Exception("Invalid remuxer configuration");
 
         // Check also buffering and possible Diff of first audio/video timestamp to remuxer to ensure sync between each other (shouldn't be more than 30-50ms)
-        oldMaxAudioFrames = Config.Audio.MaxFrames;
-        //long timestamp = Math.Max(VideoDemuxer.CurTime + VideoDemuxer.BufferedDuration, AudioDemuxer.CurTime + AudioDemuxer.BufferedDuration) + 1500 * 10000;
-        Config.Audio.MaxFrames = Config.Video.MaxFrames;
-
         VideoDecoder.StartRecording(Recorder);
-        AudioDecoder.StartRecording(Recorder);
+        AudioDecoder.StartRecording(Recorder, Config.Video.MaxFrames);
     }
     public void StopRecording()
     {
-        if (oldMaxAudioFrames != -1) Config.Audio.MaxFrames = oldMaxAudioFrames;
-
         VideoDecoder.StopRecording();
         AudioDecoder.StopRecording();
         var filename = Recorder.HeaderWritten ? Recorder.Filename : null;
         if (Recorder.Dispose() >= 0 && filename != null)
             LastRecordingFilename = filename;
-        oldMaxAudioFrames = -1;
         if (CanInfo) Log.Info("Record Completed");
     }
     internal void RecordCompleted(MediaType type)

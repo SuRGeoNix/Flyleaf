@@ -32,8 +32,8 @@ public sealed class FlyleafVideoFilterEditor : StackPanel
 
     public void Reset()
     {
-        if (Filter is FLFilter fl) fl.Value = fl.Default;
-        else if (Filter is D3Filter { Available: true } d3) d3.Value = d3.Default;
+        if (Filter is FLFilter fl) fl.Reset();
+        else if (Filter is D3Filter { Available: true } d3) d3.Reset();
         level?.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
     }
 

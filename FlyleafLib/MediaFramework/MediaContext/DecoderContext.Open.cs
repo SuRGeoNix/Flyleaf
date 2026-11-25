@@ -966,24 +966,33 @@ public partial class DecoderContext
         string error = null;
 
         Dictionary<string, string> formatOpt = null;
-        Dictionary<string, string> copied = null;
+
+        string OpenAttempt(string url, Stream stream, string cookies)
+        {
+            var options = formatOpt;
+            if (options != null && cookies != null)
+            {
+                options = new Dictionary<string, string>(options, options.Comparer);
+                if (cookies.Length == 0)
+                    options.Remove("cookies");
+                else
+                    options["cookies"] = cookies;
+            }
+
+            return demuxer.Open(url, stream, options);
+        }
 
         try
         {
             if (Playlist.InputType == InputType.Web)
-            {   // Set HTTP Config
-                formatOpt = demuxer.Config.GetFormatOptPtr(demuxer.Type); // NOTE: Downloader clones main config to demuxer.Config
-                copied = [];
-
-                foreach (var opt in formatOpt)
-                    copied.Add(opt.Key, opt.Value);
+            {
+                // HTTP request options belong to this input, not the saved configuration.
+                var savedOptions = demuxer.Config.GetFormatOptPtr(demuxer.Type);
+                formatOpt = savedOptions == null ? [] : new(savedOptions, savedOptions.Comparer);
 
                 if (demuxerInput.FormatOpt != null)
                     foreach (var opt in demuxerInput.FormatOpt)
                         formatOpt[opt.Key] = opt.Value;
-
-                if (demuxerInput.Cookies != null)
-                    SetCookies(formatOpt, demuxerInput.Cookies);
 
                 if (demuxerInput.Referrer != null)
                     formatOpt["referer"] = demuxerInput.Referrer;
@@ -1017,42 +1026,24 @@ public partial class DecoderContext
             // Open Demuxer Input
             if (demuxerInput.Url != null)
             {
-                error = demuxer.Open(demuxerInput.Url);
+                error = OpenAttempt(demuxerInput.Url, null, demuxerInput.Cookies);
 
                 if (error != null && !string.IsNullOrEmpty(demuxerInput.UrlFallback))
                 {
                     Log.Warn($"Fallback to {demuxerInput.UrlFallback}");
 
-                    if (demuxerInput.CookiesFallback != null)
-                        SetCookies(formatOpt, demuxerInput.CookiesFallback);
-
-                    error = demuxer.Open(demuxerInput.UrlFallback);
+                    error = OpenAttempt(demuxerInput.UrlFallback, null, demuxerInput.CookiesFallback);
                 }
             }
             else if (demuxerInput.IOStream != null)
-                error = demuxer.Open(demuxerInput.IOStream);
+                error = OpenAttempt(null, demuxerInput.IOStream, demuxerInput.Cookies);
 
             return error;
         }
         finally
         {
-            if (Playlist.InputType == InputType.Web)
-            {   // Restore HTTP Config
-                formatOpt.Clear();
-                foreach (var opt in copied)
-                    formatOpt.Add(opt.Key, opt.Value);
-            }
-
             OpenedPlugin?.OnBufferingCompleted();
         }
-    }
-
-    static void SetCookies(Dictionary<string, string> options, string cookies)
-    {
-        options.Remove("cookies");
-
-        if (!string.IsNullOrEmpty(cookies))
-            options["cookies"] = cookies;
     }
     #endregion
 

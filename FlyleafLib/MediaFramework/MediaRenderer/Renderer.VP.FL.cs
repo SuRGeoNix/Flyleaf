@@ -541,7 +541,7 @@ public unsafe partial class Renderer
         hdrSwapchain = false;
         hdrData.NativeOutput = 0;
 
-        // TODO: Dispose filters?*
+        foreach (var filter in ucfg.FLFilters.Values) filter.Dispose();
         SwsDispose();
         SubsDispose();
         FLHDRDispose();

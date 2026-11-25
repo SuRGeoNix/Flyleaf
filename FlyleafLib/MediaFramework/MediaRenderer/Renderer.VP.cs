@@ -290,7 +290,7 @@ public unsafe partial class Renderer
             {
                 RaiseUI(nameof(VideoProcessor));
                 vpRequests |= VPRequestType.Resize;
-                D3FiltersSync();
+                RefreshD3Filters();
             }
 
             D3Config(frame);
@@ -316,9 +316,9 @@ public unsafe partial class Renderer
                         FieldType = VideoFrameFormat.Progressive;
                         RaiseUI(nameof(FieldType));
                     }
-
-                    FLFiltersSync();
                 }
+
+                RefreshFLFilters();
             }
 
             FLSwsConfig(frame);
@@ -601,19 +601,6 @@ public unsafe partial class Renderer
         }
     }
 
-    internal void SyncFilters()
-    {   // Forces resync of current's VideoProcessor Filters to others (useful before saving)
-        lock (lockDevice)
-        {
-            if (D3Disposed)
-                return;
-
-            if (VideoProcessor == VideoProcessors.D3D11)
-                FLFiltersSync();
-            else
-                D3FiltersSync();
-        }
-    }
 }
 
 [Flags]

@@ -102,7 +102,7 @@ unsafe partial class Player
 
         UpdateCurTime(aFrame.Timestamp, false);
         
-        while(seeks.IsEmpty && decoder.AudioStream.Demuxer.BufferedDuration < Config.Playback.MinBufferDuration && AudioDecoder.Frames.Count < Config.Audio.MaxFrames / 2 && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull)
+        while(seeks.IsEmpty && decoder.AudioStream.Demuxer.BufferedDuration < Config.Playback.MinBufferDuration && AudioDecoder.Frames.Count < AudioDecoder.EffectiveMaxFrames / 2 && IsPlaying && decoder.AudioStream.Demuxer.IsRunning && decoder.AudioStream.Demuxer.Status != MediaFramework.Status.QueueFull)
             Thread.Sleep(20);
     }
     private void ScreamerAudioOnly()

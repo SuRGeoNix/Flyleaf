@@ -303,7 +303,9 @@ public unsafe partial class Demuxer : RunThreadBase
     #region Open / Seek / Run
     public string Open(string url)      => Open(url, null);
     public string Open(Stream stream)   => Open(null, stream);
-    public string Open(string url, Stream stream)
+    public string Open(string url, Stream stream) => Open(url, stream, null);
+
+    internal string Open(string url, Stream stream, IReadOnlyDictionary<string, string> formatOptions)
     {
         bool    gotLockActions  = false;
         bool    gotLockFmtCtx   = false;
@@ -466,12 +468,12 @@ public unsafe partial class Demuxer : RunThreadBase
                 string fmtName = BytePtrToStringUTF8(inFmt->name);
 
                 if (fmtName == "decklink") // avoid using UI thread for decklink (STA should be enough for CoInitialize/CoCreateInstance)
-                    STAInvoke(() => OpenFormat(url, inFmt, fmtOptExtra, out ret));
+                    STAInvoke(() => OpenFormat(url, inFmt, formatOptions, fmtOptExtra, out ret));
                 else
-                    UIInvoke(() => OpenFormat(url, inFmt, fmtOptExtra, out ret));
+                    UIInvoke(() => OpenFormat(url, inFmt, formatOptions, fmtOptExtra, out ret));
             }
             else
-                OpenFormat(url, inFmt, fmtOptExtra, out ret);
+                OpenFormat(url, inFmt, formatOptions, fmtOptExtra, out ret);
 
             if ((ret == AVERROR_EXIT && !Interrupter.Timedout) || Status != Status.Opening || Interrupter.ForceInterrupt == 1) { if (ret < 0) fmtCtx = null; return error = "Cancelled"; }
             if (ret < 0) { fmtCtx = null; return error = Interrupter.Timedout ? "[avformat_open_input] Timeout" : $"[avformat_open_input] {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})"; }
@@ -624,17 +626,18 @@ public unsafe partial class Demuxer : RunThreadBase
         return ret;
     }
 
-    private void OpenFormat(string url, AVInputFormat* inFmt, Dictionary<string, string> opt, out int ret)
+    private void OpenFormat(string url, AVInputFormat* inFmt, IReadOnlyDictionary<string, string> formatOptions,
+        Dictionary<string, string> extraOptions, out int ret)
     {
         AVDictionary* avopt = null;
-        var curOpt = Type == MediaType.Video ? Config.FormatOpt : (Type == MediaType.Audio ? Config.AudioFormatOpt : Config.SubtitlesFormatOpt);
+        formatOptions ??= Config.GetFormatOptPtr(Type);
 
-        if (curOpt != null)
-            foreach (var optKV in curOpt)
+        if (formatOptions != null)
+            foreach (var optKV in formatOptions)
                 _ = av_dict_set(ref avopt, optKV.Key, optKV.Value, 0);
 
-        if (opt != null)
-            foreach (var optKV in opt)
+        if (extraOptions != null)
+            foreach (var optKV in extraOptions)
                 _ = av_dict_set(ref avopt, optKV.Key, optKV.Value, 0);
 
         if (Config.FormatOptToUnderlying)

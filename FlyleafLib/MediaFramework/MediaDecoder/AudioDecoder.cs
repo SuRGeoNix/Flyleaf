@@ -53,6 +53,7 @@ public unsafe partial class AudioDecoder : DecoderBase
     byte[]                  cBuf;
     int                     cBufPos;
     int                     cBufSamples;
+    int                     cBufFrames;
     internal bool           resyncWithVideoRequired;
 
     public AudioDecoder(Config config, int uniqueId = -1, VideoDecoder syncDecoder = null) : base(config, uniqueId)
@@ -113,6 +114,7 @@ public unsafe partial class AudioDecoder : DecoderBase
     
     protected override void DisposeInternal()
     {
+        recordingMaxFrames = -1;
         DisposeFrames();
         DisposeFilters();
 
@@ -145,20 +147,20 @@ public unsafe partial class AudioDecoder : DecoderBase
     protected override void RunInternal()
     {
         int allowedErrors   = Config.Audio.MaxErrors;
-        int sleepMs         = Config.Audio.MaxFrames > 5 && Config.Playback.MaxLatency == 0 ? 10 : 4;
+        int sleepMs         = EffectiveMaxFrames > 5 && Config.Playback.MaxLatency == 0 ? 10 : 4;
         int ret;
         AVPacket *packet;
 
         do
         {
             // Wait until Queue not Full or Stopped
-            if (Frames.Count >= Config.Audio.MaxFrames)
+            if (Frames.Count >= EffectiveMaxFrames)
             {
                 lock (lockStatus)
                     if (Status == Status.Running)
                         Status = Status.QueueFull;
 
-                while (Frames.Count >= Config.Audio.MaxFrames && Status == Status.QueueFull)
+                while (Frames.Count >= EffectiveMaxFrames && Status == Status.QueueFull)
                     Thread.Sleep(sleepMs);
 
                 lock (lockStatus)
@@ -380,17 +382,16 @@ public unsafe partial class AudioDecoder : DecoderBase
     }
     
     Queue<byte[]> cBufHistory = [];
-    private void AllocateCircularBuffer(int samples)
+    private void AllocateCircularBuffer(int samples, int maxFrames)
     {
         /* TBR
         * 1. If we change to different in/out sample rates we need to calculate delay
         * 2. By destorying the cBuf can create critical issues while the audio decoder reads the data? (add lock) | we need to copy the lost data and change the pointers
-        * 3. Recalculate on Config.Audio.MaxFrames change (greater)
-        * 4. cBufTimesSize cause filters can pass the limit when we need to use lockSpeed
+        * 3. cBufTimesSize cause filters can pass the limit when we need to use lockSpeed
         */
 
         samples     = Math.Max(10000, samples); // 10K samples to ensure that currently we will not re-allocate?
-        int size    = Config.Audio.MaxFrames * samples * SampleBytes * cBufTimesSize;
+        int size    = maxFrames * samples * SampleBytes * cBufTimesSize;
         
         if (cBuf != null)
         {
@@ -404,6 +405,7 @@ public unsafe partial class AudioDecoder : DecoderBase
         cBuf        = new byte[size];
         cBufPos     = 0;
         cBufSamples = samples;
+        cBufFrames  = maxFrames;
 
     }
 
@@ -413,14 +415,30 @@ public unsafe partial class AudioDecoder : DecoderBase
     Remuxer curRecorder;
     bool    recGotKeyframe;
     internal bool isRecording;
-    internal void StartRecording(Remuxer remuxer)
+    volatile int recordingMaxFrames = -1;
+
+    internal int EffectiveMaxFrames
+    {
+        get
+        {
+            int limit = recordingMaxFrames;
+            return limit == -1 ? Config.Audio.MaxFrames : limit;
+        }
+    }
+
+    internal void StartRecording(Remuxer remuxer, int maxFrames)
     {
         if (Disposed || isRecording) return;
 
-        curRecorder     = remuxer;
-        isRecording     = true;
+        curRecorder        = remuxer;
+        recordingMaxFrames = maxFrames;
+        isRecording        = true;
         recGotKeyframe  = VideoDecoder.Disposed || VideoDecoder.Stream == null;
     }
-    internal void StopRecording() => isRecording = false;
+    internal void StopRecording()
+    {
+        isRecording = false;
+        recordingMaxFrames = -1;
+    }
     #endregion
 }
