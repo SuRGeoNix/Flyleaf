@@ -34,7 +34,7 @@ public static class FlyleafThemeManager
         => GetAccentColor(theme, accent, FlyleafAppearanceOptions.DefaultCustomAccentColor);
 
     public static Color GetAccentColor(FlyleafTheme theme, FlyleafAccent accent, string customAccentColor)
-        => GetAccentColors(Resolve(theme), accent, customAccentColor).normal;
+        => GetBaseAccentColor(accent, customAccentColor);
 
     public static FlyleafTheme Resolve(FlyleafTheme theme)
     {
@@ -66,21 +66,37 @@ public static class FlyleafThemeManager
             Source = new Uri($"{ThemePath}{actualTheme}.xaml", UriKind.Absolute)
         };
 
-        var (normal, hover, onAccent) = GetAccentColors(actualTheme, accent, customAccentColor);
-        palette["FlyleafME.AccentBrush"] = new SolidColorBrush(normal);
+        Color normal = GetBaseAccentColor(accent, customAccentColor);
+        double luminance = RelativeLuminance(normal);
+        Color hover = GetAccentHover(actualTheme, accent, normal, luminance);
+        Color onAccent = luminance >= 0.179 ? Colors.Black : Colors.White;
+        var accentBrush = new SolidColorBrush(normal);
+        palette["FlyleafME.AccentBrush"] = accentBrush;
         palette["FlyleafME.AccentHoverBrush"] = new SolidColorBrush(hover);
         palette["FlyleafME.OnAccentBrush"] = new SolidColorBrush(onAccent);
-        var volumeGradient = new LinearGradientBrush(normal, hover, new Point(0, 0.5), new Point(1, 0.5));
+        Color played = DarkenPlaybackFill(normal);
+        palette["FlyleafME.PlaybackPlayedBrush"] = new SolidColorBrush(played);
+        // Slate's darker fill is close to the default Dark buffered gray.
+        if (actualTheme == FlyleafTheme.Dark && accent == FlyleafAccent.Slate)
+            palette["FlyleafME.PlaybackBufferedBrush"] = new SolidColorBrush(Color.FromRgb(149, 162, 177));
+        var volumeGradient = new LinearGradientBrush(played, DarkenPlaybackFill(hover), new Point(0, 0.5), new Point(1, 0.5));
         volumeGradient.Freeze();
         palette["FlyleafME.PlaybackVolumeBrush"] = volumeGradient;
         palette["FlyleafME.LogoMarkBrush"] = new SolidColorBrush(normal);
         palette["FlyleafME.LogoFoldBrush"] = new SolidColorBrush(Color.FromRgb((byte)(normal.R * 0.68), (byte)(normal.G * 0.68), (byte)(normal.B * 0.68)));
         var surface = ((SolidColorBrush)palette["FlyleafME.SurfaceBrush"]).Color;
         const double selectionTint = 0.20;
-        palette["FlyleafME.SelectionBrush"] = new SolidColorBrush(Color.FromRgb(
+        var selection = Color.FromRgb(
             (byte)(surface.R + (normal.R - surface.R) * selectionTint),
             (byte)(surface.G + (normal.G - surface.G) * selectionTint),
-            (byte)(surface.B + (normal.B - surface.B) * selectionTint)));
+            (byte)(surface.B + (normal.B - surface.B) * selectionTint));
+        palette["FlyleafME.SelectionBrush"] = new SolidColorBrush(selection);
+        var overlay = ((SolidColorBrush)palette["FlyleafME.OverlayBrush"]).Color;
+        var accentForeground = new SolidColorBrush(GetAccentForeground(actualTheme, normal, surface, selection, overlay));
+        palette["FlyleafME.AccentForegroundBrush"] = accentForeground;
+        palette["FlyleafME.AccentIconBrush"] = actualTheme == FlyleafTheme.Dark && accent == FlyleafAccent.Firebrick
+            ? accentBrush
+            : accentForeground;
 
         var dictionaries = resources.MergedDictionaries;
         int index = -1;
@@ -103,53 +119,67 @@ public static class FlyleafThemeManager
             dictionaries.Insert(0, palette);
     }
 
-    static (Color normal, Color hover, Color onAccent) GetAccentColors(FlyleafTheme theme, FlyleafAccent accent, string customAccentColor)
+    static Color DarkenPlaybackFill(Color color)
     {
-        bool light = theme == FlyleafTheme.Light;
+        const double brightness = 0.64;
+        return Color.FromRgb((byte)(color.R * brightness), (byte)(color.G * brightness), (byte)(color.B * brightness));
+    }
 
+    static Color GetBaseAccentColor(FlyleafAccent accent, string customAccentColor)
+    {
+        if (accent == FlyleafAccent.Custom)
+        {
+            var rgb = (Color)ColorConverter.ConvertFromString(customAccentColor);
+            return Color.FromRgb(rgb.R, rgb.G, rgb.B);
+        }
         return accent switch
         {
-            FlyleafAccent.Custom => GetCustomAccentColors(customAccentColor),
-            // Keep the user's original Firebrick color exact in both themes.
-            FlyleafAccent.Firebrick => light
-                ? (Color.FromRgb(178, 34, 34), Color.FromRgb(142, 27, 27), Colors.White)
-                : (Color.FromRgb(178, 34, 34), Color.FromRgb(202, 57, 57), Colors.White),
-            FlyleafAccent.Rose => light
-                ? (Color.FromRgb(190, 24, 93), Color.FromRgb(157, 23, 77), Colors.White)
-                : (Color.FromRgb(244, 114, 182), Color.FromRgb(249, 168, 212), Color.FromRgb(55, 18, 37)),
-            FlyleafAccent.Orange => light
-                ? (Color.FromRgb(194, 65, 12), Color.FromRgb(154, 52, 18), Colors.White)
-                : (Color.FromRgb(251, 146, 60), Color.FromRgb(253, 186, 116), Color.FromRgb(53, 26, 8)),
-            FlyleafAccent.Emerald => light
-                ? (Color.FromRgb(4, 120, 87), Color.FromRgb(6, 95, 70), Colors.White)
-                : (Color.FromRgb(52, 211, 153), Color.FromRgb(110, 231, 183), Color.FromRgb(8, 47, 36)),
-            FlyleafAccent.Slate => light
-                ? (Color.FromRgb(71, 85, 105), Color.FromRgb(51, 65, 85), Colors.White)
-                : (Color.FromRgb(203, 213, 225), Color.FromRgb(226, 232, 240), Color.FromRgb(24, 32, 44)),
-            FlyleafAccent.Violet => light
-                ? (Color.FromRgb(110, 64, 183), Color.FromRgb(90, 48, 159), Colors.White)
-                : (Color.FromRgb(181, 142, 250), Color.FromRgb(203, 172, 255), Color.FromRgb(27, 19, 43)),
-            FlyleafAccent.Teal => light
-                ? (Color.FromRgb(0, 116, 117), Color.FromRgb(0, 94, 95), Colors.White)
-                : (Color.FromRgb(82, 213, 199), Color.FromRgb(116, 230, 216), Color.FromRgb(13, 39, 39)),
-            FlyleafAccent.Amber => light
-                ? (Color.FromRgb(153, 91, 0), Color.FromRgb(125, 75, 0), Colors.White)
-                : (Color.FromRgb(250, 183, 83), Color.FromRgb(255, 202, 121), Color.FromRgb(43, 29, 9)),
-            _ => light
-                ? (Color.FromRgb(36, 104, 197), Color.FromRgb(27, 87, 171), Colors.White)
-                : (Color.FromRgb(112, 165, 245), Color.FromRgb(140, 181, 247), Color.FromRgb(16, 23, 37))
+            FlyleafAccent.Firebrick => Color.FromRgb(0xB2, 0x22, 0x22),
+            FlyleafAccent.Orange => Color.FromRgb(0xDA, 0x6A, 0x1C),
+            FlyleafAccent.Amber => Color.FromRgb(0xB9, 0x82, 0x13),
+            FlyleafAccent.Emerald => Color.FromRgb(0x15, 0x86, 0x5C),
+            FlyleafAccent.Teal => Color.FromRgb(0x00, 0x86, 0x89),
+            FlyleafAccent.Violet => Color.FromRgb(0x8F, 0x62, 0xCD),
+            FlyleafAccent.Rose => Color.FromRgb(0xC7, 0x4F, 0x86),
+            FlyleafAccent.Slate => Color.FromRgb(0x6D, 0x80, 0x99),
+            _ => Color.FromRgb(0x35, 0x7A, 0xD5)
         };
     }
 
-    static (Color normal, Color hover, Color onAccent) GetCustomAccentColors(string customAccentColor)
+    static Color GetAccentHover(FlyleafTheme theme, FlyleafAccent accent, Color normal, double luminance)
     {
-        var rgb = (Color)ColorConverter.ConvertFromString(customAccentColor);
-        var normal = Color.FromRgb(rgb.R, rgb.G, rgb.B);
-        double luminance = 0.2126 * normal.ScR + 0.7152 * normal.ScG + 0.0722 * normal.ScB;
-        var onAccent = luminance >= 0.179 ? Colors.Black : Colors.White;
+        if (accent == FlyleafAccent.Firebrick)
+            return theme == FlyleafTheme.Light ? Color.FromRgb(142, 27, 27) : Color.FromRgb(202, 57, 57);
         // Prefer the direction that increases text contrast, with room to show a hover on near-black and near-white accents.
-        int target = luminance is < 0.06 or (>= 0.179 and < 0.78) ? 255 : 0;
-        byte Tint(byte component) => (byte)Math.Round(component + (target - component) * 0.18);
-        return (normal, Color.FromRgb(Tint(normal.R), Tint(normal.G), Tint(normal.B)), onAccent);
+        var target = luminance is < 0.06 or (>= 0.179 and < 0.78) ? Colors.White : Colors.Black;
+        return Blend(normal, target, 0.18);
+    }
+
+    static Color GetAccentForeground(FlyleafTheme theme, Color accent, Color surface, Color selection, Color overlay)
+    {
+        bool light = theme == FlyleafTheme.Light;
+        Color target = light ? Colors.Black : Colors.White;
+        double surfaceLuminance = RelativeLuminance(surface);
+        double selectionLuminance = RelativeLuminance(selection);
+        // Check text on solid surfaces and icons on the overlay over the least favorable video backdrop.
+        double overlayLuminance = RelativeLuminance(Blend(target, overlay, overlay.A / 255.0));
+        double limit = light
+            ? Math.Min((Math.Min(surfaceLuminance, selectionLuminance) + 0.05) / 4.5, (overlayLuminance + 0.05) / 3) - 0.05
+            : Math.Max((Math.Max(surfaceLuminance, selectionLuminance) + 0.05) * 4.5, (overlayLuminance + 0.05) * 3) - 0.05;
+        for (int step = 0; step < 20; step++)
+        {
+            Color candidate = Blend(accent, target, step / 20.0);
+            double luminance = RelativeLuminance(candidate);
+            if (light ? luminance <= limit : luminance >= limit) return candidate;
+        }
+        return target;
+    }
+
+    static double RelativeLuminance(Color color) => 0.2126 * color.ScR + 0.7152 * color.ScG + 0.0722 * color.ScB;
+
+    static Color Blend(Color from, Color to, double amount)
+    {
+        byte Mix(byte start, byte end) => (byte)Math.Round(start + (end - start) * amount);
+        return Color.FromRgb(Mix(from.R, to.R), Mix(from.G, to.G), Mix(from.B, to.B));
     }
 }

@@ -3,7 +3,9 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Flyleaf.Controls.WPF;
+using Microsoft.Win32;
 using Drawing = System.Drawing;
 using Forms = System.Windows.Forms;
 
@@ -11,11 +13,12 @@ namespace Flyleaf;
 
 internal sealed class TrayIcon : IDisposable
 {
+    readonly Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
     readonly Forms.NotifyIcon icon;
     Drawing.Icon? image;
-    FlyleafTheme theme;
-    FlyleafAccent accent;
-    string? customAccentColor;
+    FlyleafAppearanceOptions? appearance;
+    (FlyleafTheme Theme, FlyleafAccent Accent, string? CustomColor)? iconPalette, menuPalette;
+    bool disposed;
 
     public TrayIcon(Action open, Action closeAll, Action exit, Action? downloads = null)
     {
@@ -39,27 +42,75 @@ internal sealed class TrayIcon : IDisposable
         Add("E&xit", TrayMenuGlyph.Exit, exit);
         icon = new Forms.NotifyIcon { Text = "Flyleaf", ContextMenuStrip = menu };
         icon.MouseDoubleClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) open(); };
+        SystemEvents.UserPreferenceChanged += UserPreferenceChanged;
     }
 
     public void ApplyAppearance(FlyleafAppearanceOptions appearance)
     {
-        var actualTheme = FlyleafThemeManager.Resolve(appearance.Theme);
+        if (disposed) return;
+        this.appearance = appearance;
+        var menuTheme = FlyleafThemeManager.Resolve(appearance.Theme);
+        var taskbarTheme = ReadTaskbarTheme();
         var selectedCustomColor = appearance.Accent == FlyleafAccent.Custom ? appearance.CustomAccentColor : null;
-        if (image != null && theme == actualTheme && accent == appearance.Accent && customAccentColor == selectedCustomColor) return;
+        var menuKey = (menuTheme, appearance.Accent, selectedCustomColor);
+        var iconKey = (taskbarTheme, appearance.Accent, selectedCustomColor);
 
+        ResourceDictionary? menuResources = null;
+        if (menuPalette != menuKey)
+        {
+            menuResources = CreatePalette(menuTheme, appearance);
+            icon.ContextMenuStrip!.Renderer = new TrayMenuRenderer(menuResources);
+            menuPalette = menuKey;
+        }
+        if (iconPalette != iconKey)
+        {
+            var resources = (taskbarTheme == menuTheme ? menuResources : null) ?? CreatePalette(taskbarTheme, appearance);
+            var replacement = Rasterize(CreateLogo(resources));
+            icon.Icon = replacement;
+            icon.Visible = true;
+            image?.Dispose();
+            image = replacement;
+            iconPalette = iconKey;
+        }
+    }
+
+    static ResourceDictionary CreatePalette(FlyleafTheme theme, FlyleafAppearanceOptions appearance)
+    {
         var resources = new ResourceDictionary();
-        FlyleafThemeManager.Apply(resources, actualTheme, appearance.Accent, appearance.CustomAccentColor);
+        FlyleafThemeManager.Apply(resources, theme, appearance.Accent, appearance.CustomAccentColor);
+        return resources;
+    }
+
+    static DrawingImage CreateLogo(ResourceDictionary resources)
+    {
         Brush Brush(string name) => (Brush)resources[$"FlyleafME.Logo{name}Brush"];
-        var logo = FlyleafLogo.CreateImageSource(Brush("Mark"), Brush("Fold"), Brush("Play"), Brush("Outline"));
-        var replacement = Rasterize(logo);
-        icon.ContextMenuStrip!.Renderer = new TrayMenuRenderer(resources);
-        icon.Icon = replacement;
-        icon.Visible = true;
-        image?.Dispose();
-        image = replacement;
-        theme = actualTheme;
-        accent = appearance.Accent;
-        customAccentColor = selectedCustomColor;
+        return FlyleafLogo.CreateImageSource(Brush("Mark"), Brush("Fold"), Brush("Play"), Brush("Outline"));
+    }
+
+    static FlyleafTheme ReadTaskbarTheme()
+    {
+        try
+        {
+            const string key = @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
+            if (Registry.GetValue(key, "SystemUsesLightTheme", null) is int value)
+                return value != 0 ? FlyleafTheme.Light : FlyleafTheme.Dark;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+        }
+        return FlyleafThemeManager.Resolve(FlyleafTheme.System);
+    }
+
+    void UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category is not (UserPreferenceCategory.General or UserPreferenceCategory.VisualStyle or UserPreferenceCategory.Color) ||
+            dispatcher.HasShutdownStarted)
+            return;
+
+        dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (appearance is { } current) ApplyAppearance(current);
+        }));
     }
 
     static Drawing.Icon Rasterize(ImageSource logo)
@@ -88,6 +139,10 @@ internal sealed class TrayIcon : IDisposable
 
     public void Dispose()
     {
+        if (disposed) return;
+        disposed = true;
+        SystemEvents.UserPreferenceChanged -= UserPreferenceChanged;
+        appearance = null;
         icon.Visible = false;
         var menu = icon.ContextMenuStrip;
         icon.Dispose();

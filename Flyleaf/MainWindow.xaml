@@ -72,7 +72,7 @@
                                     <StackPanel x:Name="PlayerActions" Orientation="Horizontal">
                                         <Button x:Name="ThemeButton" Content="&#xE790;" ToolTip="Theme and accent options" Focusable="False"
                                                 AutomationProperties.Name="Theme and accent options" ContextMenuService.IsEnabled="False"
-                                                Click="OpenThemeMenu_Click" Foreground="{DynamicResource FlyleafME.AccentBrush}"
+                                                Click="OpenThemeMenu_Click" Foreground="{DynamicResource FlyleafME.AccentIconBrush}"
                                                 Style="{StaticResource FlyleafME.OverlayIconButtonStyle}">
                                             <Button.ContextMenu>
                                                 <ContextMenu Placement="Bottom" Style="{StaticResource FlyleafME.ThemeContextMenuStyle}">

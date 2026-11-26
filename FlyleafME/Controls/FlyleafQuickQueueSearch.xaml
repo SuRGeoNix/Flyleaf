@@ -48,7 +48,7 @@
                                            Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
                                 <TextBlock Grid.Column="1" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
                                     <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True"><Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></DataTrigger>
+                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True"><Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentForegroundBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></DataTrigger>
                                     </Style.Triggers></Style></TextBlock.Style>
                                 </TextBlock>
                             </Grid>

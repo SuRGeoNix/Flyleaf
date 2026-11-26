@@ -57,7 +57,7 @@
                             <Setter TargetName="PlayIcon" Property="Fill" Value="{DynamicResource FlyleafME.OnAccentBrush}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="{DynamicResource FlyleafME.RaisedSurfaceBrush}"/></Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentForegroundBrush}"/></Trigger>
                         <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -200,7 +200,7 @@
         </Setter>
         <Style.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentForegroundBrush}"/>
             </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{DynamicResource FlyleafME.HoverBrush}"/>
@@ -354,7 +354,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                            <Setter TargetName="InputBorder" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                            <Setter TargetName="InputBorder" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentForegroundBrush}"/>
                         </Trigger>
                         <Trigger Property="Validation.HasError" Value="True">
                             <Setter TargetName="InputBorder" Property="BorderBrush" Value="{DynamicResource FlyleafME.ErrorBrush}"/>
@@ -383,7 +383,7 @@
                             <Path x:Name="Tick" Data="M 3,7 L 6,10 L 12,3" Stroke="{DynamicResource FlyleafME.OnAccentBrush}" StrokeThickness="1.8" Visibility="Collapsed"/>
                         </Border>
                         <ContentPresenter Grid.Column="1" Margin="7,0,0,0" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
-                        <Rectangle x:Name="FocusRing" Grid.ColumnSpan="2" RadiusX="3" RadiusY="3" Stroke="{DynamicResource FlyleafME.AccentBrush}" StrokeDashArray="2,2" Visibility="Collapsed" Margin="-3" IsHitTestVisible="False"/>
+                        <Rectangle x:Name="FocusRing" Grid.ColumnSpan="2" RadiusX="3" RadiusY="3" Stroke="{DynamicResource FlyleafME.AccentForegroundBrush}" StrokeDashArray="2,2" Visibility="Collapsed" Margin="-3" IsHitTestVisible="False"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
@@ -459,7 +459,7 @@
                                        Foreground="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
                             <TextBlock x:Name="Checkmark" Grid.Column="2" Text="&#xE73E;" Margin="10,0,2,0"
                                        FontFamily="Segoe MDL2 Assets" FontSize="12"
-                                       Foreground="{DynamicResource FlyleafME.AccentBrush}"
+                                       Foreground="{DynamicResource FlyleafME.AccentIconBrush}"
                                        VerticalAlignment="Center" Visibility="Collapsed"/>
                             <TextBlock x:Name="SubmenuArrow" Grid.Column="3" Text="›" FontSize="17" Margin="12,0,0,0"
                                        Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center" Visibility="Collapsed"/>
@@ -720,11 +720,11 @@
                                           Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"
                                           IsChecked="{Binding QueueSource.AutoAdvance, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
                                           Visibility="{Binding ShowAutoNext, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource FlyleafME.QueueControlVisibility}}"/>
-                            <Button x:Name="PART_Volume" ToolTip="{Binding VolumeToolTip, RelativeSource={RelativeSource TemplatedParent}}" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}" IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Button x:Name="PART_Volume" ToolTip="{Binding VolumeToolTip, RelativeSource={RelativeSource TemplatedParent}}" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}" IsEnabled="{Binding CanAdjustVolume, RelativeSource={RelativeSource TemplatedParent}}"/>
                             <Slider x:Name="PART_HorizontalVolume" Width="78" Margin="4,0,6,0" Style="{StaticResource FlyleafME.PlaybackVolumeStyle}"
                                     Minimum="0" Maximum="{Binding Player.Config.Audio.VolumeMax, RelativeSource={RelativeSource TemplatedParent}}"
                                     Value="{Binding Player.Audio.Volume, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                    IsEnabled="{Binding CanAdjustVolume, RelativeSource={RelativeSource TemplatedParent}}"/>
                             <Button x:Name="PART_Playlist" ToolTip="Queue" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
                                     IsEnabled="{Binding CanOpenQueue, RelativeSource={RelativeSource TemplatedParent}}">
                                 <Grid Width="18" Height="18">
@@ -743,7 +743,7 @@
                         <Popup x:Name="PART_VolumePopup" Grid.Column="2" Placement="Top" VerticalOffset="-8" AllowsTransparency="True" StaysOpen="False" PopupAnimation="Fade">
                             <Border Padding="8,10" CornerRadius="7" DataContext="{Binding RelativeSource={RelativeSource TemplatedParent}}"
                                     Background="{DynamicResource FlyleafME.OverlayBrush}" BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}" BorderThickness="1">
-                                <StackPanel HorizontalAlignment="Center">
+                                <StackPanel HorizontalAlignment="Center" IsEnabled="{Binding CanAdjustVolume}">
                                     <TextBlock Text="Volume" FontSize="10" Margin="0,0,0,6" Foreground="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}" HorizontalAlignment="Center"/>
                                     <Slider Orientation="Vertical" Style="{StaticResource FlyleafME.PlaybackVerticalVolumeStyle}" Minimum="0" Maximum="{Binding Player.Config.Audio.VolumeMax}"
                                             Value="{Binding Player.Audio.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
@@ -779,7 +779,7 @@
                             SeekWhileDragging="{Binding Options.SeekWhileDragging, RelativeSource={RelativeSource TemplatedParent}}"
                             IsEnabled="{Binding CanSeek, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center"
                             IsModern="True" Height="28" TrackBrush="{DynamicResource FlyleafME.PlaybackTrackBrush}"
-                            PlayedBrush="{DynamicResource FlyleafME.AccentBrush}"
+                            PlayedBrush="{DynamicResource FlyleafME.PlaybackPlayedBrush}"
                             BufferedBrush="{DynamicResource FlyleafME.PlaybackBufferedBrush}"
                             OutlineBrush="{DynamicResource FlyleafME.BorderBrush}"/>
                         <TextBlock x:Name="PART_CompactDuration" Grid.Column="2" FontFamily="Consolas" FontSize="11" Margin="7,0,0,0"
@@ -818,7 +818,7 @@
                             <Button x:Name="PART_Next" Content="&#xE893;" AutomationProperties.Name="Next item" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
                                     Visibility="{Binding ShowItemNavigation, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource FlyleafME.QueueControlVisibility}}"
                                     Command="{Binding NextCommand, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding HasNext, RelativeSource={RelativeSource TemplatedParent}}"/>
-                            <Button x:Name="PART_Stop" Visibility="Collapsed" Content="&#xE71A;" AutomationProperties.Name="Stop" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
+                            <Button x:Name="PART_Stop" Content="&#xE71A;" AutomationProperties.Name="Stop" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"
                                     Command="{Binding Player.Commands.Stop, RelativeSource={RelativeSource TemplatedParent}}" IsEnabled="{Binding CanStop, RelativeSource={RelativeSource TemplatedParent}}"/>
                         </StackPanel>
                         <StackPanel x:Name="PART_SourceGroup" Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Visibility="Collapsed">
@@ -864,12 +864,12 @@
                                           Foreground="{DynamicResource FlyleafME.OverlayTextBrush}"
                                           IsChecked="{Binding QueueSource.AutoAdvance, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
                                           Visibility="Collapsed"/>
-                            <Button x:Name="PART_Volume" AutomationProperties.Name="{Binding VolumeToolTip, RelativeSource={RelativeSource TemplatedParent}}" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}" IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Button x:Name="PART_Volume" AutomationProperties.Name="{Binding VolumeToolTip, RelativeSource={RelativeSource TemplatedParent}}" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}" IsEnabled="{Binding CanAdjustVolume, RelativeSource={RelativeSource TemplatedParent}}"/>
                             <me:FlyleafVolumeWedge x:Name="PART_HorizontalVolume" Width="88" Height="28" Margin="2,0,5,0" Focusable="False" Cursor="Hand"
                                     AutomationProperties.Name="Volume"
                                     Minimum="0" Maximum="{Binding Player.Config.Audio.VolumeMax, RelativeSource={RelativeSource TemplatedParent}}"
                                     Value="{Binding Player.Audio.Volume, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    IsEnabled="{Binding HasAudio, RelativeSource={RelativeSource TemplatedParent}}">
+                                    IsEnabled="{Binding CanAdjustVolume, RelativeSource={RelativeSource TemplatedParent}}">
                                 <me:FlyleafVolumeWedge.Template><ControlTemplate TargetType="me:FlyleafVolumeWedge"><Border Background="Transparent"/></ControlTemplate></me:FlyleafVolumeWedge.Template>
                             </me:FlyleafVolumeWedge>
                             <Grid>
@@ -899,11 +899,11 @@
                         <Popup x:Name="PART_VolumePopup" Grid.Row="1" Grid.Column="2" Placement="Top" VerticalOffset="-8" AllowsTransparency="True" StaysOpen="False" PopupAnimation="Fade">
                             <Border Padding="8,10" CornerRadius="7" DataContext="{Binding RelativeSource={RelativeSource TemplatedParent}}"
                                     Background="{DynamicResource FlyleafME.OverlayBrush}" BorderBrush="{DynamicResource FlyleafME.OverlayBorderBrush}" BorderThickness="1">
-                                <StackPanel HorizontalAlignment="Center">
+                                <StackPanel HorizontalAlignment="Center" IsEnabled="{Binding CanAdjustVolume}">
                                     <TextBlock Text="Volume" FontSize="10" Margin="0,0,0,6" Foreground="{DynamicResource FlyleafME.OverlaySecondaryTextBrush}" HorizontalAlignment="Center"/>
                                     <me:FlyleafVolumeWedge Orientation="Vertical" Width="28" Height="110" Focusable="False" Cursor="Hand" AutomationProperties.Name="Volume"
                                             Minimum="0" Maximum="{Binding Player.Config.Audio.VolumeMax}"
-                                            Value="{Binding Player.Audio.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding HasAudio}">
+                                            Value="{Binding Player.Audio.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                         <me:FlyleafVolumeWedge.Template><ControlTemplate TargetType="me:FlyleafVolumeWedge"><Border Background="Transparent"/></ControlTemplate></me:FlyleafVolumeWedge.Template>
                                     </me:FlyleafVolumeWedge>
                                     <Button Content="{Binding VolumeIcon}" AutomationProperties.Name="Mute / Unmute" Margin="0,6,0,0" Command="{Binding Player.Commands.ToggleMute}" Style="{StaticResource FlyleafME.PlaybackIconButtonStyle}"/>
@@ -929,7 +929,7 @@
                                 <Setter TargetName="Tab" Property="Background" Value="{DynamicResource FlyleafME.RaisedSurfaceBrush}"/>
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Tab" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                                <Setter TargetName="Tab" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentForegroundBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate></Button.Template>
@@ -986,7 +986,7 @@
                 <Setter TargetName="PART_Surface" Property="CornerRadius" Value="7"/>
             </DataTrigger>
             <Trigger Property="DynamicPinned" Value="True">
-                <Setter TargetName="PART_DynamicHandle" Property="Foreground" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                <Setter TargetName="PART_DynamicHandle" Property="Foreground" Value="{DynamicResource FlyleafME.AccentIconBrush}"/>
                 <Setter TargetName="PART_DynamicHandle" Property="AutomationProperties.Name" Value="Unpin full playback bar"/>
             </Trigger>
         </ControlTemplate.Triggers>

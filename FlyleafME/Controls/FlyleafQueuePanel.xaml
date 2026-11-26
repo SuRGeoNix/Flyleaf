@@ -30,7 +30,7 @@
                 </Border>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource FlyleafME.HoverBrush}"/></Trigger>
-                    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource FlyleafME.SelectionBrush}"/><Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentBrush}"/></Trigger>
+                    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource FlyleafME.SelectionBrush}"/><Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentForegroundBrush}"/></Trigger>
                     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource FlyleafME.AccentBrush}"/></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
@@ -40,7 +40,7 @@
             <Setter Property="TextAlignment" Value="Right"/><Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="FontFamily" Value="Consolas"/><Setter Property="FontSize" Value="11"/>
             <Setter Property="Foreground" Value="{DynamicResource FlyleafME.SecondaryTextBrush}"/>
-            <Style.Triggers><DataTrigger Binding="{Binding IsCurrent}" Value="True"><Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentBrush}"/></DataTrigger></Style.Triggers>
+            <Style.Triggers><DataTrigger Binding="{Binding IsCurrent}" Value="True"><Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentForegroundBrush}"/></DataTrigger></Style.Triggers>
         </Style>
         <DataTemplate DataType="{x:Type local:FlyleafQueueSource}">
             <Grid ToolTip="{Binding Input}">
@@ -135,7 +135,7 @@
                         <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource FlyleafME.SelectionBrush}"/></Trigger>
                         <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                             <Setter TargetName="Row" Property="Background" Value="{DynamicResource FlyleafME.SelectionBrush}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource FlyleafME.AccentForegroundBrush}"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
                             <Setter TargetName="PlayingAccent" Property="Visibility" Value="Visible"/>
                         </DataTrigger>

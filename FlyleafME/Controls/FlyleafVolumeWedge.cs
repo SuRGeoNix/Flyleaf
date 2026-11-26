@@ -7,6 +7,10 @@ namespace Flyleaf.Controls.WPF;
 
 public class FlyleafVolumeWedge : Slider
 {
+    const double TrackInset = 1;
+    const double LevelInset = 2;
+    const double LevelStart = TrackInset + LevelInset;
+
     public static readonly DependencyProperty TrackBrushProperty = DependencyProperty.Register(nameof(TrackBrush), typeof(Brush), typeof(FlyleafVolumeWedge),
         new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty OutlineBrushProperty = DependencyProperty.Register(nameof(OutlineBrush), typeof(Brush), typeof(FlyleafVolumeWedge),
@@ -17,7 +21,7 @@ public class FlyleafVolumeWedge : Slider
     public Brush OutlineBrush { get => (Brush)GetValue(OutlineBrushProperty); set => SetValue(OutlineBrushProperty, value); }
     public Brush LevelBrush { get => (Brush)GetValue(LevelBrushProperty); set => SetValue(LevelBrushProperty, value); }
 
-    Geometry? wedge;
+    Geometry? wedge, levelWedge;
     Size wedgeSize;
 
     public FlyleafVolumeWedge()
@@ -45,18 +49,26 @@ public class FlyleafVolumeWedge : Slider
     {
         if (wedge != null && wedgeSize == size) return wedge;
         wedgeSize = size;
-        double center = size.Height / 2, height = Math.Min(12, center - 1), right = size.Width - 1;
+        double center = size.Height / 2, height = Math.Min(12, center - 1), right = size.Width - TrackInset;
         double tip = Math.Min(3, height);
+        levelWedge = tip > LevelInset && size.Width > 2 * LevelStart
+            ? CreateWedge(LevelStart, right - LevelInset, center, tip - LevelInset, height - LevelInset)
+            : null;
+        return wedge = CreateWedge(TrackInset, right, center, tip, height);
+    }
+
+    static Geometry CreateWedge(double left, double right, double center, double tip, double height)
+    {
         var geometry = new StreamGeometry();
         using (var ctx = geometry.Open())
         {
-            ctx.BeginFigure(new Point(1, center - tip), true, true);
+            ctx.BeginFigure(new Point(left, center - tip), true, true);
             ctx.LineTo(new Point(right, center - height), true, false);
             ctx.LineTo(new Point(right, center + height), true, false);
-            ctx.LineTo(new Point(1, center + tip), true, false);
+            ctx.LineTo(new Point(left, center + tip), true, false);
         }
         geometry.Freeze();
-        return wedge = geometry;
+        return geometry;
     }
 
     protected override void OnRender(DrawingContext dc)
@@ -71,10 +83,10 @@ public class FlyleafVolumeWedge : Slider
         dc.DrawGeometry(TrackBrush, null, geometry);
         if (!IsEnabled) dc.PushOpacity(0.3);
         double fraction = Maximum > Minimum ? Math.Clamp((Value - Minimum) / (Maximum - Minimum), 0, 1) : 0;
-        if (fraction > 0)
+        if (fraction > 0 && levelWedge != null)
         {
-            dc.PushClip(new RectangleGeometry(new Rect(1, 0, (size.Width - 2) * fraction, size.Height)));
-            dc.DrawGeometry(LevelBrush, null, geometry);
+            dc.PushClip(new RectangleGeometry(new Rect(LevelStart, 0, (size.Width - 2 * LevelStart) * fraction, size.Height)));
+            dc.DrawGeometry(LevelBrush, null, levelWedge);
             dc.Pop();
         }
         dc.DrawGeometry(null, new Pen(OutlineBrush, 1), geometry);
@@ -105,7 +117,8 @@ public class FlyleafVolumeWedge : Slider
         bool vertical = Vertical;
         double length = vertical ? RenderSize.Height : RenderSize.Width;
         double position = vertical ? length - point.Y : point.X;
-        double fraction = Math.Clamp((position - 1) / Math.Max(1, length - 2), 0, 1);
+        double start = length > 2 * LevelStart ? LevelStart : TrackInset;
+        double fraction = Math.Clamp((position - start) / Math.Max(1, length - 2 * start), 0, 1);
         SetCurrentValue(ValueProperty, Math.Round(Minimum + (Maximum - Minimum) * fraction));
     }
 

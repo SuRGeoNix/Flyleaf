@@ -176,6 +176,7 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
     public bool CanStop => CanPlay && Player?.Status != Status.Stopped;
     public bool HasVideo => Player?.Video.IsOpened == true;
     public bool HasAudio => Player?.Audio.IsOpened == true;
+    public bool CanAdjustVolume => Player is { IsDisposed: false };
     public bool HasSubtitles => Player?.Subtitles.Streams?.Count > 0 || Player?.Subtitles.IsOpened == true;
     public bool HasPlaylist => QueueSource != null ? QueueSource.Sources.Count > 0 : Player?.Playlist.Items?.Count > 1;
     public bool CanOpenQueue => QueueSource != null || HasPlaylist;
@@ -241,11 +242,11 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
     {
         get
         {
-            if (Player == null)
+            if (Player is not { IsDisposed: false } player)
                 return "\uE992";
-            if (Player.Audio.Mute)
+            if (player.Audio.Mute)
                 return "\uE74F";
-            double volume = (double)Player.Audio.Volume / Math.Max(1, Player.Config.Audio.VolumeMax);
+            double volume = (double)player.Audio.Volume / Math.Max(1, player.Config.Audio.VolumeMax);
             return volume <= 0 ? "\uE992" : volume <= 1.0 / 3 ? "\uE993" :
                 volume <= 2.0 / 3 ? "\uE994" : "\uE995";
         }
@@ -406,6 +407,9 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         if (sender == Player && e.PropertyName == nameof(Player.BufferedDuration))
             return;
 
+        if (sender == Player && e.PropertyName == nameof(Player.IsDisposed) && !CanAdjustVolume && volumePopup != null)
+            volumePopup.IsOpen = false;
+
         if (sender == Player?.Subtitles && e.PropertyName == nameof(Subtitles.SubsText))
             return;
 
@@ -432,7 +436,7 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
         foreach (string property in new[]
         {
             nameof(CurrentTimeText), nameof(DurationText), nameof(ShowDuration), nameof(IsLive), nameof(IsPlaying), nameof(CanPlay),
-            nameof(CanSeek), nameof(CanStop),
+            nameof(CanSeek), nameof(CanStop), nameof(CanAdjustVolume),
             nameof(HasVideo), nameof(HasAudio), nameof(HasSubtitles), nameof(HasPlaylist), nameof(HasPrevious),
             nameof(HasNext), nameof(CanOpenQueue), nameof(ShowAutoNext), nameof(ShowItemNavigation),
             nameof(VideoLabel), nameof(AudioLabel), nameof(SubtitlesLabel), nameof(VolumeIcon), nameof(SpeedToolTip), nameof(SpeedNeedleAngle)
@@ -760,7 +764,6 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
             bool singleRow = UsesCompactLayout;
             if (compactTimeline != null)
             {
-                VisibilityOf(modernStop, singleRow ? Visibility.Collapsed : Visibility.Visible);
                 VisibilityOf(modernAutoNext, !singleRow && ShowAutoNext ? Visibility.Visible : Visibility.Collapsed);
                 VisibilityOf(speedButton, singleRow ? Visibility.Collapsed : Visibility.Visible);
             }
@@ -876,13 +879,14 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
 
     void Volume_Click(object sender, RoutedEventArgs e)
     {
+        if (Player is not { IsDisposed: false } player) return;
         if (volumeCompact)
         {
             if (volumePopup != null)
                 volumePopup.IsOpen = !volumePopup.IsOpen;
         }
         else
-            Player?.Commands.ToggleMute.Execute(null);
+            player.Commands.ToggleMute.Execute(null);
     }
 
     void VolumePopup_Opened(object? sender, EventArgs e)

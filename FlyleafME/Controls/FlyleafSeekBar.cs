@@ -12,6 +12,8 @@ namespace Flyleaf.Controls.WPF;
 
 public class FlyleafSeekBar : FrameworkElement
 {
+    const double ModernFillInset = 2;
+
     static DependencyProperty RegisterBrush(string name, Brush fallback) =>
         DependencyProperty.Register(name, typeof(Brush), typeof(FlyleafSeekBar),
             new FrameworkPropertyMetadata(fallback, FrameworkPropertyMetadataOptions.AffectsRender));
@@ -167,51 +169,45 @@ public class FlyleafSeekBar : FrameworkElement
         double y = (RenderSize.Height - height) / 2;
         var bounds = new Rect(0, y, width, height);
         dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, width, RenderSize.Height));
-        dc.DrawRectangle(TrackBrush, null, bounds);
-
-        void DrawOutline()
-        {
-            if (width <= 1 || height <= 1) return;
-            dc.DrawRectangle(null, new Pen(OutlineBrush, 1), new Rect(0.5, y + 0.5, width - 1, height - 1));
-        }
+        dc.DrawRoundedRectangle(TrackBrush, null, bounds, 4, 4);
+        if (width > 1 && height > 1)
+            dc.DrawRoundedRectangle(null, new Pen(OutlineBrush, 1), new Rect(0.5, y + 0.5, width - 1, height - 1), 3.5, 3.5);
 
         long duration = Player?.Duration ?? 0;
-        bool canSeek = Player?.CanPlay == true && duration > 0;
-        if (!canSeek)
-        {
-            DrawOutline();
+        if (Player is not { CanPlay: true } player || duration <= 0 ||
+            width <= 2 * ModernFillInset || height <= 2 * ModernFillInset)
             return;
-        }
-        long actual = Math.Clamp(Player?.CurTime ?? 0, 0, duration);
+
+        bounds.Inflate(-ModernFillInset, -ModernFillInset);
+        long actual = Math.Clamp(player.CurTime, 0, duration);
         long current = Math.Clamp(dragging ? dragTime : actual, 0, duration);
-        double playedEnd = width * ((double)current / duration);
-        double actualX = width * ((double)actual / duration);
-        double bufferedEnd = width * Math.Clamp(((double)actual + Math.Max(0, Player!.BufferedDuration)) / duration, 0, 1);
+        double playedEnd = bounds.Width * ((double)current / duration);
+        double actualX = bounds.Width * ((double)actual / duration);
+        double bufferedEnd = bounds.Width * Math.Clamp(((double)actual + Math.Max(0, player.BufferedDuration)) / duration, 0, 1);
 
         void DrawRegion(Brush brush, double start, double end)
         {
             if (end <= start) return;
-            dc.DrawRectangle(brush, null, new Rect(start, y, end - start, height));
+            dc.DrawRectangle(brush, null, new Rect(bounds.Left + start, bounds.Top, end - start, bounds.Height));
         }
 
+        dc.PushClip(new RectangleGeometry(bounds, 2, 2));
         // Overlap the played region to avoid gaps at the boundary. When
         // previewing a backward seek, retain the actual start of buffered data.
         if (bufferedEnd > Math.Max(playedEnd, actualX))
             DrawRegion(BufferedBrush, playedEnd >= actualX ? 0 : actualX, bufferedEnd);
         DrawRegion(PlayedBrush, 0, playedEnd);
-        if (Player!.Chapters is { Count: > 0 } chapters)
+        if (player.Chapters is { Count: > 0 } chapters)
         {
             var markerPen = new Pen(ChapterBrush, 1);
-            dc.PushClip(new RectangleGeometry(bounds));
             foreach (Demuxer.Chapter chapter in chapters)
             {
                 if (chapter.StartTime <= 0 || chapter.StartTime >= duration) continue;
-                double x = width * ((double)chapter.StartTime / duration);
+                double x = bounds.Left + bounds.Width * ((double)chapter.StartTime / duration);
                 dc.DrawLine(markerPen, new Point(x, y + 4), new Point(x, y + height - 4));
             }
-            dc.Pop();
         }
-        DrawOutline();
+        dc.Pop();
     }
 
     protected override void OnMouseEnter(MouseEventArgs e)
@@ -364,6 +360,8 @@ public class FlyleafSeekBar : FrameworkElement
     {
         if (Player is not { Duration: > 0 } player || RenderSize.Width <= 0)
             return 0;
-        return (long)(Math.Clamp(x / RenderSize.Width, 0, 1) * player.Duration);
+        double width = RenderSize.Width;
+        double inset = IsModern && width > 2 * ModernFillInset ? ModernFillInset : 0;
+        return (long)(Math.Clamp((x - inset) / (width - 2 * inset), 0, 1) * player.Duration);
     }
 }

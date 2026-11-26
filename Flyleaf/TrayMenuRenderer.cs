@@ -15,7 +15,7 @@ internal sealed class TrayMenuRenderer(ResourceDictionary palette) : Forms.ToolS
     readonly Drawing.Color border = Color(palette, "Border");
     readonly Drawing.Color text = Color(palette, "Text");
     readonly Drawing.Color secondary = Color(palette, "SecondaryText");
-    readonly Drawing.Color accent = Color(palette, "Accent");
+    readonly Drawing.Color accent = Color(palette, "AccentIcon");
     readonly Drawing.Color selection = Color(palette, "Selection");
 
     static Drawing.Color Color(ResourceDictionary palette, string name)
