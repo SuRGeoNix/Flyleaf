@@ -90,7 +90,9 @@ public class WindowOptions : NotifyPropertyChanged
                 Mode = moved ? panel.Mode : shared.Mode,
                 Side = moved ? panel.Side : shared.Side,
                 Width = before == null || panel.Width != before.Width ? panel.Width : shared.Width,
-                FloatingBounds = before == null || panel.FloatingBounds != before.FloatingBounds ? panel.FloatingBounds : shared.FloatingBounds
+                FloatingBounds = before == null || panel.FloatingBounds != before.FloatingBounds ? panel.FloatingBounds : shared.FloatingBounds,
+                PinnedInFullscreen = before == null || panel.PinnedInFullscreen != before.PinnedInFullscreen
+                    ? panel.PinnedInFullscreen : shared.PinnedInFullscreen
             };
             changed = true;
         }

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Controls;
@@ -848,11 +849,21 @@ public partial class MainWindow : Window
     async void MediaElement_Drop(object sender, DragEventArgs e)
     {
         if (e.Handled) return;
+        var files = e.Data.GetDataPresent(DataFormats.FileDrop, false) ? e.Data.GetData(DataFormats.FileDrop, false) as string[] : null;
+        if (files is [var folder] && Directory.Exists(folder))
+        {
+            e.Handled = true;
+            // Let the Explorer drop finish before showing the folder import dialog.
+            await System.Windows.Threading.Dispatcher.Yield();
+            await RunPlaylistOperation(() => ImportQueueFolder(append: false, folder: folder));
+            return;
+        }
+
         if (e.Data.GetDataPresent(DataFormats.Text) && e.Data.GetData(DataFormats.Text, false) is string text && !string.IsNullOrWhiteSpace(text))
         {
             MediaElement.OpenInput(text.Trim()); e.Handled = true; return;
         }
-        if (!e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetData(DataFormats.FileDrop, false) is not string[] files) return;
+        if (files == null) return;
         var inputs = GetQueueMediaFiles(files);
         if (inputs.Length == 0) return;
         e.Handled = true;

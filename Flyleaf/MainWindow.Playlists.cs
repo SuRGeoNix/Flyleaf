@@ -310,12 +310,17 @@ public partial class MainWindow
         Entries = MediaElement.Queue.CaptureEntries().Select(entry => new FlyleafPlaylistEntry
         { Input = entry.Input, Title = entry.Title, UserAgent = entry.UserAgent, Referrer = entry.Referrer }).ToList()
     };
-    async Task ImportQueueFolder(bool append)
+    async Task ImportQueueFolder(bool append, string? folder = null)
     {
-        playlistStage = "Choosing a folder";
-        var picker = new OpenFolderDialog { Title = append ? "Add folder to queue" : "Open folder" };
-        if (picker.ShowDialog(this) != true) return;
-        var folder = picker.FolderName;
+        if (folder == null)
+        {
+            playlistStage = "Choosing a folder";
+            var picker = new OpenFolderDialog { Title = append ? "Add folder to queue" : "Open folder" };
+            if (picker.ShowDialog(this) != true) return;
+            folder = picker.FolderName;
+        }
+
+        playlistStage = "Opening folder";
         if (FlyleafDiscInput.FromFolder(folder) is { } disc)
         {
             if (append) await AddQueueInputs([disc]);

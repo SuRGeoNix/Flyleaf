@@ -166,6 +166,8 @@ public class FlyleafPlaybackBar : Control, INotifyPropertyChanged
     Border? surface;
     FrameworkElement? modernFrame, dynamicHandleBand;
 
+    internal FrameworkElement RenderedSurface => surface ?? (FrameworkElement)this;
+
     public string CurrentTimeText => Player?.CanPlay == true ? FormatTime(Player.CurTime) : "--:--:--";
     public string DurationText => Player?.Duration > 0 ? FormatTime(Player.Duration) : "--:--:--";
     public bool ShowDuration => !IsLive || Player?.Duration != 0;

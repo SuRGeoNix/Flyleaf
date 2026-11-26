@@ -106,6 +106,7 @@ public partial class FlyleafME
                     panel.Mode = placement.Mode;
                     panel.Side = placement.Side;
                     panel.PreferredWidth = placement.Width;
+                    panel.PinnedInFullscreen = placement.PinnedInFullscreen;
                     var bounds = placement.FloatingBounds;
                     if (bounds != null && FloatingPanelBounds.IsValid(bounds.Left, bounds.Top, bounds.Width, bounds.Height,
                         definition.MinimumWidth, definition.MinimumFloatingHeight))

@@ -42,21 +42,20 @@ public partial class FlyleafME
         ? dockLayout.ColumnDefinitions[0].ActualWidth + dockLayout.ColumnDefinitions[1].ActualWidth +
           dockLayout.ColumnDefinitions[3].ActualWidth + dockLayout.ColumnDefinitions[4].ActualWidth : 0;
     public double MinimumComposedWidth => 400 +
-        (leftDock.Content is FlyleafPanel left ? left.Definition.MinimumWidth + 5 : 0) +
-        (rightDock.Content is FlyleafPanel right ? right.Definition.MinimumWidth + 5 : 0);
+        (OccupiesDock(leftDock) ? ((FlyleafPanel)leftDock.Content).Definition.MinimumWidth + 5 : 0) +
+        (OccupiesDock(rightDock) ? ((FlyleafPanel)rightDock.Content).Definition.MinimumWidth + 5 : 0);
     /// <summary>Dock width to reserve when the application explicitly resizes the window. Excludes temporarily hidden docks.</summary>
-    public double RequestedDockWidth => overlayPanel?.Definition.FillOverlayArea == true ? 0 :
-        RequestedDockWidthAt(0) + RequestedDockWidthAt(4) + (leftDock.Content != null ? 5 : 0) + (rightDock.Content != null ? 5 : 0);
-    public double RequestedLeftDockWidth => HasFullAreaPanel || leftDock.Content == null ? 0 : RequestedDockWidthAt(0) + 5;
-    public double RequestedRightDockWidth => HasFullAreaPanel || rightDock.Content == null ? 0 : RequestedDockWidthAt(4) + 5;
+    public double RequestedDockWidth => RequestedLeftDockWidth + RequestedRightDockWidth;
+    public double RequestedLeftDockWidth => HasFullAreaPanel || !OccupiesDock(leftDock) ? 0 : RequestedDockWidthAt(0) + leftSplitter.Width;
+    public double RequestedRightDockWidth => HasFullAreaPanel || !OccupiesDock(rightDock) ? 0 : RequestedDockWidthAt(4) + rightSplitter.Width;
     /// <summary>Requested visible dock and splitter widths in device pixels for window sizing.</summary>
     public (int Left, int Right) GetRequestedDockPixelInsets(double dpiScaleX)
     {
         if (HasFullAreaPanel) return (0, 0);
         // WPF rounds each fixed grid column independently.
         int Pixels(double width) => (int)Math.Round(width * dpiScaleX);
-        return (leftDock.Content == null ? 0 : Pixels(RequestedDockWidthAt(0)) + Pixels(leftSplitter.Width),
-            rightDock.Content == null ? 0 : Pixels(RequestedDockWidthAt(4)) + Pixels(rightSplitter.Width));
+        return (OccupiesDock(leftDock) ? Pixels(RequestedDockWidthAt(0)) + Pixels(leftSplitter.Width) : 0,
+            OccupiesDock(rightDock) ? Pixels(RequestedDockWidthAt(4)) + Pixels(rightSplitter.Width) : 0);
     }
 
     public bool HasFullAreaPanel => overlayPanel?.Definition.FillOverlayArea == true;
@@ -68,7 +67,7 @@ public partial class FlyleafME
     }
     /// <summary>The shared header overlays playback, so it reserves no layout height.</summary>
     public double HeaderHeight => 0;
-    public bool HasDockedPanels => leftDock.Content != null || rightDock.Content != null;
+    public bool HasDockedPanels => OccupiesDock(leftDock) || OccupiesDock(rightDock);
     public event EventHandler? ViewportLayoutChanged;
     /// <summary>Capture viewport geometry before a panel presentation or splitter change.</summary>
     public event EventHandler? ViewportLayoutChanging;
@@ -140,6 +139,8 @@ public partial class FlyleafME
                 var view = (FlyleafME)d;
                 view.Host.SetCurrentValue(FlyleafHost.AttachedDragMoveProperty,
                     view.IsFullScreen ? AttachedDragMoveOptions.None : view.AttachedDragMove);
+                if (view.leftDock.Content is FlyleafPanel { PinnedInFullscreen: false } ||
+                    view.rightDock.Content is FlyleafPanel { PinnedInFullscreen: false }) view.UpdateDockLayout();
                 view.Player?.Activity.RefreshFullActive();
                 view.FullScreenChanged?.Invoke(view, EventArgs.Empty);
                 view.ShowOSD(view.IsFullScreen ? "Full screen" : "Windowed");
@@ -195,10 +196,12 @@ public partial class FlyleafME
         overlayHeader.SizeChanged += (_, _) =>
         {
             UpdateFullAreaPanelBounds();
+            UpdateFullscreenDockBounds();
             UpdateOSDMargin();
         };
         overlayHeader.VerticalAlignment = VerticalAlignment.Top;
         SetZIndex(overlayHeader, 10); overlayRoot.Children.Add(overlayHeader);
+        InitializeFullscreenDocks();
         SetZIndex(overlayPanels, 20); overlayRoot.Children.Add(overlayPanels);
         overlayRoot.PreviewKeyDown += PanelEscape;
         PreviewKeyDown += PanelEscape;
@@ -210,7 +213,14 @@ public partial class FlyleafME
         if (IsQueueSearchOpen) return;
         if (e.OriginalSource is TextBox { Tag: "FlyleafKeyCapture" }) return;
         if (e.OriginalSource is TextBox { Tag: FlyleafLanguageEntry { IsSuggestionOpen: true } }) return;
-        if (e.Key == Key.Escape && overlayPanel != null) { ClosePanel(overlayPanel); e.Handled = true; }
+        if (e.Key != Key.Escape) return;
+        if (overlayPanel != null) { ClosePanel(overlayPanel); e.Handled = true; }
+        else if ((leftFullscreenDock.IsKeyboardFocusWithin && leftFullscreenDock.Hide()) ||
+            (rightFullscreenDock.IsKeyboardFocusWithin && rightFullscreenDock.Hide()))
+        {
+            FocusPlayback();
+            e.Handled = true;
+        }
     }
 
     bool HandleDebugOverlayKey(object sender, KeyEventArgs e, ModifierKeys modifiers)
@@ -264,6 +274,7 @@ public partial class FlyleafME
         if (ReferenceEquals(overlayHeader.Content, HeaderContent)) return;
         overlayHeader.Content = HeaderContent;
         UpdateFullAreaPanelBounds();
+        UpdateFullscreenDockBounds();
         UpdateOSDMargin();
     }
 

@@ -103,25 +103,17 @@ public unsafe partial class Renderer
     }
 
     /// <summary>Restores saved filter preferences from a snapshot without replacing the live editor objects.</summary>
-    public void RestoreVideoFilterPreferences(Config.VideoConfig snapshot)
+    public void RestoreVideoFilterPreferences(Config.VideoConfig snapshot) => RestoreVideoFilterPreferences(snapshot, replace: false);
+
+    internal void RestoreVideoFilterPreferences(Config.VideoConfig snapshot, bool replace)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         lock (lockDevice)
         {
-            lock (ucfg.lockFLFilters)
-            lock (ucfg.lockD3Filters)
-            {
-                foreach (var (key, filter) in snapshot.FLFilters)
-                    if (ucfg.FLFilters.TryGetValue(key, out var existing))
-                        existing.RequestedValue = filter.RequestedValue;
-                foreach (var (key, filter) in snapshot.D3Filters)
-                    if (ucfg.D3Filters.TryGetValue(key, out var existing))
-                        existing.CopyPreference(filter);
-                ucfg.SyncedFilterLevels = new(snapshot.SyncedFilterLevels);
-            }
-
+            ucfg.RestoreFilterPreferences(snapshot, replace);
             RefreshEditedFilters();
         }
+        if (replace) NotifyFiltersChanged();
     }
 
     void RefreshEditedFilters()

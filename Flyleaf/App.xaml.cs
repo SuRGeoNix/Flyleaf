@@ -63,7 +63,12 @@ public partial class App : Application
         var panelLayout = (settings.StartupPanelLayout == StartupPanelLayoutMode.LastUsed ? source?.CapturePanelLayout() : null)
             ?? settings.GetStartupPanelLayout();
         var window = new MainWindow(source?.Profile.Id, panelLayout);
-        if (source != null) window.OffsetFrom(source);
+        if (source != null)
+        {
+            window.Topmost = source.Topmost;
+            window.Player.Audio.Volume = Math.Min(source.Player.Audio.Volume, window.Player.Config.Audio.VolumeMax);
+            window.OffsetFrom(source);
+        }
         window.Show();
         return window;
     }
@@ -230,8 +235,20 @@ public partial class App : Application
         LaunchRequest launch;
         try
         {
-            launch = LaunchRequest.Parse(e.Args, Environment.CurrentDirectory,
-                Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+            if (ExplorerOpen.IsActivation(e.Args))
+            {
+                if (ExplorerOpen.Receive(new Guid(ExplorerOpen.ClassId)) is not { } selection)
+                {
+                    Shutdown(1);
+                    return;
+                }
+                launch = selection;
+            }
+            else
+            {
+                launch = LaunchRequest.Parse(e.Args, Environment.CurrentDirectory,
+                    Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+            }
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
         {
@@ -286,6 +303,7 @@ public partial class App : Application
         }
         store.LoadProfiles(CreateDefaultPlayerConfig());
         initialized = true;
+        FileAssociations.UpgradeOpenVerb();
         Config.Startup.PropertyChanged += StartupOptionsChanged;
         UpdateTray();
         base.OnStartup(e);

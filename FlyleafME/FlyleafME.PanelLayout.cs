@@ -6,7 +6,10 @@ public sealed record FlyleafFloatingPanelBounds(double Left, double Top, double 
 
 /// <summary>Presentation and geometry for a registered panel. The host owns storage.</summary>
 public sealed record FlyleafPanelPlacement(string Id, FlyleafPanelMode Mode, FlyleafPanelSide Side, double Width,
-    bool IsOpen, FlyleafFloatingPanelBounds? FloatingBounds = null);
+    bool IsOpen, FlyleafFloatingPanelBounds? FloatingBounds = null)
+{
+    public bool PinnedInFullscreen { get; init; } = true;
+}
 
 public partial class FlyleafME
 {
@@ -25,7 +28,10 @@ public partial class FlyleafME
                 ? RequestedDockWidthAt(panel.Side == FlyleafPanelSide.Left ? 0 : 4) : panel.PreferredWidth;
             var bounds = panel.FloatingBounds is { } rect
                 ? new FlyleafFloatingPanelBounds(rect.Left, rect.Top, rect.Width, rect.Height) : null;
-            result.Add(new(panel.Id, panel.Mode, panel.Side, width, panel.IsOpen, bounds));
+            result.Add(new(panel.Id, panel.Mode, panel.Side, width, panel.IsOpen, bounds)
+            {
+                PinnedInFullscreen = panel.PinnedInFullscreen
+            });
         }
         return result.ToArray();
     }
@@ -74,6 +80,8 @@ public partial class FlyleafME
             panel.Side = panel.Definition.DefaultSide;
             panel.PreferredWidth = panel.Definition.PreferredWidth;
             panel.FloatingBounds = null;
+            panel.PinnedInFullscreen = true;
+            panel.RefreshPresentation();
         }
     }
 

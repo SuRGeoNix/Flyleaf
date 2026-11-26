@@ -26,8 +26,8 @@ public partial class FlyleafME
         if (mode == FlyleafPanelMode.Floating && ownerWindow == null)
             throw new InvalidOperationException("A floating panel requires an owner window.");
         double otherWidth = side == FlyleafPanelSide.Left
-            ? (rightDock.Content == panel ? 0 : rightDock.ActualWidth)
-            : (leftDock.Content == panel ? 0 : leftDock.ActualWidth);
+            ? (OccupiesDock(rightDock) && rightDock.Content != panel ? rightDock.ActualWidth : 0)
+            : (OccupiesDock(leftDock) && leftDock.Content != panel ? leftDock.ActualWidth : 0);
         if (panelDefinitions.TryGetValue(panel.Id, out var registered) && !ReferenceEquals(registered, panel.Definition))
             throw new InvalidOperationException("Panel ID is registered with a different definition.");
         ViewportLayoutChanging?.Invoke(this, EventArgs.Empty);
@@ -51,7 +51,7 @@ public partial class FlyleafME
         {
             dock.Content = panel;
             var column = dockLayout.ColumnDefinitions[side == FlyleafPanelSide.Left ? 0 : 4];
-            double maxWidth = restoreDockWidth ? panel.Definition.MaximumWidth
+            double maxWidth = restoreDockWidth || IsFullScreen && !panel.PinnedInFullscreen ? panel.Definition.MaximumWidth
                 : Math.Min(panel.Definition.MaximumWidth, Math.Max(panel.Definition.MinimumWidth, ActualWidth - otherWidth - 405));
             column.Width = new GridLength(Math.Clamp(panel.PreferredWidth, panel.Definition.MinimumWidth, maxWidth));
         }
@@ -129,6 +129,7 @@ public partial class FlyleafME
             }
         }
         UpdateDockLayout();
+        if (mode == FlyleafPanelMode.Docked) FullscreenDockAt(side == FlyleafPanelSide.Left ? 0 : 4).Reveal();
         RestorePanelFocus(panel);
         UpdateHostKeyBindings();
     }
@@ -171,12 +172,13 @@ public partial class FlyleafME
     void RememberDockWidth(ContentControl dock, int columnIndex, FlyleafPanel panel)
     {
         if (!ReferenceEquals(dock.Content, panel)) return;
-        // Full-area Settings temporarily caps dock columns at zero. Preserve the
-        // requested pixel width rather than saving that hidden/constrained size.
-        var column = dockLayout.ColumnDefinitions[columnIndex];
-        double width = dock.Visibility == Visibility.Collapsed && column.Width.IsAbsolute
-            ? column.Width.Value : dock.ActualWidth;
+        // Layout can temporarily hide the dock or constrain the overlaid panel.
+        // Preserve the requested dock width in either case.
+        var fullscreenDock = FullscreenDockAt(columnIndex);
+        double width = fullscreenDock.HostsDock || dock.Visibility == Visibility.Collapsed || dock.ActualWidth <= 0
+            ? RequestedDockWidthAt(columnIndex) : dock.ActualWidth;
         panel.PreferredWidth = Math.Clamp(width, panel.Definition.MinimumWidth, panel.Definition.MaximumWidth);
+        fullscreenDock.Hide();
         dock.Content = null;
     }
 
@@ -204,14 +206,17 @@ public partial class FlyleafME
         var columns = dockLayout.ColumnDefinitions;
         bool fullArea = overlayPanel?.Definition.FillOverlayArea == true;
         playbackDisplay.SetObscured(overlayPanel != null);
+        leftFullscreenDock.UpdateHost(IsFullScreen, fullArea);
+        rightFullscreenDock.UpdateHost(IsFullScreen, fullArea);
         if (leftDock.Content == null) { columns[0].MinWidth = 0; columns[0].Width = new GridLength(0); }
         if (rightDock.Content == null) { columns[4].MinWidth = 0; columns[4].Width = new GridLength(0); }
-        // Retain dock contents and their stored column widths while a full-area page is open.
-        leftDock.Visibility = rightDock.Visibility = fullArea ? Visibility.Collapsed : Visibility.Visible;
-        columns[1].Width = new GridLength(fullArea || leftDock.Content == null ? 0 : 5);
-        columns[3].Width = new GridLength(fullArea || rightDock.Content == null ? 0 : 5);
-        leftSplitter.Visibility = fullArea || leftDock.Content == null ? Visibility.Collapsed : Visibility.Visible;
-        rightSplitter.Visibility = fullArea || rightDock.Content == null ? Visibility.Collapsed : Visibility.Visible;
+        if (!leftFullscreenDock.HostsDock) leftDock.Visibility = fullArea ? Visibility.Collapsed : Visibility.Visible;
+        if (!rightFullscreenDock.HostsDock) rightDock.Visibility = fullArea ? Visibility.Collapsed : Visibility.Visible;
+        bool leftVisible = !fullArea && OccupiesDock(leftDock), rightVisible = !fullArea && OccupiesDock(rightDock);
+        columns[1].Width = new GridLength(leftVisible ? leftSplitter.Width : 0);
+        columns[3].Width = new GridLength(rightVisible ? rightSplitter.Width : 0);
+        leftSplitter.Visibility = leftVisible ? Visibility.Visible : Visibility.Collapsed;
+        rightSplitter.Visibility = rightVisible ? Visibility.Visible : Visibility.Collapsed;
         PlaceHeader();
         UpdateDockLimits();
         if (!viewportNotificationQueued)
@@ -231,19 +236,21 @@ public partial class FlyleafME
     {
         if (dockLayout.ColumnDefinitions.Count != 5) return;
         // Keep the content usable at narrow sizes; do not silently relocate panels.
-        double budget = Math.Max(0, (availableWidth ?? ActualWidth) - 400 - (leftDock.Content != null ? 5 : 0) - (rightDock.Content != null ? 5 : 0));
-        var fitted = FlyleafDockWidths.Fit(budget, RequestedDockWidthAt(0), (leftDock.Content as FlyleafPanel)?.Definition.MinimumWidth ?? 0,
-            RequestedDockWidthAt(4), (rightDock.Content as FlyleafPanel)?.Definition.MinimumWidth ?? 0);
+        var left = OccupiesDock(leftDock) ? (FlyleafPanel)leftDock.Content : null;
+        var right = OccupiesDock(rightDock) ? (FlyleafPanel)rightDock.Content : null;
+        double budget = Math.Max(0, (availableWidth ?? ActualWidth) - 400 - (left == null ? 0 : leftSplitter.Width) - (right == null ? 0 : rightSplitter.Width));
+        var fitted = FlyleafDockWidths.Fit(budget, left == null ? 0 : RequestedDockWidthAt(0), left?.Definition.MinimumWidth ?? 0,
+            right == null ? 0 : RequestedDockWidthAt(4), right?.Definition.MinimumWidth ?? 0);
         foreach (int index in new[] { 0, 4 })
         {
             var column = dockLayout.ColumnDefinitions[index];
-            if (overlayPanel?.Definition.FillOverlayArea == true)
+            if (HasFullAreaPanel || FullscreenDockAt(index).HostsDock)
             {
                 column.MinWidth = 0;
                 column.MaxWidth = 0;
                 continue;
             }
-            if ((index == 0 ? leftDock.Content : rightDock.Content) is not FlyleafPanel panel)
+            if ((index == 0 ? left : right) is not FlyleafPanel panel)
             { if (!double.IsPositiveInfinity(column.MaxWidth)) column.MaxWidth = double.PositiveInfinity; continue; }
             double allocated = index == 0 ? fitted.Left : fitted.Right;
             double otherAllocated = index == 0 ? fitted.Right : fitted.Left;

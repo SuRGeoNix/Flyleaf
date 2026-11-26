@@ -218,10 +218,16 @@ internal sealed class PlayerProfiles
         return result;
     }
 
-    // These preferences are consumed by subsequent actions. The full player
-    // configuration is loaded when constructing the next window.
+    // Other player settings are loaded when constructing the next window.
     static void ApplyLive(Config current, Config incoming)
     {
+        current.Video.ApplyFilterPreferences(incoming.Video);
+
+        // Publish fresh dictionaries so a demuxer already opening can keep reading its snapshot.
+        current.Demuxer.FormatOpt = CopyOptions(incoming.Demuxer.FormatOpt);
+        current.Demuxer.AudioFormatOpt = CopyOptions(incoming.Demuxer.AudioFormatOpt);
+        current.Demuxer.SubtitlesFormatOpt = CopyOptions(incoming.Demuxer.SubtitlesFormatOpt);
+
         var playback = current.Playback;
         var source = incoming.Playback;
         playback.AutoPlay = source.AutoPlay;
@@ -239,6 +245,9 @@ internal sealed class PlayerProfiles
         current.Audio.VolumeOffset = incoming.Audio.VolumeOffset;
         current.Subtitles.DelayOffset = incoming.Subtitles.DelayOffset;
         current.Subtitles.DelayOffset2 = incoming.Subtitles.DelayOffset2;
+
+        static Dictionary<string, string>? CopyOptions(Dictionary<string, string>? options) =>
+            options == null ? null : new(options, options.Comparer);
     }
 
     #region Migration form v1 to v2 config (Demuxer Audio/Subs Format Options)

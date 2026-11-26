@@ -475,6 +475,57 @@ public class Config : NotifyPropertyChanged
             return video;
         }
 
+        /// <summary>Applies the saved filter preferences and synchronization setting, including neutral values for omitted filters.</summary>
+        public void ApplyFilterPreferences(VideoConfig snapshot)
+        {
+            ArgumentNullException.ThrowIfNull(snapshot);
+            if (ReferenceEquals(this, snapshot)) return;
+
+            if (player?.Renderer is { } renderer)
+                renderer.RestoreVideoFilterPreferences(snapshot, replace: true);
+            else
+                RestoreFilterPreferences(snapshot, replace: true);
+        }
+
+        internal void RestoreFilterPreferences(VideoConfig snapshot, bool replace)
+        {
+            Dictionary<FLFilters, FLFilter> flyleaf;
+            Dictionary<VideoProcessorFilter, D3Filter> d3d11;
+            Dictionary<FLFilters, double> syncedLevels;
+            bool sync;
+            lock (snapshot.lockFLFilters)
+            lock (snapshot.lockD3Filters)
+            {
+                flyleaf = snapshot.FLFilters.ToDictionary(entry => entry.Key, entry => entry.Value.ClonePreference());
+                d3d11 = snapshot.D3Filters.ToDictionary(entry => entry.Key, entry => entry.Value.ClonePreference());
+                syncedLevels = new(snapshot.SyncedFilterLevels);
+                sync = snapshot.SyncVPFilters;
+            }
+
+            lock (lockFLFilters)
+            lock (lockD3Filters)
+            {
+                if (replace)
+                {
+                    foreach (var (key, filter) in FLFilters)
+                        if (!flyleaf.ContainsKey(key)) filter.RequestedValue = filter.Default;
+                    foreach (var (key, filter) in D3Filters)
+                        if (!d3d11.ContainsKey(key)) filter.CapturePreference(filter.Default);
+                }
+
+                foreach (var (key, filter) in flyleaf)
+                    if (FLFilters.TryGetValue(key, out var existing)) existing.RequestedValue = filter.RequestedValue;
+                    else if (replace) FLFilters.Add(key, filter);
+                foreach (var (key, filter) in d3d11)
+                    if (D3Filters.TryGetValue(key, out var existing)) existing.CopyPreference(filter);
+                    else if (replace) D3Filters.Add(key, filter);
+
+                SyncedFilterLevels = syncedLevels;
+                // Enabling sync through the UI would derive levels from the active processor.
+                if (replace) SetUI(ref _SyncVPFilters, sync, propertyName: nameof(SyncVPFilters));
+            }
+        }
+
         internal Player player;
 
         /// <summary>SDR pixel format used when creating the video swapchain.</summary>

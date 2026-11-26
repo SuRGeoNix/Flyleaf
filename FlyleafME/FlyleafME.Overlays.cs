@@ -12,7 +12,7 @@ public partial class FlyleafME
     static readonly Rect fullViewport = new(0, 0, 1, 1);
     Player? overlayPlayer;
     Renderer? overlayRenderer;
-    bool subtitleRefreshQueued;
+    bool subtitleRefreshQueued, subtitleBarLayoutObserved;
     int textPlayerGeneration;
     void InitializeTextOverlays()
     {
@@ -154,5 +154,31 @@ public partial class FlyleafME
         ObserveTextRenderer(overlayPlayer is { IsDisposed: false } ? overlayPlayer.Renderer : null);
         subtitleText.Text = overlayPlayer is { IsDisposed: false, Subtitles: { Enabled: true, IsOpened: true } subtitles } ? subtitles.SubsText ?? "" : "";
         UpdateOSDMargin();
+    }
+
+    void UpdateSubtitleBarObservation()
+    {
+        bool observe = osdBarsObserved && osdBarVisible && !string.IsNullOrWhiteSpace(subtitleText.Text);
+        if (subtitleBarLayoutObserved != observe)
+        {
+            subtitleBarLayoutObserved = observe;
+            if (observe) overlayRoot.LayoutUpdated += SubtitleBarLayoutUpdated;
+            else overlayRoot.LayoutUpdated -= SubtitleBarLayoutUpdated;
+        }
+        if (observe) SubtitleBarLayoutUpdated(null, EventArgs.Empty);
+        else subtitleText.PlaybackBarBounds = Rect.Empty;
+    }
+
+    void SubtitleBarLayoutUpdated(object? sender, EventArgs e)
+    {
+        var bounds = Rect.Empty;
+        if (osdPlaybackBar is FlyleafPlaybackBar bar &&
+            bar.RenderedSurface is { IsVisible: true, Opacity: > 0.001, ActualWidth: > 0, ActualHeight: > 0 } surface &&
+            overlayRoot.IsAncestorOf(surface))
+        {
+            bounds = surface.TransformToVisual(subtitleText).TransformBounds(new Rect(surface.RenderSize));
+            bounds.Intersect(new Rect(subtitleText.RenderSize));
+        }
+        subtitleText.PlaybackBarBounds = bounds;
     }
 }

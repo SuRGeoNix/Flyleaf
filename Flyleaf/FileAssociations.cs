@@ -16,6 +16,8 @@ internal static class FileAssociations
     const string ClassesKey = @"Software\Classes";
     const string HandlerKey = ClassesKey + @"\" + Handler;
     const string FileTypesKey = CapabilitiesKey + @"\FileAssociations";
+    const string OpenVerbKey = HandlerKey + @"\shell\open";
+    const string OpenServerKey = ClassesKey + @"\CLSID\" + ExplorerOpen.ClassId + @"\LocalServer32";
 
     internal static readonly (string Label, string[] Extensions)[] Groups =
     [
@@ -94,8 +96,10 @@ internal static class FileAssociations
             currentHandler.SetValue("", "Flyleaf media file");
             using var defaultIcon = currentHandler.CreateSubKey("DefaultIcon");
             defaultIcon.SetValue("", icon);
-            using var command = currentHandler.CreateSubKey(@"shell\open\command");
-            command.SetValue("", $"\"{executable}\" \"%1\"");
+            using var open = currentHandler.CreateSubKey(@"shell\open");
+            using var command = open.CreateSubKey("command");
+            command.SetValue("", OpenCommand(executable));
+            RegisterOpenVerb(user, open, executable);
         }
 
         using var capabilities = user.CreateSubKey(CapabilitiesKey);
@@ -127,6 +131,41 @@ internal static class FileAssociations
         using var applications = user.CreateSubKey(ApplicationsKey);
         if (enabled.Count > 0) applications.SetValue(ApplicationName, CapabilitiesKey);
         else if (Equals(applications.GetValue(ApplicationName), CapabilitiesKey)) applications.DeleteValue(ApplicationName);
+    }
+
+    static string OpenCommand(string executable) => $"\"{executable}\" \"%1\"";
+
+    static void RegisterOpenVerb(RegistryKey user, RegistryKey open, string executable)
+    {
+        using var localServer = user.CreateSubKey(OpenServerKey);
+        localServer.SetValue("", $"\"{executable}\"");
+        using var dropTarget = open.CreateSubKey("DropTarget");
+        dropTarget.SetValue("Clsid", ExplorerOpen.ClassId);
+        open.SetValue("MultiSelectModel", "Player");
+    }
+
+    internal static void UpgradeOpenVerb()
+    {
+        if (Environment.ProcessPath is not { } executable) return;
+        try
+        {
+            using var user = Registry.CurrentUser;
+            using var open = user.OpenSubKey(OpenVerbKey, writable: true);
+            using var command = open?.OpenSubKey("command");
+            // Only upgrade associations already pointing at this installation.
+            if (!string.Equals(command?.GetValue("") as string, OpenCommand(executable), StringComparison.OrdinalIgnoreCase)) return;
+            using var dropTarget = open!.OpenSubKey("DropTarget");
+            using var localServer = user.OpenSubKey(OpenServerKey);
+            if (Equals(dropTarget?.GetValue("Clsid"), ExplorerOpen.ClassId) && Equals(open.GetValue("MultiSelectModel"), "Player") &&
+                string.Equals(localServer?.GetValue("") as string, $"\"{executable}\"", StringComparison.OrdinalIgnoreCase))
+                return;
+            RegisterOpenVerb(user, open, executable);
+            SHChangeNotify(0x08000000, 0, 0, 0); // SHCNE_ASSOCCHANGED, SHCNF_IDLIST
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            // Playback can start even when Windows blocks changes to the association.
+        }
     }
 
     internal static void OpenWindowsDefaults()

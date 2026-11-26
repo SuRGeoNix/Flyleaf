@@ -32,6 +32,7 @@ public partial class FlyleafME
             contentProperty.RemoveValueChanged(this, OSDContentChanged);
             ObserveOSDBar(ref osdHeader, null); ObserveOSDBar(ref osdPlaybackBar, null);
             osdHeaderVisible = osdBarVisible = false;
+            UpdateSubtitleBarObservation();
         };
     }
     void OSDContentChanged(object? sender, EventArgs e) => QueueOSDBarRefresh();
@@ -108,6 +109,7 @@ public partial class FlyleafME
         var insets = new Thickness(12, (header ? overlayHeader.ActualHeight : 0) + 12, 12, (bar ? osdPlaybackBar!.ActualHeight : 0) + 12);
         playbackDisplay.SetInsets(insets);
         debugOverlay.Margin = insets;
+        UpdateSubtitleBarObservation();
         if (IsQueueSearchOpen) PositionQueueSearch();
         if (changed && overlayPlayer is { IsDisposed: false }) UpdatePlaybackDisplay();
     }

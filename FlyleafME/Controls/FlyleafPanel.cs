@@ -1,5 +1,7 @@
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 
 namespace Flyleaf.Controls.WPF;
@@ -18,12 +20,14 @@ public sealed class FlyleafPanel : Border
     public FlyleafPanelContext? Context { get; private set; }
     internal WeakReference<IInputElement>? LastEditorFocus;
     readonly Button placementButton = FlyleafPanelUI.Button("");
+    readonly ToggleButton fullscreenPin = new() { Width = 28, Height = 28, Margin = new Thickness(0, 0, 4, 0) };
     ContextMenu? placementMenu;
     public string Id => Definition.Id;
     public string Title => Definition.Title;
     public FlyleafPanelMode Mode { get; internal set; }
     public FlyleafPanelSide Side { get; internal set; } = FlyleafPanelSide.Right;
     public bool IsOpen { get; internal set; }
+    public bool PinnedInFullscreen { get; internal set; } = true;
     public FrameworkElement Editor { get; }
     double preferredWidth;
     public double PreferredWidth
@@ -73,6 +77,11 @@ public sealed class FlyleafPanel : Border
         placementButton.ToolTip = "Panel placement";
         DockPanel.SetDock(placementButton, Dock.Right); titleRow.Children.Add(placementButton);
         placementButton.Click += (_, _) => ShowPlacementMenu();
+        fullscreenPin.SetResourceReference(StyleProperty, "FlyleafME.OverlayIconToggleStyle");
+        fullscreenPin.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, "FlyleafME.TextBrush");
+        AutomationProperties.SetName(fullscreenPin, "Keep panel docked in fullscreen");
+        fullscreenPin.Click += (_, _) => ToggleFullscreenPin();
+        DockPanel.SetDock(fullscreenPin, Dock.Right); titleRow.Children.Add(fullscreenPin);
         var caption = new TextBlock { Text = Title, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
         caption.SetResourceReference(TextBlock.ForegroundProperty, "FlyleafME.TextBrush");
         titleRow.Children.Add(caption);
@@ -116,7 +125,26 @@ public sealed class FlyleafPanel : Border
         };
     }
 
-    internal void RefreshPresentation() => placementButton.Content = (Mode == FlyleafPanelMode.Overlay && Definition.FillOverlayArea ? "Player area" : Mode.ToString()) + " ▾";
+    internal void RefreshPresentation()
+    {
+        placementButton.Content = (Mode == FlyleafPanelMode.Overlay && Definition.FillOverlayArea ? "Player area" : Mode.ToString()) + " ▾";
+        fullscreenPin.Visibility = Mode == FlyleafPanelMode.Docked ? Visibility.Visible : Visibility.Collapsed;
+        fullscreenPin.IsChecked = PinnedInFullscreen;
+        fullscreenPin.Content = PinnedInFullscreen ? "\uE840" : "\uE718";
+        fullscreenPin.ToolTip = PinnedInFullscreen ? "Auto-hide in fullscreen" : "Keep docked in fullscreen";
+    }
+
+    void ToggleFullscreenPin()
+    {
+        if (OwnerElement is not { } owner) return;
+        bool pinned = fullscreenPin.IsChecked == true;
+        // A mouse click on the pin shouldn't keep an unpinned panel open through keyboard focus.
+        bool returnFocus = owner.IsFullScreen && !pinned && fullscreenPin.IsKeyboardFocused &&
+            InputManager.Current.MostRecentInputDevice is MouseDevice;
+        if (returnFocus) Keyboard.ClearFocus();
+        owner.SetPanelFullscreenPin(this, pinned);
+        if (returnFocus) owner.FocusPlayback();
+    }
 
     void ShowPlacementMenu()
     {
