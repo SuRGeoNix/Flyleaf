@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.12.2</Version>
+	<Version>3.12.3</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,14 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Player: Fixes seek completion notifications during video, audio-only and reverse playback
-		- Downloader: Improves pause, resume and stop handling
-		- Downloader: Fixes premature completion with separate video and audio inputs
-		- Downloader: Introduces explicit completion results and improved error reporting
-		- Downloader: Adds improved progress, output file size, throughput and packet error statistics
-		- Downloader: Handles recoverable packet write errors without interrupting downloads
-		- Demuxer: Tracks terminal read errors for improved download error reporting
-		- Remuxer: Improves timestamp handling, packet validation and output finalization
+		- Config: Isolates per-input demuxer options from saved settings and separates cookies for primary and fallback opens
+		- Config: Preserves configured audio frame limits during recording
+		- Config: Preserves video filter preferences and precision across video processor switches and prevents configuration serialization from modifying runtime settings
+		- Statistics: Improves bitrate calculation accuracy and prevents spikes across seeks, queue clears and statistics collection restarts
+		- Audio: Exposes active XAudio2 voice formats
+		- Renderer: Exposes the applied swap-chain format, color space and HDR state through SwapChainOutput
+		- Player: Exposes active audio and video streams and their buffered durations with property change notifications
+		- Player: Improves property change notifications when disposing players or toggling engine UI refresh
 	</PackageReleaseNotes>
   </PropertyGroup>
 

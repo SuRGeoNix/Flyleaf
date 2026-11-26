@@ -8,8 +8,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>FlyleafME</PackageId>
-    <FlyleafLibPackageVersionRange>[3.12.2,4.0.0)</FlyleafLibPackageVersionRange>
-    <Version>2.0.0-preview.3</Version>
+    <FlyleafLibPackageVersionRange>[3.12.3,4.0.0)</FlyleafLibPackageVersionRange>
+    <Version>2.0.0-preview.4</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2026</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -19,45 +19,19 @@
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>A customizable WPF media player control powered by FlyleafLib, with built-in playback controls, a media queue, and dockable panels.</Description>
 	<PackageReleaseNotes>
-		Downloads &amp; Recordings
-		- Introduces a shared download manager with configurable concurrent downloads
-		- Adds a Downloads panel with Docked, Floating and Overlay modes
-		- Supports individual and batch downloads with start, pause, resume and stop controls
-		- Supports Automatic and Custom download modes with embedded and external stream selection
-		- Supports automatic filename and container selection with optional overrides
-		- Supports scheduled recordings with configurable start date/time and recording duration
-		- Integrates downloading directly into the queue context menu
-
-		DVD &amp; Blu-ray Playback
-		- Adds DVD and Blu-ray playback with runtime FFmpeg capability detection
-		- Adds Open Disc and Add Disc commands with automatic disc type detection
-		- Supports title, playlist, chapter and angle selection
-		- Adds native Blu-ray MPLS metadata parsing and playlist duration filtering
-		- Supports adding multiple disc titles to the queue
-		- Displays friendly disc and playlist titles throughout the UI
-
-		Queue &amp; Search
-		- Adds live queue search and filtering without affecting playback order or queue persistence
-		- Adds Quick Queue Search with keyboard navigation and configurable Ctrl+F keybinding
-		- Reorganizes queue toolbar and context menus with consistent Open, Add and Paste operations
-
-		On-Screen Display (OSD)
-		- Redesigns the OSD with independent clock, queue, status, action and error regions
-		- Adds configurable playback clock positioning and optional millisecond precision
-		- Adds queue position, item count and media title with configurable visibility
-		- Improves dynamic positioning based on player activity and playback bar visibility
-		- Improves transient and blocking error presentation and automatic clearing
-		- Extends OSD configuration and settings
-
-		Capture Devices
-		- Adds audio and video capture device selection through the main context menu and corresponding panels
-		- Supports dynamic device enumeration and camera capture format selection
-
-		API &amp; Other Improvements
-		- Exposes ShowError API for consistent error reporting from hosting applications
-		- Improves main context menu consistency
-		- Improves keyboard focus and keybinding handling
-		- Fixes LIVE indicator visibility when closing an input
+		- PlaybackBar: Adds Modern playback bar design with Compact, Full and Dynamic modes alongside Classic
+		- PlaybackBar: Adds floating and docked layouts for both designs
+		- PlaybackBar: Adds contextual expansion, persistent pin state and configurable Ctrl+B keybinding for Dynamic mode
+		- PlaybackBar: Introduces a flat seek bar, accent-gradient volume controls and improved duration contrast
+		- PlaybackBar: Keeps volume and mute controls available before opening media and during video-only playback
+		- DebugOverlay: Introduces a translucent overlay with Playback, Video and Audio tabs, displaying detailed input/output information and playback statistics
+		- DebugOverlay: Adds Tab to toggle visibility and Ctrl+Tab / Ctrl+Shift+Tab to navigate between tabs
+		- MediaInformation: Improves runtime information updates using library notifications instead of periodic polling
+		- Statistics: Shares statistics collection between the Debug Overlay and Media Information panel with automatic lifecycle management
+		- Presentation: Adds custom accent colors and consistent accent presets across Light and Dark themes
+		- Settings: Adds color pickers for subtitle text, subtitle outlines and video background
+		- VideoFilters: Fixes resetting shared filter preferences across video processors
+		- OSD: Renders messages behind overlay panels
 	</PackageReleaseNotes>
   </PropertyGroup>
 
