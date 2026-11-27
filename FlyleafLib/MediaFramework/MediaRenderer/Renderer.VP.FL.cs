@@ -31,7 +31,7 @@ public unsafe partial class Renderer
 
     ID3D11Buffer    hdrBuffer;
     HDRBufferType   hdrData   = new();
-    bool            checkHDRConfig;
+    bool            checkHDRConfig = true;
 
     ID3D11Buffer    doviBuffer;
 

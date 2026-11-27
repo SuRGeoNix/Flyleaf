@@ -393,6 +393,23 @@ public abstract class FlyleafSettingsEditor : StackPanel
         }
     }
 
+    protected void CheckChoices<T>(StackPanel parent, string title, string help, Func<T, bool> get, Action<T, bool> set,
+        params (T Value, string Label)[] choices)
+    {
+        parent.Children.Add(Text(title));
+        var row = new WrapPanel();
+        parent.Children.Add(row);
+        foreach (var (value, label) in choices)
+        {
+            var check = new CheckBox { Content = label, Margin = new Thickness(0, 6, 12, 0) };
+            check.SetResourceReference(StyleProperty, "FlyleafME.CheckBoxStyle");
+            row.Children.Add(check);
+            check.Click += (_, _) => Run(() => set(value, check.IsChecked == true));
+            refreshers.Add(() => check.IsChecked = get(value));
+        }
+        parent.Children.Add(Text(help, true));
+    }
+
     protected void Options(StackPanel parent, Func<Dictionary<string, string>> get, Action<Dictionary<string, string>> set,
         string title = "Decoder options · name / value")
     {

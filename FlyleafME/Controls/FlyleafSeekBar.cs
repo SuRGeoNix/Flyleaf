@@ -71,6 +71,16 @@ public class FlyleafSeekBar : FrameworkElement
         set => SetValue(SeekPreviewProperty, value);
     }
 
+    public static readonly DependencyProperty SeekPreviewInputTypesProperty =
+        DependencyProperty.Register(nameof(SeekPreviewInputTypes), typeof(FlyleafSeekPreviewInputTypes), typeof(FlyleafSeekBar),
+            new FrameworkPropertyMetadata(FlyleafPlaybackBarOptions.DefaultSeekPreviewInputTypes, OnPreviewOptionChanged));
+
+    public FlyleafSeekPreviewInputTypes SeekPreviewInputTypes
+    {
+        get => (FlyleafSeekPreviewInputTypes)GetValue(SeekPreviewInputTypesProperty);
+        set => SetValue(SeekPreviewInputTypesProperty, value);
+    }
+
     public static readonly DependencyProperty SeekPreviewSizeProperty =
         DependencyProperty.Register(nameof(SeekPreviewSize), typeof(FlyleafSeekPreviewSize), typeof(FlyleafSeekBar),
             new FrameworkPropertyMetadata(FlyleafSeekPreviewSize.Small, OnPreviewSizeChanged));
@@ -153,7 +163,7 @@ public class FlyleafSeekBar : FrameworkElement
     {
         var seekBar = (FlyleafSeekBar)d;
         seekBar.thumbnail?.Hide(interrupt: true);
-        if (seekBar.SeekPreview == FlyleafSeekPreviewMode.Disabled)
+        if (seekBar.SeekPreview == FlyleafSeekPreviewMode.Disabled || e.Property == SeekPreviewInputTypesProperty)
             seekBar.thumbnail?.UpdateSource(null);
         seekBar.RefreshOpenPreview();
     }
@@ -203,6 +213,8 @@ public class FlyleafSeekBar : FrameworkElement
         }
         if (e.PropertyName is nameof(Player.Status) or nameof(Player.CanPlay) or nameof(Player.IsLive) or nameof(Player.IsDisposed))
             RefreshPreview(sender as Player);
+        else if (e.PropertyName is nameof(Player.CurTime) or nameof(Player.Duration))
+            RefreshLivePreview(sender as Player, e.PropertyName == nameof(Player.Duration));
     }
 
     void Video_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -221,8 +233,27 @@ public class FlyleafSeekBar : FrameworkElement
         if (!IsLoaded || !IsVisible || !ReferenceEquals(player, Player))
             return;
         if (SeekPreview != FlyleafSeekPreviewMode.Disabled)
-            thumbnail?.UpdateSource(player);
+            thumbnail?.UpdateSource(player, SeekPreviewInputTypes);
         RefreshOpenPreview();
+    }
+
+    void RefreshLivePreview(Player? player, bool durationChanged)
+    {
+        if (player?.IsLive != true)
+            return;
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => RefreshLivePreview(player, durationChanged));
+            return;
+        }
+        if (!ReferenceEquals(player, Player) || SeekPreview == FlyleafSeekPreviewMode.Disabled ||
+            !SeekPreviewInputTypes.HasFlag(FlyleafSeekPreviewInputTypes.Live) || !(hovering || dragging))
+            return;
+
+        if (durationChanged || preview?.IsOpen != true)
+            UpdatePreview(Mouse.GetPosition(this).X);
+        else if (!dragging || !SeekWhileDragging)
+            thumbnail?.Request(hoverTime, player.Duration, false, GetPreviewPixelBounds());
     }
 
     protected override Size MeasureOverride(Size availableSize) => new(0, 24);
@@ -426,8 +457,8 @@ public class FlyleafSeekBar : FrameworkElement
             return;
         }
         thumbnail ??= new(Dispatcher, ShowThumbnail);
-        thumbnail.UpdateSource(player);
-        thumbnail.Request(hoverTime, SeekPreview == FlyleafSeekPreviewMode.Accurate, GetPreviewPixelBounds());
+        thumbnail.UpdateSource(player, SeekPreviewInputTypes);
+        thumbnail.Request(hoverTime, player.Duration, SeekPreview == FlyleafSeekPreviewMode.Accurate, GetPreviewPixelBounds());
     }
 
     Size PreviewViewSize => previewViewport is { ActualWidth: > 0, ActualHeight: > 0 } view

@@ -103,8 +103,8 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         {
             if (MainDemuxer != null)
             {
-                main.HLSDurationChanged = null;
-                main.HLSCurTimeChanged  = null;
+                MainDemuxer.HLSDurationChanged = null;
+                MainDemuxer.HLSCurTimeChanged  = null;
             }
 
             MainDemuxer = main;
@@ -226,6 +226,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
         }
     }
     internal long _CurTime, curTime;
+    int hlsCurTimeSecondPending;
     internal void SetCurTime() => Set(ref _CurTime, curTime, true, nameof(CurTime));
     void UpdateCurTime(long ts, bool skipRefreshType = true)
     {
@@ -255,9 +256,23 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             curTime = ts;
         }
 
-        if (   Config.Playback.UICurTime == UIRefreshType.PerFrame
-            ||(Config.Playback.UICurTime == UIRefreshType.PerFrameSecond && _CurTime / 1_000_0000 != ts / 1_000_0000))
+        var refresh = Config.Playback.UICurTime;
+        if (refresh == UIRefreshType.PerFrame)
             UI(SetCurTime);
+        else if (refresh == UIRefreshType.PerFrameSecond &&
+                 Volatile.Read(ref _CurTime) / TimeSpan.TicksPerSecond != ts / TimeSpan.TicksPerSecond &&
+                 Interlocked.CompareExchange(ref hlsCurTimeSecondPending, 1, 0) == 0)
+            UI(PublishHLSCurTimeSecond);
+    }
+
+    void PublishHLSCurTimeSecond()
+    {
+        // Let a packet arriving during this dispatch schedule the next update.
+        Volatile.Write(ref hlsCurTimeSecondPending, 0);
+        long latest = Volatile.Read(ref curTime);
+        if (MainDemuxer.IsHLSLive && Config.Playback.UICurTime == UIRefreshType.PerFrameSecond &&
+            _CurTime / TimeSpan.TicksPerSecond != latest / TimeSpan.TicksPerSecond)
+            Set(ref _CurTime, latest, true, nameof(CurTime));
     }
 
     /// <summary>

@@ -1001,6 +1001,9 @@ public unsafe partial class Demuxer : RunThreadBase
         }
     }
     public int Seek(long ticks, bool forward = false)
+        => Seek(ticks, forward, -1);
+
+    internal int Seek(long ticks, bool forward, int streamIndex)
     {
         /* Current Issues
          *
@@ -1035,9 +1038,15 @@ public unsafe partial class Demuxer : RunThreadBase
                 {
                     if (CanDebug) Log.Debug($"[Seek({(forward ? "->" : "<-")})] Requested at {new TimeSpan(ticks)}");
 
-                    ret = ticks == StartTime // we should also call this if we seek anywhere within the first Gop
-                        ? avformat_seek_file(fmtCtx, -1, 0, 0, 0, 0)
-                        : av_seek_frame(fmtCtx, -1, ticks / 10, forward ? SeekFlags.None : SeekFlags.Backward);
+                    if (streamIndex >= 0)
+                    {
+                        long timestamp = av_rescale_q(ticks / 10, TIME_BASE_Q, fmtCtx->streams[streamIndex]->time_base);
+                        ret = av_seek_frame(fmtCtx, streamIndex, timestamp, forward ? SeekFlags.None : SeekFlags.Backward);
+                    }
+                    else
+                        ret = ticks == StartTime // we should also call this if we seek anywhere within the first Gop
+                            ? avformat_seek_file(fmtCtx, -1, 0, 0, 0, 0)
+                            : av_seek_frame(fmtCtx, -1, ticks / 10, forward ? SeekFlags.None : SeekFlags.Backward);
 
                     curReverseStopPts = NoTs;
                     curReverseStartPts= NoTs;
@@ -1050,7 +1059,7 @@ public unsafe partial class Demuxer : RunThreadBase
                         avformat_seek_file(fmtCtx, -1, long.MinValue, ticks / 10, ticks / 10    , SeekFlags.Any);
                 }
 
-                if (ret < 0)
+                if (ret < 0 && streamIndex < 0)
                 {
                     Log.Info($"Seek failed 1/2 (retrying) {FFmpegEngine.ErrorCodeToMsg(ret)} ({ret})");
 
@@ -1079,7 +1088,7 @@ public unsafe partial class Demuxer : RunThreadBase
                     else
                         lastSeekTime = ticks - StartTime - (hlsCtx != null ? hlsStartTime : 0);
                 }
-                else
+                else if (ret >= 0)
                     lastSeekTime = ticks - StartTime - (hlsCtx != null ? hlsStartTime : 0);
 
                 DisposePackets();

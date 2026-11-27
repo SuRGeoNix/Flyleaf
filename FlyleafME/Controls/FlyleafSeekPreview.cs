@@ -13,9 +13,10 @@ namespace Flyleaf.Controls.WPF;
 internal sealed class FlyleafSeekPreview
 {
     const int CacheCapacity = 40, CacheByteLimit = 12 * 1024 * 1024, IdleMilliseconds = 60_000;
+    const long MinimumLiveWindow = 45 * TimeSpan.TicksPerSecond;
 
     sealed record Source(DemuxerInput Input, DemuxerInput? SmallerInput, InputType Type,
-        int StreamIndex, long Duration, Config.DemuxerConfig DemuxerConfig);
+        int StreamIndex, long Duration, Config.DemuxerConfig DemuxerConfig, Demuxer? LiveDemuxer);
     readonly record struct FrameKey(bool Accurate, long Bucket, (uint Width, uint Height) Size);
     readonly record struct FrameRequest(FrameKey Key, long Time);
 
@@ -42,19 +43,23 @@ internal sealed class FlyleafSeekPreview
         timer.Tick += Process;
     }
 
-    internal void UpdateSource(Player? player)
+    internal void UpdateSource(Player? player, FlyleafSeekPreviewInputTypes types = FlyleafSeekPreviewInputTypes.None)
     {
-        if (player is not { CanPlay: true, IsDisposed: false, IsLive: false, Status: not Status.Opening })
+        if (player is not { CanPlay: true, IsDisposed: false, Status: not Status.Opening } ||
+            types == FlyleafSeekPreviewInputTypes.None)
             player = null;
         var item = player?.Playlist.Selected;
         var stream = player?.Video.Stream;
+        bool live = player?.IsLive == true || stream?.Demuxer.IsLive == true;
+        if (live && (stream?.Demuxer.IsHLSLive != true || !types.HasFlag(FlyleafSeekPreviewInputTypes.Live)))
+            stream = null;
         if (ReferenceEquals(trackedItem, item) && ReferenceEquals(trackedStream, stream))
             return;
 
         operation?.Cancel();
         trackedItem = item;
         trackedStream = stream;
-        source = player != null && item != null && stream != null ? CaptureSource(player, item, stream) : null;
+        source = player != null && item != null && stream != null ? CaptureSource(player, item, stream, types, live) : null;
         latest = null;
         attempted = null;
         unavailable = false;
@@ -67,14 +72,34 @@ internal sealed class FlyleafSeekPreview
         Schedule();
     }
 
-    internal void Request(long time, bool accurate, (uint Width, uint Height) size)
+    internal void Request(long time, long timelineDuration, bool accurate, (uint Width, uint Height) size)
     {
         if (source == null || unavailable)
             return;
 
+        bool live = source.LiveDemuxer != null;
         bool local = source.Type == InputType.File;
-        long bucketSize = TimeSpan.TicksPerMillisecond * (accurate ? 1L : local ? 750L : 1500L);
-        var key = new FrameKey(accurate, time / bucketSize, size);
+        FrameKey key;
+        if (source.LiveDemuxer is { } demuxer)
+        {
+            if (demuxer.GetHLSLiveSegment(time, MinimumLiveWindow, timelineDuration) is not long segment)
+            {
+                if (latest != null || shownTime != null)
+                    Hide(interrupt: true);
+                return;
+            }
+
+            accurate = false;
+            time = segment;
+            key = new(false, segment, size);
+            if (latest?.Key == key)
+                return;
+        }
+        else
+        {
+            long bucketSize = TimeSpan.TicksPerMillisecond * (accurate ? 1L : local ? 750L : 1500L);
+            key = new(accurate, time / bucketSize, size);
+        }
         var now = Environment.TickCount64;
         if (latest == null || (accurate && latest.Value.Key != key))
             settleAt = now + (accurate ? 170 : 100);
@@ -83,7 +108,7 @@ internal sealed class FlyleafSeekPreview
 
         if (cache.TryGetValue(key, out var image))
             Publish(image, time);
-        else if (shownTime is long previous && !IsNearby(source, previous, time))
+        else if (shownTime is long previous && (live ? previous != time : !IsNearby(source, previous, time)))
             Publish(null);
 
         Schedule();
@@ -163,7 +188,7 @@ internal sealed class FlyleafSeekPreview
                 idleAt = Environment.TickCount64 + IdleMilliseconds;
                 if (result.Image is not { } image)
                 {
-                    if (decoder == null || (!request.Key.Accurate && ++failures >= 2))
+                    if (current.LiveDemuxer == null && (decoder == null || (!request.Key.Accurate && ++failures >= 2)))
                         unavailable = true;
                     if (unavailable || latest?.Key == request.Key)
                         Publish(null);
@@ -173,7 +198,7 @@ internal sealed class FlyleafSeekPreview
                 failures = 0;
                 CacheImage(request.Key, image);
                 if (latest is { } target && target.Key.Size == request.Key.Size && (target.Key == request.Key ||
-                    (!target.Key.Accurate && !request.Key.Accurate && IsNearby(current, request.Time, target.Time))))
+                    (current.LiveDemuxer == null && !target.Key.Accurate && !request.Key.Accurate && IsNearby(current, request.Time, target.Time))))
                     Publish(image, request.Time);
             }
             finally
@@ -217,6 +242,14 @@ internal sealed class FlyleafSeekPreview
     {
         try
         {
+            bool live = source.LiveDemuxer != null;
+            if (live && context != null && !context.VideoDemuxer.ContainsHLSLiveSegment(request.Time))
+            {
+                var old = context;
+                context = null;
+                old.Dispose();
+            }
+
             if (context == null)
             {
                 using var open = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
@@ -230,7 +263,9 @@ internal sealed class FlyleafSeekPreview
                         context = null;
                     }
                 }
-                context ??= DecoderContext.OpenVideoPreview(source.Input, source.Type, source.StreamIndex, source.DemuxerConfig, open.Token);
+                context ??= live
+                    ? DecoderContext.OpenHLSLiveVideoPreview(source.Input, source.Type, source.StreamIndex, source.DemuxerConfig, open.Token)
+                    : DecoderContext.OpenVideoPreview(source.Input, source.Type, source.StreamIndex, source.DemuxerConfig, open.Token);
             }
             if (context == null || cancellation.IsCancellationRequested)
                 return (context, null);
@@ -238,8 +273,10 @@ internal sealed class FlyleafSeekPreview
             using var seek = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
             seek.CancelAfter(source.Type == InputType.File ? 450 : 800);
             var (width, height) = request.Key.Size;
-            var result = context.GetVideoPreviewFrame(request.Time, request.Key.Accurate, width, height, seek.Token);
-            return (context, result?.Image);
+            var image = live
+                ? context.GetHLSLiveVideoPreviewFrame(request.Time, width, height, seek.Token)
+                : context.GetVideoPreviewFrame(request.Time, request.Key.Accurate, width, height, seek.Token)?.Image;
+            return (context, image);
         }
         catch (Exception ex)
         {
@@ -248,9 +285,9 @@ internal sealed class FlyleafSeekPreview
         }
     }
 
-    static Source? CaptureSource(Player player, PlaylistItem item, VideoStream stream)
+    static Source? CaptureSource(Player player, PlaylistItem item, VideoStream stream, FlyleafSeekPreviewInputTypes types, bool live)
     {
-        if (stream.Demuxer.Duration <= 0 ||
+        if ((!live && stream.Demuxer.Duration <= 0) ||
             (stream.TotalFrames <= 1 && FlyleafQueueProgression.IsImageFormat(stream.Demuxer.Name)))
             return null;
 
@@ -274,8 +311,17 @@ internal sealed class FlyleafSeekPreview
         else
             return null;
 
+        var category = live ? FlyleafSeekPreviewInputTypes.Live : type switch
+        {
+            InputType.File => FlyleafSeekPreviewInputTypes.File,
+            InputType.UNC => FlyleafSeekPreviewInputTypes.UNC,
+            _ => FlyleafSeekPreviewInputTypes.Web
+        };
+        if (!types.HasFlag(category))
+            return null;
+
         DemuxerInput? smaller = null;
-        if (type == InputType.Web && external != null && stream.Height > 360)
+        if (!live && type == InputType.Web && external != null && stream.Height > 360)
         {
             double ratio = (double)stream.Width / stream.Height;
             BindingOperations.AccessCollection(item.ExternalVideoStreams, () =>
@@ -295,7 +341,8 @@ internal sealed class FlyleafSeekPreview
 
         var demuxerConfig = player.Config.Demuxer.Clone();
         demuxerConfig.ExtraHTTPQueryParamsToUnderlying = CopyOptions(demuxerConfig.ExtraHTTPQueryParamsToUnderlying) ?? [];
-        return new(CopyInput(input), smaller, type, stream.StreamIndex, stream.Demuxer.Duration, demuxerConfig);
+        return new(CopyInput(input), smaller, type, stream.StreamIndex, stream.Demuxer.Duration, demuxerConfig,
+            live ? stream.Demuxer : null);
     }
 
     static DemuxerInput CopyInput(DemuxerInput input) => new()

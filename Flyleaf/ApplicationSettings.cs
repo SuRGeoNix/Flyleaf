@@ -39,6 +39,7 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
             ui.PlaybackBar.DynamicPinned = defaults.DynamicPinned;
             ui.PlaybackBar.SeekWhileDragging = true;
             ui.PlaybackBar.SeekPreview = defaults.SeekPreview;
+            ui.PlaybackBar.SeekPreviewInputTypes = defaults.SeekPreviewInputTypes;
             ui.PlaybackBar.SeekPreviewSize = defaults.SeekPreviewSize;
             ui.PlaybackBar.SeekPreviewPercentage = defaults.SeekPreviewPercentage;
             ui.PlaybackBar.AutoHideDelayMilliseconds = 2800;
@@ -64,6 +65,13 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
         Choice(playbackBar, "Seek preview", () => ui.PlaybackBar.SeekPreview, v => ui.PlaybackBar.SeekPreview = v,
             [(FlyleafSeekPreviewMode.Disabled, "Time only"), (FlyleafSeekPreviewMode.Keyframe, "Keyframe"),
                 (FlyleafSeekPreviewMode.Accurate, "Accurate")]);
+        CheckChoices(playbackBar, "Preview input types", "Live HLS uses keyframes and requires a seek window longer than 45 seconds.",
+            (FlyleafSeekPreviewInputTypes type) => ui.PlaybackBar.SeekPreviewInputTypes.HasFlag(type),
+            (type, enabled) => ui.PlaybackBar.SeekPreviewInputTypes = enabled
+                ? ui.PlaybackBar.SeekPreviewInputTypes | type : ui.PlaybackBar.SeekPreviewInputTypes & ~type,
+            (FlyleafSeekPreviewInputTypes.All, "All"), (FlyleafSeekPreviewInputTypes.File, "File"),
+            (FlyleafSeekPreviewInputTypes.UNC, "UNC"), (FlyleafSeekPreviewInputTypes.Web, "Web"),
+            (FlyleafSeekPreviewInputTypes.Live, "Live"));
         Choice(playbackBar, "Preview size", () => ui.PlaybackBar.SeekPreviewSize, v => ui.PlaybackBar.SeekPreviewSize = v,
             [(FlyleafSeekPreviewSize.Small, "Small"), (FlyleafSeekPreviewSize.Medium, "Medium"),
                 (FlyleafSeekPreviewSize.Large, "Large"), (FlyleafSeekPreviewSize.Custom, "Custom percentage")]);

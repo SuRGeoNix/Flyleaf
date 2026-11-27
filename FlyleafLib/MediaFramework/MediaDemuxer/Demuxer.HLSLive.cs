@@ -13,15 +13,82 @@ public unsafe partial class Demuxer
     void*                   hlsPrevPlaylist;
     long                    hlsPrevStartSeqNo       = NoTs;
     int                     hlsPrevSegments         = -1;
+    sealed record HLSLiveWindow(int StreamIndex, long StartSequence, long[] SegmentEnds);
+    HLSLiveWindow hlsLiveWindow;
+
+    // Publish a managed snapshot so the seekbar never waits on the demuxer or reads FFmpeg pointers.
+    HLSLiveWindow CurrentHLSLiveWindow
+    {
+        get
+        {
+            var window = Volatile.Read(ref hlsLiveWindow);
+            return IsHLSLive && window != null && window.StreamIndex == VideoStream?.StreamIndex ? window : null;
+        }
+    }
+
+    /// <summary>Gets the HLS video media sequence at a seekbar position. Times are in ticks.</summary>
+    public long? GetHLSLiveSegment(long position, long minimumWindowDuration = 0, long timelineDuration = 0)
+    {
+        if (CurrentHLSLiveWindow is not { } window)
+            return null;
+
+        var ends = window.SegmentEnds;
+        long duration = ends[^1];
+        if (duration <= Math.Max(0, minimumWindowDuration) || position < 0)
+            return null;
+
+        // Playback may still have buffered segments that the live playlist has dropped.
+        if (timelineDuration > 0)
+        {
+            if (timelineDuration <= minimumWindowDuration || position > timelineDuration)
+                return null;
+            position = duration - (timelineDuration - position);
+        }
+        if (position < 0 || position > duration)
+            return null;
+
+        position = Math.Min(position, duration - 1);
+        for (int i = 0; i < ends.Length; i++)
+            if (position < ends[i])
+                return window.StartSequence + i;
+
+        return null;
+    }
+
+    /// <summary>Checks whether the current HLS video window contains a media sequence.</summary>
+    public bool ContainsHLSLiveSegment(long sequence) => TryGetHLSLiveSegmentOffset(sequence, out _);
+
+    internal bool TryGetHLSLiveSegmentOffset(long sequence, out long offset)
+    {
+        offset = 0;
+        if (CurrentHLSLiveWindow is not { } window)
+            return false;
+
+        long index = sequence - window.StartSequence;
+        if (index < 0 || index >= window.SegmentEnds.Length)
+            return false;
+
+        long start = index == 0 ? 0 : window.SegmentEnds[index - 1];
+        long duration = window.SegmentEnds[index] - start;
+        offset = start + duration / 2;
+        return duration > 0;
+    }
+
+    internal bool IsCurrentHLSLiveSegment(long sequence)
+        => HLSPlaylist != null && hlsReader.GetWindow(HLSPlaylist).CurSeqNo == sequence;
 
     // CurPackets Callbacks
     internal void SetHLSDuration(long duration)
     {
-        if (Duration != duration)
-        {
-            Duration = duration;
+        Duration = duration;
+        NotifyHLSDuration();
+    }
+
+    void NotifyHLSDuration()
+    {
+        long duration = Duration;
+        if (Interlocked.Exchange(ref hlsNotifiedDuration, duration) != duration)
             HLSDurationChanged?.Invoke(duration);
-        }
     }
 
     internal void SetHLSCurTime(long curTime)
@@ -45,6 +112,7 @@ public unsafe partial class Demuxer
         }
     }
 
+    long hlsNotifiedDuration;
     long _hlsCurTime; // only to check changes
     public Action<long> HLSDurationChanged;
     public Action<long> HLSCurTimeChanged; // Includes BufferedDurationChanged if possible?*
@@ -80,6 +148,8 @@ public unsafe partial class Demuxer
         hlsPrevSegments     = -1;
         hlsStartTime        = NoTs;
         hlsCurDuration      = 0;
+        hlsNotifiedDuration = 0;
+        Volatile.Write(ref hlsLiveWindow, null);
     }
 
     internal void* FindHLSPlaylist(int streamIndex)
@@ -136,11 +206,13 @@ public unsafe partial class Demuxer
         if (segmentCount <= 0 || index < 0 || index > segmentCount || window.Segments == null)
             return;
 
-        if (hlsPrevPlaylist     != playlist ||
-            hlsPrevSeqNo        != seqNo ||
-            hlsPrevStartSeqNo   != startSeqNo ||
-            hlsPrevSegments     != segmentCount)
+        bool windowChanged = hlsPrevPlaylist != playlist || hlsPrevStartSeqNo != startSeqNo || hlsPrevSegments != segmentCount;
+        int videoIndex = VideoStream?.StreamIndex ?? -1;
+        bool snapshotChanged = videoIndex >= 0 && (windowChanged || hlsLiveWindow?.StreamIndex != videoIndex);
+        bool timingChanged = windowChanged || snapshotChanged || hlsPrevSeqNo != seqNo;
+        if (timingChanged)
         {
+            long[] segmentEnds = snapshotChanged ? new long[segmentCount] : null;
             long curDuration = 0;
             long duration = 0;
 
@@ -152,6 +224,8 @@ public unsafe partial class Demuxer
 
                 long segmentDuration = hlsReader.GetSegmentDuration(segment);
                 duration += segmentDuration;
+                if (segmentEnds != null)
+                    segmentEnds[i] = duration * 10;
                 if (i < index)
                     curDuration += segmentDuration;
             }
@@ -166,6 +240,8 @@ public unsafe partial class Demuxer
 
             hlsCurDuration      = newCurDuration;
             Duration            = duration * 10;
+            if (segmentEnds != null)
+                Volatile.Write(ref hlsLiveWindow, new(videoIndex, startSeqNo, segmentEnds));
 
             hlsPrevPlaylist     = playlist;
             hlsPrevSeqNo        = seqNo;
@@ -178,5 +254,8 @@ public unsafe partial class Demuxer
             hlsStartTime = CurPackets.LastTimestamp - hlsCurDuration;
             CurPackets.UpdateCurTime();
         }
+
+        if (timingChanged)
+            NotifyHLSDuration();
     }
 }

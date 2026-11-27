@@ -57,9 +57,21 @@ public enum FlyleafSeekPreviewSize
     Custom
 }
 
+[Flags]
+public enum FlyleafSeekPreviewInputTypes
+{
+    None = 0,
+    File = 1,
+    UNC = 2,
+    Web = 4,
+    Live = 8,
+    All = File | UNC | Web | Live
+}
+
 public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
 {
     internal const int DefaultSeekPreviewPercentage = 25;
+    internal const FlyleafSeekPreviewInputTypes DefaultSeekPreviewInputTypes = FlyleafSeekPreviewInputTypes.All;
 
     FlyleafVisibilityPolicy visibility;
     FlyleafPlaybackBarDesign design = FlyleafPlaybackBarDesign.Modern;
@@ -69,6 +81,7 @@ public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
     bool dynamicPinned = true;
     bool seekWhileDragging = true;
     FlyleafSeekPreviewMode seekPreview = FlyleafSeekPreviewMode.Keyframe;
+    FlyleafSeekPreviewInputTypes seekPreviewInputTypes = DefaultSeekPreviewInputTypes;
     FlyleafSeekPreviewSize seekPreviewSize = FlyleafSeekPreviewSize.Small;
     int seekPreviewPercentage = DefaultSeekPreviewPercentage;
     int autoHideDelayMilliseconds = 2800;
@@ -91,6 +104,13 @@ public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
 
     /// <summary>Thumbnail accuracy on the seekbar, independent of playback seeking.</summary>
     public FlyleafSeekPreviewMode SeekPreview { get => seekPreview; set => Set(ref seekPreview, value); }
+
+    /// <summary>Input types eligible for seekbar thumbnails.</summary>
+    public FlyleafSeekPreviewInputTypes SeekPreviewInputTypes
+    {
+        get => seekPreviewInputTypes;
+        set => Set(ref seekPreviewInputTypes, value & FlyleafSeekPreviewInputTypes.All);
+    }
 
     /// <summary>Maximum thumbnail size for the seekbar popup.</summary>
     public FlyleafSeekPreviewSize SeekPreviewSize { get => seekPreviewSize; set => Set(ref seekPreviewSize, value); }
@@ -121,6 +141,7 @@ public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
     {
         Visibility = Visibility, Design = Design, Mode = Mode, Floating = Floating, ClassicFloating = ClassicFloating,
         DynamicPinned = DynamicPinned, SeekWhileDragging = SeekWhileDragging, SeekPreview = SeekPreview,
+        SeekPreviewInputTypes = SeekPreviewInputTypes,
         SeekPreviewSize = SeekPreviewSize, SeekPreviewPercentage = SeekPreviewPercentage,
         AutoHideDelayMilliseconds = AutoHideDelayMilliseconds
     };

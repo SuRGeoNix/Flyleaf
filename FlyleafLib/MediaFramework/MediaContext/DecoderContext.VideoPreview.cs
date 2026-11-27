@@ -17,9 +17,19 @@ public unsafe partial class DecoderContext
     /// </summary>
     public static DecoderContext OpenVideoPreview(DemuxerInput input, InputType inputType,
         int streamIndex, Config.DemuxerConfig demuxerConfig, CancellationToken cancellationToken = default)
+        => OpenPreview(input, inputType, streamIndex, demuxerConfig, false, cancellationToken);
+
+    /// <summary>Opens a preview decoder for the same rendition as the active HLS live video.</summary>
+    public static DecoderContext OpenHLSLiveVideoPreview(DemuxerInput input, InputType inputType,
+        int streamIndex, Config.DemuxerConfig demuxerConfig, CancellationToken cancellationToken = default)
+        => OpenPreview(input, inputType, streamIndex, demuxerConfig, true, cancellationToken);
+
+    static DecoderContext OpenPreview(DemuxerInput input, InputType inputType,
+        int streamIndex, Config.DemuxerConfig demuxerConfig, bool hlsLive, CancellationToken cancellationToken)
     {
         if (input?.Url == null || input.IOStream != null || cancellationToken.IsCancellationRequested ||
-            inputType is not (InputType.File or InputType.UNC or InputType.Web))
+            inputType is not (InputType.File or InputType.UNC or InputType.Web) ||
+            (hlsLive && streamIndex < 0))
             return null;
 
         var config = new Config(forVideoPreview: true) { Demuxer = demuxerConfig?.Clone() ?? new() };
@@ -46,7 +56,7 @@ public unsafe partial class DecoderContext
             var demuxer = preview.VideoDemuxer;
             demuxer.Interrupter.OperationCancellation = cancellationToken;
             if (preview.OpenDemuxerInput(demuxer, input) != null || cancellationToken.IsCancellationRequested ||
-                demuxer.IsLive || demuxer.Duration <= 0)
+                demuxer.IsLive != hlsLive || (hlsLive ? demuxer.Name != "hls" : demuxer.Duration <= 0))
                 return null;
 
             bool adaptive = demuxer.Name is "hls" or "dash";
@@ -56,10 +66,10 @@ public unsafe partial class DecoderContext
 
             int preferredHeight = config.Video.MaxVerticalResolution;
             var stream = demuxer.VideoStreams.FirstOrDefault(s => s.StreamIndex == streamIndex);
-            if (!adaptive && streamIndex >= 0 && stream == null)
+            if ((hlsLive || !adaptive && streamIndex >= 0) && stream == null)
                 return null;
 
-            if (adaptive && stream != null && stream.Height > preferredHeight && stream.Width > 0)
+            if (!hlsLive && adaptive && stream != null && stream.Height > preferredHeight && stream.Width > 0)
             {
                 double ratio = (double)stream.Width / stream.Height;
                 stream = demuxer.VideoStreams
@@ -70,7 +80,8 @@ public unsafe partial class DecoderContext
             stream ??= demuxer.VideoStreams.Where(s => s.Height > 0 && s.Height <= preferredHeight).MaxBy(s => s.Height)
                 ?? demuxer.VideoStreams.FirstOrDefault();
 
-            opened = stream != null && preview.Open(stream, defaultAudio: false).Success && !cancellationToken.IsCancellationRequested;
+            opened = stream != null && preview.Open(stream, defaultAudio: false).Success &&
+                (!hlsLive || demuxer.IsHLSLive) && !cancellationToken.IsCancellationRequested;
             return opened ? preview : null;
         }
         finally
@@ -87,9 +98,18 @@ public unsafe partial class DecoderContext
     /// </summary>
     public (BitmapSource Image, long Timestamp)? GetVideoPreviewFrame(long timestamp, bool accurate,
         uint maxWidth, uint maxHeight, CancellationToken cancellationToken = default)
+        => GetVideoPreviewFrame(timestamp, accurate, null, maxWidth, maxHeight, cancellationToken);
+
+    /// <summary>Returns a keyframe thumbnail for a media sequence in the current HLS live video window.</summary>
+    public BitmapSource GetHLSLiveVideoPreviewFrame(long segment, uint maxWidth, uint maxHeight,
+        CancellationToken cancellationToken = default)
+        => GetVideoPreviewFrame(0, false, segment, maxWidth, maxHeight, cancellationToken)?.Image;
+
+    (BitmapSource Image, long Timestamp)? GetVideoPreviewFrame(long timestamp, bool accurate, long? hlsSegment,
+        uint maxWidth, uint maxHeight, CancellationToken cancellationToken)
     {
         if (player != null || VideoStream == null || VideoDecoder.IsRunning || VideoDemuxer.IsRunning ||
-            maxWidth == 0 || maxHeight == 0 || cancellationToken.IsCancellationRequested)
+            VideoDemuxer.IsHLSLive != hlsSegment.HasValue || maxWidth == 0 || maxHeight == 0 || cancellationToken.IsCancellationRequested)
             return null;
 
         long frameDuration = Math.Max(VideoStream.FrameDuration, TimeSpan.TicksPerMillisecond);
@@ -103,7 +123,9 @@ public unsafe partial class DecoderContext
         try
         {
             long target = accurate ? timestamp : -1;
-            var frame = DecodePreviewFrame(ms, target, cancellationToken);
+            var frame = hlsSegment is long segment
+                ? DecodeHLSLivePreviewFrame(segment, cancellationToken)
+                : DecodePreviewFrame(ms, target, cancellationToken);
             // Some demuxers can land after the target even on a backward seek.
             if (accurate && ms > 0 && !cancellationToken.IsCancellationRequested &&
                 (frame == null || frame.Timestamp - timestamp > frameDuration))
@@ -135,6 +157,32 @@ public unsafe partial class DecoderContext
             return null;
 
         GetVideoFrame(target, cancellationToken);
+        return VideoDecoder.Renderer.Frames.TryDequeue(out var frame) ? frame : null;
+    }
+
+    VideoFrame DecodeHLSLivePreviewFrame(long segment, CancellationToken cancellationToken)
+    {
+        var demuxer = VideoDemuxer;
+        if (demuxer.HLSFirstTimestamp == NoTs)
+        {
+            GetVideoFrame(-1, cancellationToken);
+            VideoDecoder.Flush();
+        }
+
+        long firstTimestamp = demuxer.HLSFirstTimestamp;
+        if (firstTimestamp == NoTs || cancellationToken.IsCancellationRequested ||
+            !demuxer.TryGetHLSLiveSegmentOffset(segment, out long offset) ||
+            demuxer.Seek(firstTimestamp + offset, false, VideoStream.StreamIndex) < 0 ||
+            !demuxer.IsCurrentHLSLiveSegment(segment))
+            return null;
+
+        VideoDecoder.Flush();
+        GetVideoFrame(-1, cancellationToken);
+        if (cancellationToken.IsCancellationRequested || !demuxer.IsCurrentHLSLiveSegment(segment))
+        {
+            VideoDecoder.Flush();
+            return null;
+        }
         return VideoDecoder.Renderer.Frames.TryDequeue(out var frame) ? frame : null;
     }
 }

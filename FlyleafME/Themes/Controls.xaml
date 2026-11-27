@@ -645,6 +645,7 @@
                         <me:FlyleafSeekBar x:Name="PART_Seek" Grid.Column="1" Player="{Binding Player, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekWhileDragging="{Binding Options.SeekWhileDragging, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekPreview="{Binding Options.SeekPreview, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekPreviewInputTypes="{Binding Options.SeekPreviewInputTypes, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekPreviewSize="{Binding Options.SeekPreviewSize, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekPreviewPercentage="{Binding Options.SeekPreviewPercentage, RelativeSource={RelativeSource TemplatedParent}}"
                             IsEnabled="{Binding CanSeek, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center"/>
@@ -781,6 +782,7 @@
                         <me:FlyleafSeekBar x:Name="PART_Seek" Grid.Column="1" Player="{Binding Player, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekWhileDragging="{Binding Options.SeekWhileDragging, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekPreview="{Binding Options.SeekPreview, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekPreviewInputTypes="{Binding Options.SeekPreviewInputTypes, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekPreviewSize="{Binding Options.SeekPreviewSize, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekPreviewPercentage="{Binding Options.SeekPreviewPercentage, RelativeSource={RelativeSource TemplatedParent}}"
                             IsEnabled="{Binding CanSeek, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center"
