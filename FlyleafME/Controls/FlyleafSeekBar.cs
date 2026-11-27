@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.MediaFramework.MediaDemuxer;
@@ -13,6 +14,9 @@ namespace Flyleaf.Controls.WPF;
 public class FlyleafSeekBar : FrameworkElement
 {
     const double ModernFillInset = 2;
+    const double PreviewGap = 6, ViewEdgeInset = 6, ImageLabelGap = 4;
+    const int MaxPreviewBitmapEdge = 640;
+    static readonly Thickness PreviewPadding = new(6, 6, 6, 5);
 
     static DependencyProperty RegisterBrush(string name, Brush fallback) =>
         DependencyProperty.Register(name, typeof(Brush), typeof(FlyleafSeekBar),
@@ -49,12 +53,43 @@ public class FlyleafSeekBar : FrameworkElement
 
     public static readonly DependencyProperty SeekWhileDraggingProperty =
         DependencyProperty.Register(nameof(SeekWhileDragging), typeof(bool), typeof(FlyleafSeekBar),
-            new FrameworkPropertyMetadata(true));
+            new FrameworkPropertyMetadata(true, OnPreviewOptionChanged));
 
     public bool SeekWhileDragging
     {
         get => (bool)GetValue(SeekWhileDraggingProperty);
         set => SetValue(SeekWhileDraggingProperty, value);
+    }
+
+    public static readonly DependencyProperty SeekPreviewProperty =
+        DependencyProperty.Register(nameof(SeekPreview), typeof(FlyleafSeekPreviewMode), typeof(FlyleafSeekBar),
+            new FrameworkPropertyMetadata(FlyleafSeekPreviewMode.Keyframe, OnPreviewOptionChanged));
+
+    public FlyleafSeekPreviewMode SeekPreview
+    {
+        get => (FlyleafSeekPreviewMode)GetValue(SeekPreviewProperty);
+        set => SetValue(SeekPreviewProperty, value);
+    }
+
+    public static readonly DependencyProperty SeekPreviewSizeProperty =
+        DependencyProperty.Register(nameof(SeekPreviewSize), typeof(FlyleafSeekPreviewSize), typeof(FlyleafSeekBar),
+            new FrameworkPropertyMetadata(FlyleafSeekPreviewSize.Small, OnPreviewSizeChanged));
+
+    public FlyleafSeekPreviewSize SeekPreviewSize
+    {
+        get => (FlyleafSeekPreviewSize)GetValue(SeekPreviewSizeProperty);
+        set => SetValue(SeekPreviewSizeProperty, value);
+    }
+
+    public static readonly DependencyProperty SeekPreviewPercentageProperty =
+        DependencyProperty.Register(nameof(SeekPreviewPercentage), typeof(int), typeof(FlyleafSeekBar),
+            new FrameworkPropertyMetadata(FlyleafPlaybackBarOptions.DefaultSeekPreviewPercentage, OnPreviewSizeChanged),
+            value => value is int percentage && percentage is >= 1 and <= 100);
+
+    public int SeekPreviewPercentage
+    {
+        get => (int)GetValue(SeekPreviewPercentageProperty);
+        set => SetValue(SeekPreviewPercentageProperty, value);
     }
 
     long? lastSeekMilliseconds;
@@ -63,39 +98,97 @@ public class FlyleafSeekBar : FrameworkElement
     long hoverTime;
     bool hovering;
     ToolTip? preview;
+    TextBlock? previewLabel;
+    Image? previewImage;
+    FrameworkElement? previewViewport;
+    Size previewBounds;
+    FlyleafSeekPreview? thumbnail;
+    double previewX;
 
     public FlyleafSeekBar()
     {
 
         MinHeight = 24;
         Cursor = Cursors.Hand;
-        Loaded += (_, _) => AttachPlayer(Player);
+        Loaded += (_, _) =>
+        {
+            AttachPlayer(Player);
+            // FlyleafHost's overlay window contains the video view, including in fullscreen.
+            var window = Window.GetWindow(this);
+            previewViewport = window?.Content as FrameworkElement ?? window;
+            if (previewViewport != null)
+                previewViewport.SizeChanged += PreviewViewport_SizeChanged;
+        };
         Unloaded += (_, _) =>
         {
-            if (Player is { } player) player.PropertyChanged -= Player_PropertyChanged;
+            if (previewViewport != null)
+                previewViewport.SizeChanged -= PreviewViewport_SizeChanged;
+            previewViewport = null;
+            DetachPlayer(Player);
             HidePreview();
             EndDrag(false);
+            thumbnail?.UpdateSource(null);
+        };
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible) return;
+            HidePreview();
+            thumbnail?.UpdateSource(null);
         };
     }
 
     static void OnPlayerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var seekBar = (FlyleafSeekBar)d;
-        if (e.OldValue is Player oldPlayer)
-            oldPlayer.PropertyChanged -= seekBar.Player_PropertyChanged;
+        seekBar.DetachPlayer(e.OldValue as Player);
         if (seekBar.IsLoaded) seekBar.AttachPlayer(e.NewValue as Player);
 
         seekBar.HidePreview();
         seekBar.EndDrag(false);
+        seekBar.thumbnail?.UpdateSource(null);
         seekBar.InvalidateVisual();
+    }
+
+    static void OnPreviewOptionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var seekBar = (FlyleafSeekBar)d;
+        seekBar.thumbnail?.Hide(interrupt: true);
+        if (seekBar.SeekPreview == FlyleafSeekPreviewMode.Disabled)
+            seekBar.thumbnail?.UpdateSource(null);
+        seekBar.RefreshOpenPreview();
+    }
+
+    static void OnPreviewSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((FlyleafSeekBar)d).RefreshOpenPreview();
+
+    void PreviewViewport_SizeChanged(object sender, SizeChangedEventArgs e) => RefreshOpenPreview();
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        RefreshOpenPreview();
+    }
+
+    void RefreshOpenPreview()
+    {
+        if (preview?.IsOpen == true)
+            UpdatePreview(previewX);
     }
 
     void AttachPlayer(Player? player)
     {
         if (player == null) return;
-        player.PropertyChanged -= Player_PropertyChanged;
+        DetachPlayer(player);
         player.PropertyChanged += Player_PropertyChanged;
+        player.Video.PropertyChanged += Video_PropertyChanged;
         InvalidateVisual();
+    }
+
+    void DetachPlayer(Player? player)
+    {
+        if (player == null) return;
+        player.PropertyChanged -= Player_PropertyChanged;
+        player.Video.PropertyChanged -= Video_PropertyChanged;
     }
 
     void Player_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -108,6 +201,28 @@ public class FlyleafSeekBar : FrameworkElement
             else
                 Dispatcher.BeginInvoke(InvalidateVisual);
         }
+        if (e.PropertyName is nameof(Player.Status) or nameof(Player.CanPlay) or nameof(Player.IsLive) or nameof(Player.IsDisposed))
+            RefreshPreview(sender as Player);
+    }
+
+    void Video_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Video.Stream) && ReferenceEquals(sender, Player?.Video))
+            RefreshPreview(Player);
+    }
+
+    void RefreshPreview(Player? player)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => RefreshPreview(player));
+            return;
+        }
+        if (!IsLoaded || !IsVisible || !ReferenceEquals(player, Player))
+            return;
+        if (SeekPreview != FlyleafSeekPreviewMode.Disabled)
+            thumbnail?.UpdateSource(player);
+        RefreshOpenPreview();
     }
 
     protected override Size MeasureOverride(Size availableSize) => new(0, 24);
@@ -244,12 +359,13 @@ public class FlyleafSeekBar : FrameworkElement
 
     void UpdatePreview(double x)
     {
-        if (Player is not { CanPlay: true, Duration: > 0 } player)
+        if (!IsLoaded || !IsVisible || Player is not { CanPlay: true, Duration: > 0, IsDisposed: false, Status: not Status.Opening } player)
         {
             HidePreview();
             return;
         }
 
+        previewX = x;
         hoverTime = TimeAt(x);
         string chapterName = "";
         if (player.Chapters is { Count: > 0 } chapters)
@@ -266,28 +382,127 @@ public class FlyleafSeekBar : FrameworkElement
 
         if (preview == null)
         {
+            previewImage = new Image
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Stretch = Stretch.Uniform,
+                Margin = new Thickness(0, 0, 0, ImageLabelGap),
+                Visibility = Visibility.Collapsed
+            };
+            previewLabel = new TextBlock
+            {
+                MaxWidth = 320,
+                TextAlignment = TextAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            var content = new StackPanel();
+            content.Children.Add(previewImage);
+            content.Children.Add(previewLabel);
             preview = new ToolTip
             {
                 PlacementTarget = this,
-                Placement = PlacementMode.Relative,
-                VerticalOffset = -38,
+                Placement = PlacementMode.Top,
                 IsHitTestVisible = false,
-                StaysOpen = true
+                StaysOpen = true,
+                Padding = PreviewPadding,
+                Content = content
             };
+            preview.SizeChanged += (_, _) => PositionPreview();
             if (TryFindResource("FlyleafME.ToolTipStyle") is Style style)
                 preview.Style = style;
         }
 
-        preview.Content = string.IsNullOrWhiteSpace(chapterName)
+        previewLabel!.Text = string.IsNullOrWhiteSpace(chapterName)
             ? FlyleafPlaybackBar.FormatTime(hoverTime)
             : $"{FlyleafPlaybackBar.FormatTime(hoverTime)}  ·  {chapterName}";
-        double previewWidth = preview.ActualWidth > 0 ? preview.ActualWidth : 78;
-        preview.HorizontalOffset = Math.Clamp(x - previewWidth / 2, 0, Math.Max(0, RenderSize.Width - previewWidth));
+        previewBounds = GetPreviewBounds();
+        FitThumbnail();
+        PositionPreview();
         preview.IsOpen = true;
+
+        if (SeekPreview == FlyleafSeekPreviewMode.Disabled || (dragging && SeekWhileDragging))
+        {
+            thumbnail?.Hide(interrupt: true);
+            return;
+        }
+        thumbnail ??= new(Dispatcher, ShowThumbnail);
+        thumbnail.UpdateSource(player);
+        thumbnail.Request(hoverTime, SeekPreview == FlyleafSeekPreviewMode.Accurate, GetPreviewPixelBounds());
+    }
+
+    Size PreviewViewSize => previewViewport is { ActualWidth: > 0, ActualHeight: > 0 } view
+        ? view.RenderSize : new Size(RenderSize.Width, 360);
+
+    double AvailablePreviewWidth()
+        => Math.Max(1, PreviewViewSize.Width - 2 * ViewEdgeInset - PreviewPadding.Left - PreviewPadding.Right - 2);
+
+    Size GetPreviewBounds()
+    {
+        var view = PreviewViewSize;
+        double percentage = SeekPreviewPercentage / 100.0;
+        Size preferred = SeekPreviewSize switch
+        {
+            FlyleafSeekPreviewSize.Medium => new(240, 135),
+            FlyleafSeekPreviewSize.Large => new(320, 180),
+            FlyleafSeekPreviewSize.Custom => new(view.Width * percentage, view.Height * percentage),
+            _ => new(208, 117)
+        };
+        double above = previewViewport != null ? TranslatePoint(default, previewViewport).Y : view.Height;
+        double below = view.Height - above - RenderSize.Height;
+        double captionHeight = Math.Ceiling(previewLabel!.FontSize * 1.3);
+        double availableHeight = Math.Max(above, below) - PreviewGap - ViewEdgeInset -
+            PreviewPadding.Top - PreviewPadding.Bottom - 2 - ImageLabelGap - captionHeight;
+        return new(Math.Max(1, Math.Min(preferred.Width, AvailablePreviewWidth())),
+            Math.Max(1, Math.Min(preferred.Height, availableHeight)));
+    }
+
+    (uint Width, uint Height) GetPreviewPixelBounds()
+    {
+        var dpi = VisualTreeHelper.GetDpi(this);
+        double width = previewBounds.Width * dpi.DpiScaleX;
+        double height = previewBounds.Height * dpi.DpiScaleY;
+        double scale = Math.Min(1, MaxPreviewBitmapEdge / Math.Max(width, height));
+        return ((uint)Math.Clamp(Math.Ceiling(width * scale), 1, MaxPreviewBitmapEdge),
+            (uint)Math.Clamp(Math.Ceiling(height * scale), 1, MaxPreviewBitmapEdge));
+    }
+
+    void PositionPreview()
+    {
+        if (preview == null)
+            return;
+        double width = preview.ActualWidth > 0 ? preview.ActualWidth : 78;
+        double viewLeft = previewViewport?.TranslatePoint(default, this).X ?? 0;
+        double minLeft = viewLeft + ViewEdgeInset;
+        double maxLeft = Math.Max(minLeft, viewLeft + PreviewViewSize.Width - ViewEdgeInset - width);
+        double left = Math.Clamp(previewX - width / 2, minLeft, maxLeft);
+        preview.PlacementRectangle = new Rect(left, -PreviewGap, width, RenderSize.Height + 2 * PreviewGap);
+    }
+
+    void ShowThumbnail(BitmapSource? bitmap)
+    {
+        if (previewImage == null)
+            return;
+        previewImage.Source = bitmap;
+        previewImage.Visibility = bitmap == null ? Visibility.Collapsed : Visibility.Visible;
+        FitThumbnail();
+    }
+
+    void FitThumbnail()
+    {
+        double labelWidth = 320;
+        if (previewImage is { Source: BitmapSource bitmap })
+        {
+            double ratio = bitmap.PixelWidth / (double)bitmap.PixelHeight;
+            previewImage.Width = Math.Min(previewBounds.Width, previewBounds.Height * ratio);
+            previewImage.Height = previewImage.Width / ratio;
+            labelWidth = Math.Max(110, previewImage.Width);
+        }
+        previewLabel!.MaxWidth = Math.Min(labelWidth, AvailablePreviewWidth());
     }
 
     void HidePreview()
     {
+        thumbnail?.Hide();
         if (preview != null)
             preview.IsOpen = false;
     }
@@ -341,6 +556,8 @@ public class FlyleafSeekBar : FrameworkElement
         lastSeekMilliseconds = null;
         if (!IsMouseOver)
             HidePreview();
+        else if (preview?.IsOpen == true && SeekWhileDragging)
+            UpdatePreview(Mouse.GetPosition(this).X);
         InvalidateVisual();
     }
 

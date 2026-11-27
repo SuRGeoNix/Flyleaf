@@ -81,10 +81,13 @@ public class Playlist : NotifyPropertyChanged
     internal DecoderContext decoder;
     LogHandler Log;
 
-    public Playlist(int uniqueId)
+    public Playlist(int uniqueId) : this(uniqueId, true) { }
+
+    internal Playlist(int uniqueId, bool synchronizeCollection)
     {
         Log = new(("[#" + uniqueId + "]").PadRight(8, ' ') + " [Playlist] ");
-        UIInvokeIfRequired(() => BindingOperations.EnableCollectionSynchronization(Items, lockItems));
+        if (synchronizeCollection)
+            UIInvokeIfRequired(() => BindingOperations.EnableCollectionSynchronization(Items, lockItems));
     }
 
     public void Reset()

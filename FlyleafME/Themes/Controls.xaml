@@ -644,6 +644,9 @@
                                    Text="{Binding CurrentTimeText, RelativeSource={RelativeSource TemplatedParent}}"/>
                         <me:FlyleafSeekBar x:Name="PART_Seek" Grid.Column="1" Player="{Binding Player, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekWhileDragging="{Binding Options.SeekWhileDragging, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekPreview="{Binding Options.SeekPreview, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekPreviewSize="{Binding Options.SeekPreviewSize, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekPreviewPercentage="{Binding Options.SeekPreviewPercentage, RelativeSource={RelativeSource TemplatedParent}}"
                             IsEnabled="{Binding CanSeek, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center"/>
                         <TextBlock x:Name="PART_Duration" Grid.Column="2" FontFamily="Consolas" FontSize="11" Margin="10,0,0,0"
                                    Foreground="{DynamicResource FlyleafME.OverlayTextBrush}" VerticalAlignment="Center"
@@ -777,6 +780,9 @@
                                    Text="{Binding CurrentTimeText, RelativeSource={RelativeSource TemplatedParent}}"/>
                         <me:FlyleafSeekBar x:Name="PART_Seek" Grid.Column="1" Player="{Binding Player, RelativeSource={RelativeSource TemplatedParent}}"
                             SeekWhileDragging="{Binding Options.SeekWhileDragging, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekPreview="{Binding Options.SeekPreview, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekPreviewSize="{Binding Options.SeekPreviewSize, RelativeSource={RelativeSource TemplatedParent}}"
+                            SeekPreviewPercentage="{Binding Options.SeekPreviewPercentage, RelativeSource={RelativeSource TemplatedParent}}"
                             IsEnabled="{Binding CanSeek, RelativeSource={RelativeSource TemplatedParent}}" VerticalAlignment="Center"
                             IsModern="True" Height="28" TrackBrush="{DynamicResource FlyleafME.PlaybackTrackBrush}"
                             PlayedBrush="{DynamicResource FlyleafME.PlaybackPlayedBrush}"

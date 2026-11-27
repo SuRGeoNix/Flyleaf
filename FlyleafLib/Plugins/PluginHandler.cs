@@ -58,13 +58,15 @@ public class PluginHandler
 
     #region Initialize
     LogHandler Log;
-    public PluginHandler(Config config, int uniqueId = -1)
+    public PluginHandler(Config config, int uniqueId = -1) : this(config, uniqueId, true) { }
+
+    private protected PluginHandler(Config config, int uniqueId, bool loadPlugins)
     {
         Config      = config;
         UniqueId    = uniqueId == -1 ? GetUniqueId() : uniqueId;
-        Playlist    = new(UniqueId);
+        Playlist    = new(UniqueId, loadPlugins);
         Log         = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [PluginHandler ] ");
-        LoadPlugins();
+        LoadPlugins(loadPlugins);
     }
 
     public static PluginBase CreatePluginInstance(PluginType type, PluginHandler handler = null)
@@ -80,10 +82,11 @@ public class PluginHandler
 
         return plugin;
     }
-    private void LoadPlugins()
+    private void LoadPlugins(bool loadPlugins)
     {
         Plugins = [];
 
+        if (loadPlugins)
         foreach (var type in Engine.Plugins.Types.Values)
         {
             try

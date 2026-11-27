@@ -38,6 +38,9 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
             ui.PlaybackBar.ClassicFloating = defaults.ClassicFloating;
             ui.PlaybackBar.DynamicPinned = defaults.DynamicPinned;
             ui.PlaybackBar.SeekWhileDragging = true;
+            ui.PlaybackBar.SeekPreview = defaults.SeekPreview;
+            ui.PlaybackBar.SeekPreviewSize = defaults.SeekPreviewSize;
+            ui.PlaybackBar.SeekPreviewPercentage = defaults.SeekPreviewPercentage;
             ui.PlaybackBar.AutoHideDelayMilliseconds = 2800;
         });
         Choice(playbackBar, "Design", () => ui.PlaybackBar.Design, v => ui.PlaybackBar.Design = v,
@@ -58,6 +61,15 @@ public sealed class ApplicationSettings : FlyleafSettingsEditor
         Choice(playbackBar, "Visibility", () => ui.PlaybackBar.Visibility, v => ui.PlaybackBar.Visibility = v,
             Enum.GetValues<FlyleafVisibilityPolicy>().Select(v => (v, v.ToString())).ToArray());
         Toggle(playbackBar, "Seek while dragging", "Seek continuously while dragging the timeline; turn off to seek once on release.", () => ui.PlaybackBar.SeekWhileDragging, v => ui.PlaybackBar.SeekWhileDragging = v);
+        Choice(playbackBar, "Seek preview", () => ui.PlaybackBar.SeekPreview, v => ui.PlaybackBar.SeekPreview = v,
+            [(FlyleafSeekPreviewMode.Disabled, "Time only"), (FlyleafSeekPreviewMode.Keyframe, "Keyframe"),
+                (FlyleafSeekPreviewMode.Accurate, "Accurate")]);
+        Choice(playbackBar, "Preview size", () => ui.PlaybackBar.SeekPreviewSize, v => ui.PlaybackBar.SeekPreviewSize = v,
+            [(FlyleafSeekPreviewSize.Small, "Small"), (FlyleafSeekPreviewSize.Medium, "Medium"),
+                (FlyleafSeekPreviewSize.Large, "Large"), (FlyleafSeekPreviewSize.Custom, "Custom percentage")]);
+        Integer(playbackBar, "Custom preview size", "% of video view", () => ui.PlaybackBar.SeekPreviewPercentage,
+            v => ui.PlaybackBar.SeekPreviewPercentage = v, 1, 100,
+            canEdit: () => ui.PlaybackBar.SeekPreviewSize == FlyleafSeekPreviewSize.Custom);
         Number(playbackBar, "Auto-hide delay", "seconds · 0 = never", () => ui.PlaybackBar.AutoHideDelayMilliseconds / 1000.0,
             value => ui.PlaybackBar.AutoHideDelayMilliseconds = (int)Math.Round(value * 1000), 0, 600,
             value => value > 0 && value < 0.001 ? "Use 0 or at least 0.001 seconds." : null);

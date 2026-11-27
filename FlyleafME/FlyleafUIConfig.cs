@@ -42,8 +42,25 @@ public enum FlyleafPlaybackBarMode
     Dynamic
 }
 
+public enum FlyleafSeekPreviewMode
+{
+    Disabled,
+    Keyframe,
+    Accurate
+}
+
+public enum FlyleafSeekPreviewSize
+{
+    Small,
+    Medium,
+    Large,
+    Custom
+}
+
 public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
 {
+    internal const int DefaultSeekPreviewPercentage = 25;
+
     FlyleafVisibilityPolicy visibility;
     FlyleafPlaybackBarDesign design = FlyleafPlaybackBarDesign.Modern;
     FlyleafPlaybackBarMode mode = FlyleafPlaybackBarMode.Dynamic;
@@ -51,6 +68,9 @@ public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
     bool classicFloating = true;
     bool dynamicPinned = true;
     bool seekWhileDragging = true;
+    FlyleafSeekPreviewMode seekPreview = FlyleafSeekPreviewMode.Keyframe;
+    FlyleafSeekPreviewSize seekPreviewSize = FlyleafSeekPreviewSize.Small;
+    int seekPreviewPercentage = DefaultSeekPreviewPercentage;
     int autoHideDelayMilliseconds = 2800;
 
     public FlyleafVisibilityPolicy Visibility { get => visibility; set => Set(ref visibility, value); }
@@ -69,6 +89,23 @@ public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
     /// <summary>Seek continuously while dragging; false commits only on release.</summary>
     public bool SeekWhileDragging { get => seekWhileDragging; set => Set(ref seekWhileDragging, value); }
 
+    /// <summary>Thumbnail accuracy on the seekbar, independent of playback seeking.</summary>
+    public FlyleafSeekPreviewMode SeekPreview { get => seekPreview; set => Set(ref seekPreview, value); }
+
+    /// <summary>Maximum thumbnail size for the seekbar popup.</summary>
+    public FlyleafSeekPreviewSize SeekPreviewSize { get => seekPreviewSize; set => Set(ref seekPreviewSize, value); }
+
+    /// <summary>Percentage of the video view's dimensions available to a custom seek preview.</summary>
+    public int SeekPreviewPercentage
+    {
+        get => seekPreviewPercentage;
+        set
+        {
+            if (value is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(value), "Use a preview size from 1 to 100 percent.");
+            Set(ref seekPreviewPercentage, value);
+        }
+    }
+
     /// <summary>Shared mouse/keyboard inactivity timeout. Zero keeps the controls active.</summary>
     public int AutoHideDelayMilliseconds
     {
@@ -80,7 +117,13 @@ public class FlyleafPlaybackBarOptions : NotifyPropertyChanged
         }
     }
 
-    public FlyleafPlaybackBarOptions Clone() => new() { Visibility = Visibility, Design = Design, Mode = Mode, Floating = Floating, ClassicFloating = ClassicFloating, DynamicPinned = DynamicPinned, SeekWhileDragging = SeekWhileDragging, AutoHideDelayMilliseconds = AutoHideDelayMilliseconds };
+    public FlyleafPlaybackBarOptions Clone() => new()
+    {
+        Visibility = Visibility, Design = Design, Mode = Mode, Floating = Floating, ClassicFloating = ClassicFloating,
+        DynamicPinned = DynamicPinned, SeekWhileDragging = SeekWhileDragging, SeekPreview = SeekPreview,
+        SeekPreviewSize = SeekPreviewSize, SeekPreviewPercentage = SeekPreviewPercentage,
+        AutoHideDelayMilliseconds = AutoHideDelayMilliseconds
+    };
 }
 
 public class FlyleafQueueOptions : NotifyPropertyChanged

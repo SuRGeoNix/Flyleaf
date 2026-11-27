@@ -23,9 +23,14 @@ public class Config : NotifyPropertyChanged
     public static JsonSerializerOptions jsonOpts = new() { WriteIndented = true };
 
     /// <summary>Creates player settings and initializes plugin options from the running engine.</summary>
-    public Config()
+    public Config() : this(forVideoPreview: false) { }
+
+    internal Config(bool forVideoPreview)
     {
+        Video = new(synchronizeCollections: !forVideoPreview);
+
         // Parse default plugin options to Config.Plugins (Creates instances until fix with statics in interfaces)
+        if (!forVideoPreview)
         foreach (var plugin in Engine.Plugins.Types.Values)
         {
             var tmpPlugin = PluginHandler.CreatePluginInstance(plugin);
@@ -172,7 +177,7 @@ public class Config : NotifyPropertyChanged
     /// <summary>Input discovery, buffering, interruption and FFmpeg demuxer options.</summary>
     public DemuxerConfig    Demuxer     { get; set; } = new();
     /// <summary>Video output, picture filters and video decoder preferences.</summary>
-    public VideoConfig      Video       { get; set; } = new();
+    public VideoConfig      Video       { get; set; }
     /// <summary>Audio defaults, filter definitions and audio decoder preferences.</summary>
     public AudioConfig      Audio       { get; set; } = new();
     /// <summary>Subtitle selection, search and decoder preferences.</summary>
@@ -440,7 +445,13 @@ public class Config : NotifyPropertyChanged
     /// <summary>Saved video preferences and renderer integration hooks. Current framing and processing controls are on <see cref="Renderer"/>.</summary>
     public class VideoConfig : NotifyPropertyChanged
     {
-        public VideoConfig() => EnableFilterCollectionSynchronization();
+        public VideoConfig() : this(true) { }
+
+        internal VideoConfig(bool synchronizeCollections)
+        {
+            if (synchronizeCollections)
+                EnableFilterCollectionSynchronization();
+        }
 
         internal void EnableFilterCollectionSynchronization()
         {

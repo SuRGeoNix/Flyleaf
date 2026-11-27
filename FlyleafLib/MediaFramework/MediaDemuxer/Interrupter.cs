@@ -8,6 +8,7 @@ public unsafe class Interrupter
     public Requester    Requester       { get; private set; }
     public int          Interrupted     { get; private set; }
     public bool         Timedout        { get; private set; }
+    internal CancellationToken OperationCancellation { get; set; }
 
     Demuxer demuxer;
     Stopwatch sw = new();
@@ -22,6 +23,9 @@ public unsafe class Interrupter
 
             return Interrupted = 1;
         }
+
+        if (Requester != Requester.Close && OperationCancellation.IsCancellationRequested)
+            return Interrupted = 1;
 
         if (demuxer.Config.AllowTimeouts && sw.ElapsedMilliseconds > curTimeoutMs)
         {

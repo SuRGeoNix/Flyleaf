@@ -152,7 +152,11 @@ public unsafe partial class DecoderContext : PluginHandler
     readonly Player player;
     LogHandler Log;
     internal bool shouldDispose; // never gets false after dispose (TBR: if we can re-use it)
-    public DecoderContext(Config config = null, int uniqueId = -1, bool enableDecoding = true, Player player = null) : base(config, uniqueId)
+    public DecoderContext(Config config = null, int uniqueId = -1, bool enableDecoding = true, Player player = null)
+        : this(config, uniqueId, enableDecoding, player, true) { }
+
+    DecoderContext(Config config, int uniqueId, bool enableDecoding, Player player, bool loadPlugins)
+        : base(config, uniqueId, loadPlugins)
     {
         Log                 = new(("[#" + UniqueId + "]").PadRight(8, ' ') + " [DecoderContext] ");
         Playlist.decoder    = this;
@@ -221,7 +225,7 @@ public unsafe partial class DecoderContext : PluginHandler
             if (Playlist.InputType == InputType.Torrent || ms == 0 || !seekInQueue || VideoDemuxer.SeekInQueue(seekTimestamp, forward) != 0)
             {
                 VideoDemuxer.Interrupter.ForceInterrupt = 1;
-                OpenedPlugin.OnBuffering();
+                OpenedPlugin?.OnBuffering();
                 lock (VideoDemuxer.lockFmtCtx)
                 {
                     if (VideoDemuxer.Disposed) { VideoDemuxer.Interrupter.ForceInterrupt = 0; return -1; }
@@ -583,6 +587,9 @@ public unsafe partial class DecoderContext : PluginHandler
     }
 
     public void GetVideoFrame(long timestamp = -1)
+        => GetVideoFrame(timestamp, default);
+
+    void GetVideoFrame(long timestamp, CancellationToken cancellationToken)
     {
         // TBR: Between seek and GetVideoFrame lockCodecCtx is lost and if VideoDecoder is running will already have decoded some frames (Currently ensure you pause VideDecoder before seek)
 
@@ -596,7 +603,7 @@ public unsafe partial class DecoderContext : PluginHandler
         while (VideoDemuxer.VideoStream != null &&
                VideoDecoder.Stream == VideoDemuxer.VideoStream &&
                !VideoDemuxer.Disposed && !VideoDecoder.Disposed &&
-               VideoDemuxer.FormatContext != null && VideoDecoder.CodecCtx != null && !Interrupt)
+               VideoDemuxer.FormatContext != null && VideoDecoder.CodecCtx != null && !Interrupt && !cancellationToken.IsCancellationRequested)
         {
             if (VideoDemuxer.VideoPackets.IsEmpty)
             {
@@ -613,7 +620,7 @@ public unsafe partial class DecoderContext : PluginHandler
                         if (ret != 0)
                             return;
                    
-                        while (VideoDemuxer.VideoStream != null && !Interrupt)
+                        while (VideoDemuxer.VideoStream != null && !Interrupt && !cancellationToken.IsCancellationRequested)
                         {
                             ret = VideoDecoder.RecvAVFrame();
                             if (ret != 0)
@@ -690,7 +697,7 @@ public unsafe partial class DecoderContext : PluginHandler
                         return; // Critical
                     }
                    
-                    while (VideoDemuxer.VideoStream != null && !Interrupt)
+                    while (VideoDemuxer.VideoStream != null && !Interrupt && !cancellationToken.IsCancellationRequested)
                     {
                         ret = VideoDecoder.RecvAVFrame();
                         if (ret != 0)
