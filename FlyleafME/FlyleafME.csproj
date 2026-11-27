@@ -8,8 +8,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>FlyleafME</PackageId>
-    <FlyleafLibPackageVersionRange>[3.12.3,4.0.0)</FlyleafLibPackageVersionRange>
-    <Version>2.0.0-preview.4</Version>
+    <FlyleafLibPackageVersionRange>[3.12.4,4.0.0)</FlyleafLibPackageVersionRange>
+    <Version>2.0.0-preview.5</Version>
     <Authors>SuRGeoNix</Authors>
     <Copyright>SuRGeoNix © 2026</Copyright>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -19,19 +19,14 @@
     <PackageTags>flyleaf flyleaflib flyleafme video audio wpf media player element control</PackageTags>
     <Description>A customizable WPF media player control powered by FlyleafLib, with built-in playback controls, a media queue, and dockable panels.</Description>
 	<PackageReleaseNotes>
-		- PlaybackBar: Adds Modern playback bar design with Compact, Full and Dynamic modes alongside Classic
-		- PlaybackBar: Adds floating and docked layouts for both designs
-		- PlaybackBar: Adds contextual expansion, persistent pin state and configurable Ctrl+B keybinding for Dynamic mode
-		- PlaybackBar: Introduces a flat seek bar, accent-gradient volume controls and improved duration contrast
-		- PlaybackBar: Keeps volume and mute controls available before opening media and during video-only playback
-		- DebugOverlay: Introduces a translucent overlay with Playback, Video and Audio tabs, displaying detailed input/output information and playback statistics
-		- DebugOverlay: Adds Tab to toggle visibility and Ctrl+Tab / Ctrl+Shift+Tab to navigate between tabs
-		- MediaInformation: Improves runtime information updates using library notifications instead of periodic polling
-		- Statistics: Shares statistics collection between the Debug Overlay and Media Information panel with automatic lifecycle management
-		- Presentation: Adds custom accent colors and consistent accent presets across Light and Dark themes
-		- Settings: Adds color pickers for subtitle text, subtitle outlines and video background
-		- VideoFilters: Fixes resetting shared filter preferences across video processors
-		- OSD: Renders messages behind overlay panels
+		- Lift subtitles just above the playback bar when it overlaps them, respecting the configured viewport and bottom offset
+		- Add fullscreen auto-hide for unpinned left and right docked panels, with edge-hover reveal that keeps the video size fixed
+		- Show video thumbnails alongside the seekbar’s hover time and chapter
+		- Reuse resolved playlist item streams and prefer lower-resolution renditions when available
+		- Cache thumbnails and keep the preview decoder open for 60 seconds of inactivity
+		- Add Small, Medium, Large, and Custom percentage sizes that preserve the video’s aspect ratio
+		- Enable seekbar previews for File, UNC, Web, and Live by default
+		- Require a seek window longer than 45 seconds for live HLS thumbnails
 	</PackageReleaseNotes>
   </PropertyGroup>
 

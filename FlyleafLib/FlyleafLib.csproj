@@ -8,7 +8,7 @@
 	<PackageIconUrl />
 	<RepositoryUrl></RepositoryUrl>
 	<Description>Media Player .NET Library for WinUI 3/WPF/WinForms (based on FFmpeg/DirectX)</Description>
-	<Version>3.12.3</Version>
+	<Version>3.12.4</Version>
 	<Authors>SuRGeoNix</Authors>
 	<Copyright>SuRGeoNix © 2026</Copyright>
 	<PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
@@ -17,14 +17,11 @@
 	<IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>
-		- Config: Isolates per-input demuxer options from saved settings and separates cookies for primary and fallback opens
-		- Config: Preserves configured audio frame limits during recording
-		- Config: Preserves video filter preferences and precision across video processor switches and prevents configuration serialization from modifying runtime settings
-		- Statistics: Improves bitrate calculation accuracy and prevents spikes across seeks, queue clears and statistics collection restarts
-		- Audio: Exposes active XAudio2 voice formats
-		- Renderer: Exposes the applied swap-chain format, color space and HDR state through SwapChainOutput
-		- Player: Exposes active audio and video streams and their buffered durations with property change notifications
-		- Player: Improves property change notifications when disposing players or toggling engine UI refresh
+		- Apply saved Flyleaf and D3D11 filter preferences in place, preserve synchronization settings, and reset omitted filters to neutral
+		- Add offscreen video frame extraction from resolved media inputs
+		- Support cancellable keyframe and accurate preview requests that return frozen WPF bitmaps
+		- Extract live HLS keyframe previews by matching media sequences across sliding playlist windows
+		- Publish HLS window duration changes and coalesce once-per-second playback time updates
 	</PackageReleaseNotes>
   </PropertyGroup>
 
