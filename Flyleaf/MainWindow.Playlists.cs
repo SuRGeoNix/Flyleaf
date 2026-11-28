@@ -214,7 +214,7 @@ public partial class MainWindow
                     break;
                 case FlyleafPlaylistAction.OpenFolder:
                 case FlyleafPlaylistAction.AddFolder:
-                    await ImportQueueFolder(append);
+                    await ImportQueueFolders(append);
                     break;
                 case FlyleafPlaylistAction.OpenUrl:
                 case FlyleafPlaylistAction.AddUrl:
@@ -230,6 +230,17 @@ public partial class MainWindow
                     if (pasted.Length > 0) await OpenQueueInputs(pasted);
                     break;
                 case FlyleafPlaylistAction.AddInputs:
+                    if (e.FileDropTarget is { } target)
+                    {
+                        var folders = e.Inputs.Where(Directory.Exists).ToArray();
+                        if (folders.Length > 0)
+                        {
+                            // Return from the Explorer drop before opening a modal dialog.
+                            await System.Windows.Threading.Dispatcher.Yield();
+                            if (!playlistDisposed) await ImportQueueFolders(append: true, folders, e.Inputs, Window.GetWindow(target));
+                            break;
+                        }
+                    }
                     await AddQueueInputs(e.Inputs);
                     break;
                 case FlyleafPlaylistAction.Save: await SavePlaylist(false); break;
@@ -310,35 +321,62 @@ public partial class MainWindow
         Entries = MediaElement.Queue.CaptureEntries().Select(entry => new FlyleafPlaylistEntry
         { Input = entry.Input, Title = entry.Title, UserAgent = entry.UserAgent, Referrer = entry.Referrer }).ToList()
     };
-    async Task ImportQueueFolder(bool append, string? folder = null)
+    async Task ImportQueueFolders(bool append, string[]? folders = null, IReadOnlyList<string>? droppedInputs = null, Window? owner = null)
     {
-        if (folder == null)
+        if (folders == null)
         {
             playlistStage = "Choosing a folder";
             var picker = new OpenFolderDialog { Title = append ? "Add folder to queue" : "Open folder" };
             if (picker.ShowDialog(this) != true) return;
-            folder = picker.FolderName;
+            folders = [picker.FolderName];
         }
 
-        playlistStage = "Opening folder";
-        if (FlyleafDiscInput.FromFolder(folder) is { } disc)
+        playlistStage = "Opening folders";
+        var folderInputs = folders.Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(folder => folder, FlyleafDiscInput.FromFolder, StringComparer.OrdinalIgnoreCase);
+        var mediaFolders = folderInputs.Where(entry => entry.Value == null).Select(entry => entry.Key).ToArray();
+        Dictionary<string, FolderImportResult> scans = [];
+        if (mediaFolders.Length > 0)
         {
-            if (append) await AddQueueInputs([disc]);
-            else await OpenQueueInputs([disc]);
+            var dialog = new FolderImportDialog(MediaElement.Resources, folders, append) { Owner = owner ?? this };
+            if (dialog.ShowDialog() != true || playlistDisposed) return;
+
+            playlistStage = "Scanning folders for media";
+            scans = await FolderQueueImport.ScanAsync(mediaFolders, dialog.Options, playlistLifetime.Token);
+        }
+        if (playlistDisposed) return;
+
+        // Keep each folder's sorted results together, in the order of the dropped inputs.
+        var expanded = new List<string>();
+        bool hasPlaylistFile = false;
+        foreach (var input in droppedInputs ?? folders)
+        {
+            if (folderInputs.TryGetValue(input, out var disc))
+            {
+                if (disc != null) expanded.Add(disc);
+                else expanded.AddRange(scans[input].Paths);
+            }
+            else if (!Utils.ExtensionsSubtitles.Contains(Utils.GetUrlExtention(input)))
+            {
+                expanded.Add(input);
+                hasPlaylistFile |= IsPlaylistInput(input);
+            }
+        }
+        var paths = expanded.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+        // Explicitly dropped playlists still expand through the normal playlist loader.
+        if (hasPlaylistFile)
+        {
+            if (append) await AddQueueInputs(paths);
+            else await OpenQueueInputs(paths);
             return;
         }
-        var options = new FolderImportDialog(MediaElement.Resources, folder) { Owner = this };
-        if (options.ShowDialog() != true) return;
-
-        playlistStage = "Scanning folder for media";
-        var result = await FolderQueueImport.ScanAsync(folder, options.Options, playlistLifetime.Token);
-        if (playlistDisposed) return;
-        if (result.Paths.Length > 0)
+        if (paths.Length > 0)
         {
             if (!append && !await ConfirmPlaylistReplacement()) return;
             if (playlistDisposed) return;
             bool wasEmpty = MediaElement.Queue.Sources.Count == 0;
-            MediaElement.Queue.ApplyEntries(result.Paths.Select(path => new FlyleafQueueEntry { Input = path }), append);
+            MediaElement.Queue.ApplyEntries(paths.Select(path => new FlyleafQueueEntry { Input = path }), append);
             if (append) PlayFirstAddedQueueItem(wasEmpty);
             else
             {
@@ -350,10 +388,12 @@ public partial class MainWindow
             }
         }
 
-        string message = result.Paths.Length == 0 ? "No matching media found" : $"{(append ? "Added" : "Opened")} {result.Paths.Length:N0} {(append ? "in the queue" : "items")}";
-        if (result.Paths.Length > 0 && result.UsedNameFallback)
+        if (mediaFolders.Length == 0) return;
+        string message = paths.Length == 0 ? "No matching media found" : $"{(append ? "Added" : "Opened")} {paths.Length:N0} {(append ? "in the queue" : "items")}";
+        if (paths.Length > 0 && scans.Values.Any(scan => scan.UsedNameFallback))
             message += " · Windows name sorting used where Explorer view order was unavailable";
-        if (result.SkippedFolders > 0) message += $" · Skipped folders: {result.SkippedFolders:N0}";
+        int skipped = scans.Values.Sum(scan => scan.SkippedFolders);
+        if (skipped > 0) message += $" · Skipped folders: {skipped:N0}";
         MediaElement.ShowOSD(message);
     }
 

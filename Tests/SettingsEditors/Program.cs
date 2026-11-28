@@ -263,13 +263,30 @@ internal static class Program
             CheckTrackPanels(directory, theme);
             CheckPlaybackPanelLayout(directory, theme);
             var queueOwner = new FlyleafME();
-            FlyleafPlaylistAction? requestedAction = null;
-            EventHandler<FlyleafPlaylistActionEventArgs> recordAction = (_, e) => requestedAction = e.Action;
+            FlyleafPlaylistActionEventArgs? request = null;
+            EventHandler<FlyleafPlaylistActionEventArgs> recordAction = (_, e) => request = e;
             queueOwner.PlaylistActionRequested += recordAction;
             queueOwner.PlaylistActionsAvailable = true;
             FlyleafThemeManager.Apply(queueOwner.Resources, theme == "Dark" ? FlyleafTheme.Dark : FlyleafTheme.Light);
             var queueContext = new FlyleafPanelContext(queueOwner, "queue");
             queue.Context = queueContext;
+            var queueItems = (ListBox)queue.FindName("Items");
+            var dragArgs = typeof(DragEventArgs).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null,
+                [typeof(IDataObject), typeof(DragDropKeyStates), typeof(DragDropEffects), typeof(DependencyObject), typeof(Point)], null)!;
+            void DropOnQueue(DataObject data)
+            {
+                var args = (DragEventArgs)dragArgs.Invoke([data, DragDropKeyStates.None, DragDropEffects.Copy, queueItems, new Point()]);
+                args.RoutedEvent = DragDrop.DropEvent;
+                queueItems.RaiseEvent(args);
+                Check(args.Handled, "The queue let its drop bubble to the player");
+            }
+            string[] dropped = [@"C:\Media\Episodes", @"C:\Media\Specials", @"C:\Media\movie.mp4"];
+            DropOnQueue(new DataObject(DataFormats.FileDrop, dropped));
+            Check(request?.Action == FlyleafPlaylistAction.AddInputs && request.FileDropTarget == queue && request.Inputs.SequenceEqual(dropped),
+                "The queue did not forward the full file drop in order");
+            DropOnQueue(new DataObject(DataFormats.Text, "https://example.invalid/video"));
+            Check(request?.Action == FlyleafPlaylistAction.AddInputs && request.FileDropTarget == null && request.Inputs.Count == 1,
+                "The queue treated a text drop as a file drop");
             queueOwner.Queue.Add(new FlyleafQueueEntry { Input = "https://example.com/channel", Title = "News channel" });
             var embedded = queueOwner.Queue.Add(new FlyleafQueueEntry { Input = "https://example.com/album", Title = "Embedded playlist" });
             embedded.Update(Enumerable.Range(1, 3).Select(i => { var item = new FlyleafLib.MediaFramework.MediaPlaylist.PlaylistItem { DirectUrl = $"https://example.com/{i}" }; typeof(FlyleafLib.MediaFramework.MediaPlaylist.PlaylistItem).GetField("_Title", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(item, $"Embedded item {i}"); return item; }).ToArray(), null);
@@ -313,11 +330,11 @@ internal static class Program
                 menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, label));
             void CheckAction(ItemsControl menu, string label, FlyleafPlaylistAction expected)
             {
-                requestedAction = null;
+                request = null;
                 var item = MenuAction(menu, label);
                 Check(item.IsEnabled && menu.Style != null && item.Style != null, $"{label} was unavailable or lost its themed style");
                 item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-                Check(requestedAction == expected, $"{label} did not request {expected}");
+                Check(request?.Action == expected, $"{label} did not request {expected}");
             }
 
             Check(queue.CreateAddMenu().Items.Count == 2, "Queue Add menu offered folder import without application support");
@@ -406,7 +423,7 @@ internal static class Program
             Check(prompt.WindowStyle == WindowStyle.None && prompt.ResizeMode == ResizeMode.NoResize, "URL prompt restored a native title bar");
             RenderReview((FrameworkElement)prompt.Content, 380, 198, Path.Combine(directory, $"QueueUrl-{theme}.png"));
             Check(Find<Button>((FrameworkElement)prompt.Content).Any(button => Equals(button.Content, "Add")), "Add URL prompt lost its Add action");
-            var folderPrompt = new FolderImportDialog(prompt.Resources, @"C:\Media\Episodes");
+            var folderPrompt = new FolderImportDialog(prompt.Resources, [@"C:\Media\Episodes"], append: true);
             var folderChrome = (FrameworkElement)folderPrompt.Content;
             RenderReview(folderChrome, 382, 380, Path.Combine(directory, $"QueueFolderDialog-{theme}.png"));
             Check(folderPrompt.WindowStyle == WindowStyle.None && folderPrompt.ResizeMode == ResizeMode.NoResize
@@ -422,6 +439,8 @@ internal static class Program
             var folderToggles = Find<CheckBox>(folderChrome).ToDictionary(box => (string)box.Content);
             var allMedia = folderToggles["All media"];
             var addFolder = Find<Button>(folderChrome).Single(button => Equals(button.Content, "Add to queue"));
+            Check(folderPrompt.Options.IncludeSubfolders && folderToggles["Include subfolders"].IsChecked == true,
+                "Folder import did not include subfolders by default");
             Check(allMedia.IsChecked == true && folderPrompt.Options.MediaType == FolderMediaType.All,
                 "The folder dialog did not default to All media");
             allMedia.IsChecked = false;
@@ -436,6 +455,14 @@ internal static class Program
             allMedia.IsChecked = true;
             Check(folderPrompt.Options.MediaType == FolderMediaType.All && addFolder.IsEnabled,
                 "The folder dialog could not restore All media from a partial selection");
+            var multipleFolders = new FolderImportDialog(prompt.Resources, [@"C:\Media\Episodes", @"C:\Media\Specials"], append: false);
+            var multipleChrome = (FrameworkElement)multipleFolders.Content;
+            multipleChrome.Measure(new Size(382, 380));
+            multipleChrome.Arrange(new Rect(0, 0, 382, 380));
+            Check(multipleFolders.Title == "Open folders" && multipleFolders.Options.IncludeSubfolders
+                && Find<TextBlock>(multipleChrome).Any(text => text.Text == "2 folders selected")
+                && Find<Button>(multipleChrome).Any(button => Equals(button.Content, "Open")),
+                "The multi-folder prompt did not show the selection count and open action");
             typeof(FlyleafQueuePanel).GetMethod("Detach", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(queue, null);
             queueOwner.Queue.Dispose();
             RenderDockSplitterPreview(directory, theme);
@@ -791,8 +818,8 @@ internal static class Program
                 Check(Scan(FolderMediaType.Video, sort).Paths.SequenceEqual([earlier, later]), $"Folder sort {sort} ignored its ordering");
 
             var images = Scan(FolderMediaType.Images).Paths;
-            var animations = FolderQueueImport.ScanAsync(root.FullName, new(FolderMediaType.Animations, false, FolderSort.NameAscending), default)
-                .GetAwaiter().GetResult().Paths;
+            var animations = FolderQueueImport.ScanAsync([root.FullName], new(FolderMediaType.Animations, false, FolderSort.NameAscending), default)
+                .GetAwaiter().GetResult()[root.FullName].Paths;
             Check(images.ToHashSet().SetEquals([image, stillGif, stillWebp]) &&
                 animations.ToHashSet().SetEquals([animatedGif, animatedWebp]),
                 "Folder import did not distinguish animated GIF/WebP from still images");
@@ -813,11 +840,17 @@ internal static class Program
             var explorer = Scan(FolderMediaType.Video, FolderSort.Explorer, recursive: true, views);
             Check(explorer.Paths.SequenceEqual([later, earlier, nested10, nested2]) && !explorer.UsedNameFallback,
                 "Folder import ignored Explorer item order or subfolder order");
-            var fallback = FolderQueueImport.ScanAsync(root.FullName, new(FolderMediaType.Video, false, FolderSort.Explorer), default)
-                .GetAwaiter().GetResult();
+            var fallback = FolderQueueImport.ScanAsync([root.FullName], new(FolderMediaType.Video, false, FolderSort.Explorer), default)
+                .GetAwaiter().GetResult()[root.FullName];
             string[] policyOrder = ExplorerFolderOrder.UsesLiteralNameOrder() ? [later, earlier] : [earlier, later];
             Check(fallback.Paths.SequenceEqual(policyOrder) && fallback.UsedNameFallback,
                 "A folder without an Explorer view did not use the Windows name-sort policy");
+
+            var batch = FolderQueueImport.ScanAsync([child10.FullName, root.FullName],
+                new(FolderMediaType.Video, true, FolderSort.NameAscending), default).GetAwaiter().GetResult();
+            Check(batch[child10.FullName].Paths.SequenceEqual([nested10]) &&
+                batch[root.FullName].Paths.SequenceEqual([later, earlier, nested2, nested10]),
+                "Batch import did not apply the same sort, media filter, and subfolder option to both roots");
 
             var zero = Write(numeric, "0.mp4", []);
             var one = Write(numeric, "1.mp4", []);
@@ -856,7 +889,7 @@ internal static class Program
             canceled.Cancel();
             try
             {
-                FolderQueueImport.ScanAsync(root.FullName, new(FolderMediaType.All, true, FolderSort.NameAscending), canceled.Token)
+                FolderQueueImport.ScanAsync([root.FullName, child2.FullName], new(FolderMediaType.All, true, FolderSort.NameAscending), canceled.Token)
                     .GetAwaiter().GetResult();
                 Check(false, "Folder import ignored cancellation");
             }

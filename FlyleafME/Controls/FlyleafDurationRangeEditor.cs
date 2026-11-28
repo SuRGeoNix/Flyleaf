@@ -28,6 +28,8 @@ internal sealed class FlyleafDurationRangeEditor : StackPanel
         var row = new Grid(); row.ColumnDefinitions.Add(new()); row.ColumnDefinitions.Add(new());
         var lower = new StackPanel { Margin = new Thickness(0, 0, 12, 0) }; lower.Children.Add(Text("Minimum · seconds", true)); lower.Children.Add(MinimumInput);
         var upper = new StackPanel(); upper.Children.Add(Text(maximumOff ? "Maximum · 0 = off" : "Maximum · seconds", true)); upper.Children.Add(MaximumInput);
+        FlyleafSettingsSearch.Label(lower, "Minimum");
+        FlyleafSettingsSearch.Label(upper, "Maximum");
         Grid.SetColumn(upper, 1); row.Children.Add(lower); row.Children.Add(upper);
         Children.Add(row); Children.Add(bar); Children.Add(scale); Children.Add(error);
         foreach (var input in new[] { MinimumInput, MaximumInput })

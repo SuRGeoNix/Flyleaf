@@ -18,14 +18,17 @@ internal static class ExplorerFolderOrder
     [DllImport("shell32.dll", ExactSpelling = true)]
     static extern uint SHRestricted(uint restriction);
 
-    internal static Dictionary<string, Dictionary<string, int>> Capture(string folder, bool includeSubfolders, CancellationToken cancellation)
+    internal static Dictionary<string, Dictionary<string, int>> Capture(IReadOnlyList<string> folders, bool includeSubfolders, CancellationToken cancellation)
     {
         var result = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
-        string rootPrefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
+        var roots = folders.Select(folder =>
+        {
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
+            return (Path: root, Prefix: Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar);
+        }).ToArray();
         bool ShouldCapture(string path) => !result.ContainsKey(path) &&
-            (path.Equals(root, StringComparison.OrdinalIgnoreCase) ||
-             includeSubfolders && path.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase));
+            roots.Any(root => path.Equals(root.Path, StringComparison.OrdinalIgnoreCase) ||
+                includeSubfolders && path.StartsWith(root.Prefix, StringComparison.OrdinalIgnoreCase));
         object? collection = null;
         try
         {

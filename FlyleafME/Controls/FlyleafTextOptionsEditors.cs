@@ -33,7 +33,8 @@ public abstract class FlyleafTextOptionsEditor : StackPanel
         row.ColumnDefinitions.Add(new() { Width = new GridLength(92) });
         row.ColumnDefinitions.Add(new() { MaxWidth = editor.MaxWidth });
         var label = Text(title, true); label.VerticalAlignment = VerticalAlignment.Center; label.Margin = new Thickness(0, 0, 6, 0);
-        row.Children.Add(label); Grid.SetColumn(editor, 1); row.Children.Add(editor); Children.Add(row);
+        row.Children.Add(label); Grid.SetColumn(editor, 1); row.Children.Add(editor);
+        Children.Add(FlyleafSettingsSearch.Label(row, title));
     }
     protected TextBox Entry(string title, Func<string> read, Action<string> write, double width = 90)
         => Entry(title, read, write, out _, width);

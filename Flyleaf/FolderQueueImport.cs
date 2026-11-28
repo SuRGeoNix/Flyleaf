@@ -26,19 +26,20 @@ internal static class FolderQueueImport
 {
     static readonly IComparer<string> names = new Utils.NaturalStringComparer();
 
-    internal static Task<FolderImportResult> ScanAsync(string folder, FolderImportOptions options, CancellationToken cancellation)
+    internal static Task<Dictionary<string, FolderImportResult>> ScanAsync(IReadOnlyList<string> folders,
+        FolderImportOptions options, CancellationToken cancellation)
     {
         if (options.Sort != FolderSort.Explorer)
-            return Task.Run(() => Scan(folder, options, null, cancellation), cancellation);
+            return Task.Run(() => ScanFolders(null, false), cancellation);
 
         // Explorer's automation objects belong to an STA. Keep Shell calls and disk IO off the UI thread.
-        var completion = new TaskCompletionSource<FolderImportResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completion = new TaskCompletionSource<Dictionary<string, FolderImportResult>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
         {
             try
             {
-                var views = ExplorerFolderOrder.Capture(folder, options.IncludeSubfolders, cancellation);
-                completion.SetResult(Scan(folder, options, views, cancellation, ExplorerFolderOrder.UsesLiteralNameOrder()));
+                var views = ExplorerFolderOrder.Capture(folders, options.IncludeSubfolders, cancellation);
+                completion.SetResult(ScanFolders(views, ExplorerFolderOrder.UsesLiteralNameOrder()));
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { completion.SetCanceled(cancellation); }
             catch (Exception ex) { completion.SetException(ex); }
@@ -46,6 +47,15 @@ internal static class FolderQueueImport
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         return completion.Task;
+
+        Dictionary<string, FolderImportResult> ScanFolders(IReadOnlyDictionary<string, Dictionary<string, int>>? views, bool literalNames)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var results = new Dictionary<string, FolderImportResult>(StringComparer.OrdinalIgnoreCase);
+            foreach (var folder in folders)
+                results.Add(folder, Scan(folder, options, views, cancellation, literalNames));
+            return results;
+        }
     }
 
     internal static FolderImportResult Scan(string folder, FolderImportOptions options,

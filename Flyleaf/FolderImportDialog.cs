@@ -18,8 +18,8 @@ internal sealed class FolderImportDialog : FlyleafModalDialog
     ];
     readonly CheckBox allMedia = MediaCheck("All media");
     readonly ComboBox sort;
-    readonly CheckBox subfolders = new() { Content = "Include subfolders", Margin = new Thickness(0, 12, 0, 12) };
-    readonly Button add = new() { Content = "Add to queue", IsDefault = true };
+    readonly CheckBox subfolders = new() { Content = "Include subfolders", IsChecked = true, Margin = new Thickness(0, 12, 0, 12) };
+    readonly Button confirm = new() { IsDefault = true };
     bool settingAllMedia;
 
     FolderMediaType SelectedMedia
@@ -35,12 +35,15 @@ internal sealed class FolderImportDialog : FlyleafModalDialog
 
     internal FolderImportOptions Options => new(SelectedMedia, subfolders.IsChecked == true, (FolderSort)sort.SelectedIndex);
 
-    internal FolderImportDialog(ResourceDictionary theme, string folder) : base("Add folder to queue")
+    internal FolderImportDialog(ResourceDictionary theme, IReadOnlyList<string> folders, bool append)
+        : base(append ? (folders.Count == 1 ? "Add folder to queue" : "Add folders to queue")
+            : (folders.Count == 1 ? "Open folder" : "Open folders"))
     {
         Resources.MergedDictionaries.Add(theme);
 
         var body = new StackPanel { Width = 345, Margin = new Thickness(18) };
-        body.Children.Add(new TextBlock { Text = folder, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14) });
+        var selection = folders.Count == 1 ? folders[0] : $"{folders.Count:N0} folders selected";
+        body.Children.Add(new TextBlock { Text = selection, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14) });
         allMedia.FontWeight = FontWeights.SemiBold;
         allMedia.Checked += (_, _) => SetAllMedia(true);
         allMedia.Unchecked += (_, _) => SetAllMedia(false);
@@ -75,14 +78,15 @@ internal sealed class FolderImportDialog : FlyleafModalDialog
         subfolders.SetResourceReference(StyleProperty, "FlyleafME.CheckBoxStyle");
         body.Children.Add(subfolders);
 
+        confirm.Content = append ? "Add to queue" : "Open";
         var cancel = new Button { Content = "Cancel", IsCancel = true, Margin = new Thickness(8, 0, 0, 0) };
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        foreach (var button in new[] { add, cancel })
+        foreach (var button in new[] { confirm, cancel })
         {
             button.SetResourceReference(StyleProperty, "FlyleafME.ButtonStyle");
             actions.Children.Add(button);
         }
-        add.Click += (_, _) => DialogResult = true;
+        confirm.Click += (_, _) => DialogResult = true;
         body.Children.Add(actions);
         Body.Content = body;
     }
@@ -99,7 +103,7 @@ internal sealed class FolderImportDialog : FlyleafModalDialog
         settingAllMedia = true;
         foreach (var (_, box) in media) box.IsChecked = isChecked;
         settingAllMedia = false;
-        add.IsEnabled = isChecked;
+        confirm.IsEnabled = isChecked;
     }
 
     void MediaTypeChanged(object sender, RoutedEventArgs e)
@@ -112,7 +116,7 @@ internal sealed class FolderImportDialog : FlyleafModalDialog
             FolderMediaType.None => false,
             _ => null
         };
-        add.IsEnabled = selected != FolderMediaType.None;
+        confirm.IsEnabled = selected != FolderMediaType.None;
     }
 
     static ComboBox Selector(Panel body, string label, string[] options)

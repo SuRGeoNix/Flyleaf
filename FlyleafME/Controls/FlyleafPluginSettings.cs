@@ -29,12 +29,7 @@ public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
             foreach (var name in pluginBodies.Keys)
             {
                 var item = new MenuItem { Header = PluginTitle(name), IsCheckable = true, IsChecked = name == selectedPlugin };
-                item.Click += (_, _) =>
-                {
-                    selectedPlugin = name;
-                    if (Context?.UIConfig is { } uiConfig) uiConfig.SelectedPlugin = name;
-                    ShowSelectedPlugin();
-                };
+                item.Click += (_, _) => SelectPlugin(name);
                 menu.Items.Add(item);
             }
             pluginMenu = menu; menu.IsOpen = true;
@@ -42,6 +37,12 @@ public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
         Unloaded += (_, _) => { if (pluginMenu != null) pluginMenu.IsOpen = false; pluginMenu = null; };
     }
     static string PluginTitle(string name) => name == "BitSwarmPlugin" ? "BitSwarm" : name;
+    void SelectPlugin(string name)
+    {
+        selectedPlugin = name;
+        if (Context?.UIConfig is { } uiConfig) uiConfig.SelectedPlugin = name;
+        ShowSelectedPlugin();
+    }
     void ShowSelectedPlugin()
     {
         pluginSelector.Content = PluginTitle(selectedPlugin ?? "Plugin") + " ▾";
@@ -68,6 +69,7 @@ public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
         foreach (var pluginType in installed)
         {
             var pluginBody = new StackPanel(); pluginBodies.Add(pluginType.Name, pluginBody); Children.Add(pluginBody);
+            FlyleafSettingsSearch.Section(pluginBody, PluginTitle(pluginType.Name), () => SelectPlugin(pluginType.Name));
             var values = configured[pluginType.Name];
             Observe(values);
             Dictionary<string, string> defaults;
@@ -141,6 +143,7 @@ public sealed class FlyleafPluginSettings : FlyleafSettingsEditor
             Options(extra, () => values.Where(p => !defaults.ContainsKey(p.Key)).ToDictionary(p => p.Key, p => p.Value),
                 v => UpdateUnknown(values, v, defaults.Keys.ToHashSet(StringComparer.Ordinal)), "Unrecognized options · name / value");
             var expander = new Expander { Header = Text(pluginTitle + " · Advanced"), Content = advanced, Margin = new Thickness(0, 18, 0, 0) };
+            FlyleafSettingsSearch.Section(expander, "Advanced");
             expander.SetResourceReference(Control.ForegroundProperty, "FlyleafME.TextBrush"); pluginBody.Children.Add(expander);
         }
         ShowSelectedPlugin();

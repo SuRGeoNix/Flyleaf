@@ -148,9 +148,9 @@ public partial class MainWindow : Window
         MediaElement.RegisterDefaultPanels(settings =>
         {
             settings.CustomKeybindingDefaults = customKeybindingDefaults;
-            settings.Pages.Insert(0, new("application", "Application", c => new ApplicationSettings { Context = c }));
-            settings.Pages.Insert(1, new("profiles", "Profiles", c => new ProfileSettings(this) { Context = c }));
-            settings.Pages.Insert(2, new("file-associations", "File associations", _ => new FileAssociationSettings(App.Instance.Config)));
+            settings.Pages.Insert(0, new("application", "Application", c => new ApplicationSettings { Context = c }) { IndexOptions = true });
+            settings.Pages.Insert(1, new("profiles", "Profiles", c => new ProfileSettings(this) { Context = c }) { IndexOptions = true });
+            settings.Pages.Insert(2, new("file-associations", "File associations", _ => new FileAssociationSettings(App.Instance.Config)) { IndexOptions = true });
 
             void RefreshResetDefaults() =>
                 FlyleafSettingsReset.SetDefaults(settings, profiles.GetResetPlayer(Profile));
@@ -850,12 +850,13 @@ public partial class MainWindow : Window
     {
         if (e.Handled) return;
         var files = e.Data.GetDataPresent(DataFormats.FileDrop, false) ? e.Data.GetData(DataFormats.FileDrop, false) as string[] : null;
-        if (files is [var folder] && Directory.Exists(folder))
+        var folders = files?.Where(Directory.Exists).ToArray();
+        if (folders is { Length: > 0 })
         {
             e.Handled = true;
             // Let the Explorer drop finish before showing the folder import dialog.
             await System.Windows.Threading.Dispatcher.Yield();
-            await RunPlaylistOperation(() => ImportQueueFolder(append: false, folder: folder));
+            await RunPlaylistOperation(() => ImportQueueFolders(append: false, folders, files));
             return;
         }
 

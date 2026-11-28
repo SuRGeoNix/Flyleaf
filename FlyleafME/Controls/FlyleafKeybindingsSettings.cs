@@ -52,13 +52,14 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
                     row.Children.Add(label); row.Children.Add(controls);
                     FlyleafShortcutGesture? Original(KeysConfig resetKeys)
                     {
+                        var resetBindings = resetKeys.Keys ?? defaults.Keys;
                         if (binding.Action == KeyBindingAction.Custom)
                         {
-                            var match = resetKeys.Keys.FirstOrDefault(b => b.Action == binding.Action && b.ActionName == binding.ActionName);
+                            var match = resetBindings.FirstOrDefault(b => b.Action == binding.Action && b.ActionName == binding.ActionName);
                             return match != null ? FlyleafShortcutGesture.From(match) : FlyleafControlKeybindings.Defaults.GetValueOrDefault(binding.ActionName ?? "") ?? CustomDefaults.GetValueOrDefault(binding.ActionName ?? "");
                         }
                         int index = keys.Keys.Where(b => b.Action == binding.Action).ToList().IndexOf(binding);
-                        var baseline = resetKeys.Keys.Where(b => b.Action == binding.Action).ElementAtOrDefault(index)
+                        var baseline = resetBindings.Where(b => b.Action == binding.Action).ElementAtOrDefault(index)
                             ?? defaults.Keys.Where(b => b.Action == binding.Action).ElementAtOrDefault(index);
                         return baseline == null ? null : FlyleafShortcutGesture.From(baseline);
                     }
@@ -74,7 +75,7 @@ public sealed class FlyleafKeybindingsSettings : FlyleafSettingsEditor
                         };
                         controls.Children.Add(reset);
                     }
-                    rows.Children.Add(row);
+                    rows.Children.Add(FlyleafSettingsSearch.Label(row, ActionLabel(binding)));
                 }
             }
         }

@@ -20,7 +20,9 @@ internal sealed class FileAssociationSettings : StackPanel
     internal FileAssociationSettings(AppConfig config)
     {
         this.config = config;
-        Children.Add(new TextBlock { Text = "File associations", FontWeight = FontWeights.SemiBold, FontSize = 20 });
+        var title = new TextBlock { Text = "File associations", FontWeight = FontWeights.SemiBold, FontSize = 20 };
+        title.SetResourceReference(TextBlock.ForegroundProperty, "FlyleafME.TextBrush");
+        Children.Add(title);
         var help = new TextBlock
         {
             Text = "Choose which extensions offer Flyleaf in Open with. Set double-click defaults in Windows.",

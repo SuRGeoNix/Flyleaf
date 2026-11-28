@@ -97,7 +97,8 @@ public partial class FlyleafME
         AddOpenQueueMenuItems(menu);
         AddSaveQueueMenuItems(menu);
     }
-    public void RequestPlaylistAction(FlyleafPlaylistAction action, IReadOnlyList<string>? inputs = null) => PlaylistActionRequested?.Invoke(this, new(action, inputs));
+    public void RequestPlaylistAction(FlyleafPlaylistAction action, IReadOnlyList<string>? inputs = null) => RequestPlaylistAction(new FlyleafPlaylistActionEventArgs(action, inputs));
+    internal void RequestPlaylistAction(FlyleafPlaylistActionEventArgs request) => PlaylistActionRequested?.Invoke(this, request);
     ContextMenu? generalMenu;
     int menuActionGeneration;
 

@@ -5,4 +5,6 @@ public sealed class FlyleafPlaylistActionEventArgs(FlyleafPlaylistAction action,
 {
     public FlyleafPlaylistAction Action { get; } = action;
     public IReadOnlyList<string> Inputs { get; } = inputs ?? [];
+    /// <summary>The queue control that received a file drop, when applicable.</summary>
+    public System.Windows.FrameworkElement? FileDropTarget { get; internal init; }
 }

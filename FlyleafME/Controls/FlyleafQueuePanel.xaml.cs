@@ -202,10 +202,13 @@ public partial class FlyleafQueuePanel : UserControl
         }
         else if (Context?.MediaElement is { } view)
         {
-            var inputs = e.Data.GetData(DataFormats.FileDrop) as string[];
+            var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+            var inputs = files;
             if (inputs == null && e.Data.GetData(DataFormats.Text) is string input) inputs = [input];
             if (inputs == null) return;
-            if (view.HasPlaylistActionHandler) view.RequestPlaylistAction(FlyleafPlaylistAction.AddInputs, inputs);
+            if (view.HasPlaylistActionHandler)
+                view.RequestPlaylistAction(new FlyleafPlaylistActionEventArgs(FlyleafPlaylistAction.AddInputs, inputs)
+                { FileDropTarget = files == null ? null : this });
             else foreach (var value in inputs) queue?.Add(value);
         }
     }

@@ -34,7 +34,7 @@ public abstract class FlyleafSettingsEditor : StackPanel
     protected NotifyPropertyChanged? config;
     TextBlock? feedback;
     ContextMenu? openMenu;
-    bool refreshing, busy, refreshQueued;
+    bool refreshing, busy, refreshQueued, indexing;
 
     protected FlyleafSettingsEditor()
     {
@@ -112,8 +112,28 @@ public abstract class FlyleafSettingsEditor : StackPanel
     protected abstract NotifyPropertyChanged SelectConfig(Player target);
     protected abstract void Build();
 
+    internal void BuildForSearch(FlyleafPanelContext context)
+    {
+        // Build the labels without attaching an editor to live configuration notifications.
+        Context ??= context;
+        indexing = true;
+        try
+        {
+            player = Context.Player;
+            config = player == null ? null : SelectConfig(player);
+            Build();
+        }
+        finally
+        {
+            player = null;
+            config = null;
+            indexing = false;
+        }
+    }
+
     protected void Observe(INotifyPropertyChanged source)
     {
+        if (indexing) return;
         source.PropertyChanged += ConfigChanged;
         additionalSources.Add(source);
     }
@@ -134,6 +154,7 @@ public abstract class FlyleafSettingsEditor : StackPanel
     protected StackPanel Group(string title, Action? reset, StackPanel? parent = null, Func<bool>? canReset = null, bool background = false)
     {
         var body = new StackPanel();
+        FlyleafSettingsSearch.Section(body, title);
         Grid.SetIsSharedSizeScope(body, true);
         discardDrafts[body] = [];
         Button? button = null;
@@ -173,7 +194,7 @@ public abstract class FlyleafSettingsEditor : StackPanel
             Grid.SetRow(editor, inline ? 0 : 1); Grid.SetColumn(editor, inline ? 1 : 0); Grid.SetColumnSpan(editor, inline ? 1 : 2);
         }
         row.SizeChanged += (_, _) => ArrangeRow(); row.Loaded += (_, _) => ArrangeRow();
-        return row;
+        return FlyleafSettingsSearch.Label(row, title);
     }
 
     protected void Toggle(StackPanel parent, string title, string help, Func<bool> get, Action<bool> set, bool background = false)
@@ -369,7 +390,7 @@ public abstract class FlyleafSettingsEditor : StackPanel
 
     protected void InputTypes(StackPanel parent, string title, Func<List<InputType>> get, Action<List<InputType>> set)
     {
-        parent.Children.Add(Text(title));
+        parent.Children.Add(FlyleafSettingsSearch.Label(Text(title), title));
         var row = new WrapPanel(); parent.Children.Add(row);
         var all = new CheckBox { Content = "All types", Margin = new Thickness(0, 6, 12, 0) };
         all.SetResourceReference(StyleProperty, "FlyleafME.CheckBoxStyle"); row.Children.Add(all);
@@ -396,7 +417,7 @@ public abstract class FlyleafSettingsEditor : StackPanel
     protected void CheckChoices<T>(StackPanel parent, string title, string help, Func<T, bool> get, Action<T, bool> set,
         params (T Value, string Label)[] choices)
     {
-        parent.Children.Add(Text(title));
+        parent.Children.Add(FlyleafSettingsSearch.Label(Text(title), title));
         var row = new WrapPanel();
         parent.Children.Add(row);
         foreach (var (value, label) in choices)
@@ -419,7 +440,7 @@ public abstract class FlyleafSettingsEditor : StackPanel
         rows.ColumnDefinitions.Add(new() { Width = new GridLength(32) });
         var add = Button("Add option"); add.HorizontalAlignment = HorizontalAlignment.Left; add.Margin = new Thickness(0, 8, 0, 0);
         var error = ValidationMessage();
-        parent.Children.Add(Text(title));
+        parent.Children.Add(FlyleafSettingsSearch.Label(Text(title), title));
         parent.Children.Add(rows); parent.Children.Add(add); parent.Children.Add(error);
         var entries = new List<(TextBox Key, TextBox Value, Button Remove)>();
         bool dirty = false, building = false;
@@ -512,7 +533,7 @@ public abstract class FlyleafSettingsEditor : StackPanel
 
     protected void Flags<T>(StackPanel parent, string title, Func<T> get, Action<T> set) where T : struct, Enum
     {
-        var body = new WrapPanel(); parent.Children.Add(Text(title)); parent.Children.Add(body);
+        var body = new WrapPanel(); parent.Children.Add(FlyleafSettingsSearch.Label(Text(title), title)); parent.Children.Add(body);
         foreach (var value in Enum.GetValues<T>())
         {
             ulong mask = Convert.ToUInt64(value);
