@@ -6,9 +6,12 @@ Official plugins for [FlyleafLib](https://github.com/SuRGeoNix/Flyleaf). Each pl
 | --- | --- | --- |
 | `OpenSubtitlesOrg` | `FlyleafLib.Plugins.OpenSubtitlesOrg` | Find and download subtitles from OpenSubtitles.org |
 | `SubtitlesConverter` | `FlyleafLib.Plugins.SubtitlesConverter` | Detect subtitle encodings and convert external subtitles to UTF-8 |
+| `LibAss` | `FlyleafLib.Plugins.LibAss` | Render styled SRT and ASS/SSA subtitles via libass on Windows x64 |
 | `BitSwarm` | `FlyleafLib.Plugins.BitSwarm` | Stream media directly from torrents using BitSwarm |
 
-The projects target **.NET 10 on Windows** (`net10.0-windows`, represented in the NuGet packages as `net10.0-windows7.0`). The current plugin packages depend on FlyleafLib **3.11.17 or later in the 3.x line** (`[3.11.17,4.0.0)`).
+The projects target **.NET 10 on Windows** (`net10.0-windows`, represented in the NuGet packages as `net10.0-windows7.0`). See each project for its minimum FlyleafLib version. LibAss has an additional native setup step described in its [README](LibAss/README.md).
+
+Subtitle renderer plugins implement `ISubtitlesRenderer`. Flyleaf tries compatible providers in ascending `Priority` order when it opens a text subtitle track and uses the built-in text renderer as the fallback. Return an `ISubtitlesTextRenderSession` to customize cue parsing and use Flyleaf's text overlay. Return an `ISubtitlesRenderSession` to supply bitmap overlays.
 
 ## Developing and building
 

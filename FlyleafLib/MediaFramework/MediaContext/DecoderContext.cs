@@ -175,6 +175,16 @@ public unsafe partial class DecoderContext : PluginHandler
         VideoDecoder        = new(Config, UniqueId, EnableDecoding && player?.Usage != Usage.Audio, player);
         AudioDecoder        = new(Config, UniqueId, VideoDecoder);
         SubtitlesDecoder    = new(Config, UniqueId);
+        if (player != null)
+        {
+            SubtitlesDecoder.SubtitlePlugins = this;
+            SubtitlesDecoder.RendererChanged = player.Subtitles.NotifyRendererChanged;
+            SubtitlesDecoder.RenderCueAvailable = () =>
+            {
+                if (!player.IsPlaying)
+                    player.Renderer?.RenderRequest();
+            };
+        }
         DataDecoder         = new(Config, UniqueId);
 
         VideoDecoder.recCompleted = RecordCompleted;
@@ -339,6 +349,12 @@ public unsafe partial class DecoderContext : PluginHandler
 
             if (!Interrupt && VideoDecoder.IsRunning)
             {
+                SubtitlesDemuxer.Start();
+                SubtitlesDecoder.Start();
+            }
+            else if (!Interrupt && SubtitlesDecoder.HasOverlayRenderer && ret >= 0)
+            {
+                SubtitlesDemuxer.PauseOnQueueFull = true;
                 SubtitlesDemuxer.Start();
                 SubtitlesDecoder.Start();
             }
@@ -670,6 +686,9 @@ public unsafe partial class DecoderContext : PluginHandler
                     continue;
 
                 case AVMediaType.Subtitle:
+                    if (SubtitlesDecoder.OnVideoDemuxer && SubtitlesDecoder.TryDecodeForRenderer(packet))
+                        continue;
+
                     if (timestamp == -1 || (long)(packet->pts * SubtitlesStream.Timebase) - VideoDemuxer.StartTime + (VideoStream.FrameDuration / 2) > timestamp)
                         VideoDemuxer.SubtitlesPackets.Enqueue(packet);
                     else

@@ -49,6 +49,8 @@ public class PluginHandler
 
     public Dictionary<string, IDownloadSubtitles>
                                     PluginsDownloadSubtitles        { get; private set; }
+    public Dictionary<string, ISubtitlesRenderer>
+                                    PluginsSubtitlesRenderers       { get; private set; }
 
     public Dictionary<string, ISearchLocalSubtitles>
                                     PluginsSearchLocalSubtitles     { get; private set; }
@@ -116,6 +118,7 @@ public class PluginHandler
         PluginsSearchLocalSubtitles     = [];
         PluginsSearchOnlineSubtitles    = [];
         PluginsDownloadSubtitles        = [];
+        PluginsSubtitlesRenderers       = [];
 
         foreach (var plugin in Plugins.Values)
             LoadPluginInterfaces(plugin);
@@ -141,6 +144,7 @@ public class PluginHandler
         if (plugin is ISearchLocalSubtitles) PluginsSearchLocalSubtitles.Add(plugin.Name, (ISearchLocalSubtitles)plugin);
         if (plugin is ISearchOnlineSubtitles) PluginsSearchOnlineSubtitles.Add(plugin.Name, (ISearchOnlineSubtitles)plugin);
         if (plugin is IDownloadSubtitles) PluginsDownloadSubtitles.Add(plugin.Name, (IDownloadSubtitles)plugin);
+        if (plugin is ISubtitlesRenderer renderer) PluginsSubtitlesRenderers.Add(plugin.Name, renderer);
     }
     #endregion
 
@@ -398,6 +402,35 @@ public class PluginHandler
         }
 
         return null;
+    }
+
+    internal (ISubtitlesRenderer Provider, ISubtitlesRenderSession Session, string FallbackReason) OpenSubtitlesRenderer(Func<SubtitlesRenderTrack> getTrack)
+    {
+        SubtitlesRenderTrack track = null;
+        string failure = null;
+        bool hasCustomRenderer = false;
+        foreach (var plugin in PluginsSubtitlesRenderers.Values.Where(plugin => plugin is not SubsRendererDefault)
+            .OrderBy(plugin => plugin.Priority).ThenBy(plugin => plugin.Name, StringComparer.Ordinal))
+        {
+            hasCustomRenderer = true;
+            try
+            {
+                if (plugin.Open(track ??= getTrack()) is { } session)
+                {
+                    Log.Info($"[{plugin.Name}] Open Subtitles Renderer Success");
+                    return (plugin, session, null);
+                }
+            }
+            catch (Exception e)
+            {
+                failure ??= $"{plugin.Name}: {e.Message}";
+                Log.Warn($"[{plugin.Name}] Failed to open subtitle renderer ({e.Message})");
+            }
+        }
+
+        var fallback = PluginsSubtitlesRenderers.Values.OfType<SubsRendererDefault>().FirstOrDefault();
+        return (fallback, fallback?.Open(track) ?? SubsRendererDefault.Session, failure ?? (hasCustomRenderer
+            ? "No subtitle renderer plugin accepted the track." : "No external subtitle renderer plugin is loaded."));
     }
 
     public bool SearchLocalSubtitles()

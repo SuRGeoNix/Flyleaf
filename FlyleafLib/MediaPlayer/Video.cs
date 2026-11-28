@@ -232,8 +232,7 @@ public class Video : NotifyPropertyChanged
         decoder.CloseVideo();
         player.UpdateMainDemuxer();
         player.Renderer.SubsDispose();
-        player.Subtitles.subsText = "";
-        player.UIAdd(() => player.Subtitles.SubsText = player.Subtitles.subsText);
+        player.Subtitles.ClearSubsText();
 
         if (!player.Audio.IsOpened)
         {

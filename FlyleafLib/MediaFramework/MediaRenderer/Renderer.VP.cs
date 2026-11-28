@@ -70,6 +70,16 @@ public unsafe partial class Renderer
     public uint             VisibleHeight   { get; private set; }
     public AspectRatio      DAR             { get; private set; }
 
+    /// <summary>Returns the video viewport normalized to its render surface, or an empty rectangle if the stream has no viewport yet.</summary>
+    public System.Windows.Rect GetVideoViewport(VideoStream stream)
+    {
+        var snapshot = Volatile.Read(ref videoViewport);
+        return !Disposed && snapshot != null && ReferenceEquals(snapshot.Stream, stream)
+            ? snapshot.Bounds : System.Windows.Rect.Empty;
+    }
+    sealed record VideoViewportSnapshot(VideoStream Stream, System.Windows.Rect Bounds);
+    VideoViewportSnapshot videoViewport;
+
     VideoStream     scfg;
 
     CropRect        crop;
@@ -414,6 +424,7 @@ public unsafe partial class Renderer
         if (autoSDRPeakNits != sdrPeakNits)
         {
             autoSDRPeakNits = sdrPeakNits;
+            RaiseUI(nameof(SubtitleWhiteNits));
             updated = true;
         }
 
@@ -500,6 +511,7 @@ public unsafe partial class Renderer
     }
     void SetViewport(int width, int height)
     {
+        var stream = scfg;
         int newWidth, newHeight;
         if (OriginalSize && VisibleHeight > 0 && keepRatio > 0)
         {
@@ -543,8 +555,13 @@ public unsafe partial class Renderer
         int y = (int)(height * panYOffset) + sideYPixels / 2;
         int xZoomPixels = newWidth - (width - sideXPixels);
         int yZoomPixels = newHeight - (height - sideYPixels);
-        Viewport = new((int)(x - xZoomPixels * (float)zoomCenter.X), (int)(y - yZoomPixels * (float)zoomCenter.Y), newWidth, newHeight);
-        ViewportChanged?.Invoke(this, new());
+        var viewport = new Viewport((int)(x - xZoomPixels * (float)zoomCenter.X), (int)(y - yZoomPixels * (float)zoomCenter.Y), newWidth, newHeight);
+        Viewport = viewport;
+        Volatile.Write(ref videoViewport, stream != null && width > 0 && height > 0 && newWidth > 0 && newHeight > 0
+            ? new VideoViewportSnapshot(stream, new(viewport.X / (double)width, viewport.Y / (double)height,
+                newWidth / (double)width, newHeight / (double)height))
+            : null);
+        ViewportChanged?.Invoke(this, EventArgs.Empty);
     }
     void SetRotation()
     {

@@ -26,7 +26,7 @@ sealed class FlyleafDebugOverlay : Border
 
         tabs.SetResourceReference(StyleProperty, "FlyleafME.DebugTabsStyle");
         tabs.Items.Add(CreateTab("Playback",
-            [("Source", source.SourceSection), ("Subtitles", source.SubtitleSection)],
+            [("Source", source.SourceSection)],
             [("Playback", source.PlaybackSection), ("Statistics", source.PlaybackStatisticsSection)]));
         tabs.Items.Add(CreateTab("Video",
             [("Input", source.VideoSection)],
@@ -34,6 +34,9 @@ sealed class FlyleafDebugOverlay : Border
         tabs.Items.Add(CreateTab("Audio",
             [("Input", source.AudioSection)],
             [("Output", source.AudioOutputSection), ("Statistics", source.AudioStatisticsSection)]));
+        tabs.Items.Add(CreateTab("Subtitles",
+            [("Input", source.SubtitleSection)],
+            [("Rendering", source.SubtitleRenderingSection)]));
         tabs.SelectedIndex = 0;
         Child = tabs;
 

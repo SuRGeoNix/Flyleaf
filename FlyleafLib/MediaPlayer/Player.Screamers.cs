@@ -55,22 +55,20 @@ unsafe partial class Player
 
     private void ShowOneFrame()
     {
-        sFrame = null;
         if (!vFrames.TryDequeue(out var vFrame))
             return;
 
-        Renderer.RenderRequest(vFrame);
-        
-        UpdateCurTime(vFrame.Timestamp);
-        showFrameCount++;
-
-        // Clear last subtitles text if video timestamp is not within subs timestamp + duration (to prevent clearing current subs on pause/play)
-        if (sFramePrev == null || sFramePrev.Timestamp > vFrame.Timestamp || (sFramePrev.Timestamp + (sFramePrev.duration * (long)10000)) < vFrame.Timestamp)
+        // Preserve the bitmap cue when the paused frame is still within its display interval.
+        var previous = sFramePrev;
+        if (previous == null || previous.Timestamp > vFrame.Timestamp || previous.Timestamp + previous.duration * 10000L < vFrame.Timestamp)
         {
             sFramePrev = null;
             Renderer.SubsDispose();
-            Subtitles.ClearSubsText();
         }
+        Subtitles.UpdateTextCues(vFrame.Timestamp);
+        Renderer.RenderRequest(vFrame);
+        UpdateCurTime(vFrame.Timestamp);
+        showFrameCount++;
 
         // Required for buffering on paused
         if (decoder.RequiresResync && !IsPlaying && seeks.IsEmpty)

@@ -803,7 +803,7 @@ unsafe partial class Player
 
             isAudioSwitch   = false;
             isVideoSwitch   = false;
-            sFrame          = sFramePrev = null;
+            sFramePrev      = null;
             isSubsSwitch    = false;
             dFrame          = null;
             isDataSwitch    = false;
@@ -840,7 +840,7 @@ unsafe partial class Player
                 isSubsSwitch = true;
                 decoder.SeekSubtitles();
                 Renderer.SubsDispose();
-                sFrame = sFramePrev = null;
+                sFramePrev = null;
                 Subtitles.ClearSubsText();
                 isSubsSwitch = false;
             }

@@ -620,7 +620,7 @@ color = float4(Texture2.Sample(Sampler, input.Texture).r, Texture3.Sample(Sample
         if (context2d != null)
             ucfg.OnD2DDraw(this, context2d);
 
-        D3SubsRender();
+        D3SubsRender(frame.Timestamp);
     }
     void D3Render(ID3D11VideoProcessorInputView srv, ID3D11VideoProcessorOutputView rtv, RawRect view, bool secondField = false)
     {

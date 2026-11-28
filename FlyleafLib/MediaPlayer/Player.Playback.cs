@@ -175,8 +175,6 @@ partial class Player
         {
             try
             {
-                sFrame = null;
-
                 if (status != Status.Stopped && decoder != null)
                 {
                     decoder.PauseOnQueueFull();
@@ -360,7 +358,7 @@ partial class Player
                     UI(() => Status = status);
                 }
 
-                if (sFramePrev != null)
+                if (sFramePrev != null || Subtitles.HasTextCues)
                 {
                     sFramePrev = null;
                     Renderer.SubsDispose();

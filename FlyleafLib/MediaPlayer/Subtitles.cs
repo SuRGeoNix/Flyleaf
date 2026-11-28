@@ -1,6 +1,8 @@
 ﻿using FlyleafLib.MediaFramework.MediaContext;
 using FlyleafLib.MediaFramework.MediaFrame;
 using FlyleafLib.MediaFramework.MediaStream;
+using FlyleafLib.Plugins;
+using System.Linq;
 
 namespace FlyleafLib.MediaPlayer;
 
@@ -40,9 +42,52 @@ public class Subtitles : NotifyPropertyChanged
     /// <summary>
     /// Subtitles Text (updates dynamically while playing based on the duration that it should be displayed)
     /// </summary>
-    public string   SubsText        { get => subsText;     internal set => Set(ref _SubsText,  value); }
-    internal string _SubsText = "", subsText = "";
-    public void ClearSubsText() { subsText = ""; if (_SubsText != "") UI(() => SubsText = subsText); }
+    public string   SubsText        { get => subsText;     private set => Set(ref _SubsText,  value); }
+    string _SubsText = "", subsText = "";
+
+    readonly List<SubtitlesFrame> activeTextCues = [];
+    internal bool HasTextCues { get { lock (activeTextCues) return activeTextCues.Count != 0; } }
+
+    public void ClearSubsText()
+    {
+        lock (activeTextCues)
+        {
+            activeTextCues.Clear();
+            SetCueText("");
+        }
+    }
+
+    internal void UpdateTextCues(long timestamp, List<SubtitlesFrame> newCues = null)
+    {
+        lock (activeTextCues)
+        {
+            bool expired = false;
+            for (int i = activeTextCues.Count - 1; i >= 0; i--)
+            {
+                var cue = activeTextCues[i];
+                if (timestamp < cue.Timestamp + cue.duration * 10000L) continue;
+                activeTextCues.RemoveAt(i);
+                expired = true;
+            }
+            bool started = newCues is { Count: > 0 };
+            if (started)
+                activeTextCues.AddRange(newCues);
+            if (expired || started)
+                SetCueText(activeTextCues.Count switch
+                {
+                    0 => "",
+                    1 => activeTextCues[0].text,
+                    _ => string.Join("\n", activeTextCues.Select(frame => frame.text))
+                });
+        }
+    }
+
+    void SetCueText(string text)
+    {
+        if (subsText == text) return;
+        subsText = text;
+        UI(() => SubsText = subsText);
+    }
 
     /// <summary>
     /// Subtitle delay in ticks; reset to zero when opening a subtitle stream.
@@ -64,11 +109,21 @@ public class Subtitles : NotifyPropertyChanged
     public void DelayAdd2()     => Delay += player.Config.Subtitles.DelayOffset2;
     public void DelayRemove2()  => Delay -= player.Config.Subtitles.DelayOffset2;
 
-    /// <summary>Subtitle parser; defaults to ParseSubtitles.Parse.</summary>
-    public Action<SubtitlesFrame> Parser
+    /// <summary>The renderer selected for the open subtitle track.</summary>
+    public SubtitlesRendererInfo SubsRenderer => player.SubtitlesDecoder?.RendererInfo;
+    internal void NotifyRendererChanged() => RaiseUI(nameof(SubsRenderer));
+
+    SubtitlesRenderStyle renderStyle = SubtitlesRenderStyle.Default;
+    /// <summary>Default appearance for SubRip rendered by a subtitle renderer plugin.</summary>
+    public SubtitlesRenderStyle RenderStyle
     {
-        get => player.SubtitlesDecoder.Parser;
-        set => player.SubtitlesDecoder.Parser = value;
+        get => Volatile.Read(ref renderStyle);
+        set
+        {
+            var style = value ?? SubtitlesRenderStyle.Default;
+            if (Interlocked.Exchange(ref renderStyle, style) != style && player.SubtitlesDecoder.HasOverlayRenderer)
+                player.Renderer?.RenderRequest();
+        }
     }
 
     public Player Player => player;
@@ -94,7 +149,7 @@ public class Subtitles : NotifyPropertyChanged
         streamIndex = -1;
         codec       = null;
         isOpened    = false;
-        subsText    = "";
+        ClearSubsText();
         player.sFramePrev = null;
         player.Renderer?.SubsDispose();
 
@@ -107,7 +162,7 @@ public class Subtitles : NotifyPropertyChanged
         streamIndex = decoder.SubtitlesStream.StreamIndex;
         codec       = decoder.SubtitlesStream.Codec;
         isOpened    =!decoder.SubtitlesDecoder.Disposed;
-        subsText    = "";
+        ClearSubsText();
         player.sFramePrev = null;
         player.Renderer.SubsDispose();
 

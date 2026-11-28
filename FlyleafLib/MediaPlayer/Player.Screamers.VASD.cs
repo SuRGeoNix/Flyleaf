@@ -1,6 +1,7 @@
-﻿using Vortice.Direct3D11;
+using Vortice.Direct3D11;
 
 using FlyleafLib.MediaFramework.MediaDecoder;
+using FlyleafLib.MediaFramework.MediaFrame;
 
 namespace FlyleafLib.MediaPlayer;
 
@@ -66,7 +67,7 @@ unsafe partial class Player
             }
         }
 
-        vFrame = null; aFrame = null; sFrame = null; dFrame = null;
+        vFrame = null; aFrame = null; dFrame = null;
 
         if (Config.Playback.MaxLatency != 0)
         {
@@ -201,10 +202,11 @@ unsafe partial class Player
 
         bool secondField = false; // To be transfered in renderer
         int dequeueRetries;
-        int vDistanceMs, sDistanceMs, dDistanceMs;
+        int vDistanceMs, dDistanceMs;
         long elapsedTicks;
         bool refreshed = false;
         SeekData seekData;
+        List<SubtitlesFrame> textCues = [];
 
         while (status == Status.Playing)
         {
@@ -223,7 +225,7 @@ unsafe partial class Player
                 requiresBuffering = true;
                 ResetFrameStats();
 
-                if (sFramePrev != null)
+                if (sFramePrev != null || Subtitles.HasTextCues)
                 {
                     sFramePrev = null;
                     Renderer.SubsDispose();
@@ -454,57 +456,42 @@ unsafe partial class Player
             if (Subtitles.isOpened)
             {
                 elapsedTicks = (long)(sw.ElapsedTicks * SWFREQ_TO_TICKS);
-
-                if (sFrame == null && !isSubsSwitch)
-                    SubtitlesDecoder.Frames.TryPeek(out sFrame);
-
-                sDistanceMs = sFrame != null
-                    ? (int)((((sFrame.Timestamp - startTicks) / speed) - elapsedTicks) / 10000)
-                    : int.MaxValue;
-
-                if (sFramePrev != null && ((sFramePrev.Timestamp - startTicks + (sFramePrev.duration * (long)10000)) / speed) - elapsedTicks < 0)
+                long subtitleTime = startTicks + (long)(elapsedTicks * speed);
+                if (sFramePrev is { } previous && subtitleTime >= previous.Timestamp + previous.duration * 10000L)
                 {
-                    if (string.IsNullOrEmpty(sFramePrev.text))
-                        Renderer.SubsDispose();
-                    else
-                        Subtitles.ClearSubsText();
-
+                    Renderer.SubsClearBitmap();
                     sFramePrev = null;
                 }
 
-                if (sFrame != null)
+                // Text activation and expiration use the same clock so adjacent cues never stack.
+                long bitmapDue = subtitleTime + (long)(30 * 10000L * speed);
+                while (!isSubsSwitch && SubtitlesDecoder.Frames.TryPeek(out var nextCue)
+                    && nextCue.Timestamp <= (string.IsNullOrEmpty(nextCue.text) ? bitmapDue : subtitleTime))
                 {
-                    if (Math.Abs(sDistanceMs) < 30 || (sDistanceMs < -30 && sFrame.duration + sDistanceMs > 0))
-                    {
-                        if (string.IsNullOrEmpty(sFrame.text))
-                        {
-                            if (sFrame.sub.num_rects > 0)
-                                Renderer.SubsFillRects(sFrame);
-                            else
-                                Renderer.SubsDispose();
-                        }
-                        else
-                        {
-                            Subtitles.subsText = sFrame.text;
-                            UI(() => Subtitles.SubsText = Subtitles.subsText);
-                        }
+                    if (!SubtitlesDecoder.Frames.TryDequeue(out var cue))
+                        break;
 
-                        sFramePrev = sFrame;
-                        sFrame = null;
-                        SubtitlesDecoder.Frames.TryDequeue(out var devnull);
+                    if (subtitleTime >= cue.Timestamp + cue.duration * 10000L)
+                    {
+                        SubtitlesDecoder.DisposeFrame(cue);
+                        continue;
                     }
-                    else if (sDistanceMs < -30)
-                    {
-                        if (CanDebug) Log.Debug($"sDistanceMs = {sDistanceMs}");
 
-                        SubtitlesDecoder.DisposeFrame(sFrame);
-                        Renderer.SubsDispose();
-                        sFrame = null;
-                        SubtitlesDecoder.Frames.TryDequeue(out var devnull);
+                    if (!string.IsNullOrEmpty(cue.text))
+                        textCues.Add(cue);
+                    else if (!cue.SubmittedToOverlay)
+                    {
+                        if (cue.sub.num_rects > 0)
+                            Renderer.SubsFillRects(cue);
+                        else
+                            Renderer.SubsClearBitmap();
+                        sFramePrev = cue;
                     }
                 }
+                Subtitles.UpdateTextCues(subtitleTime, textCues);
+                textCues.Clear();
             }
-            
+
             if (Data.isOpened)
             {
                 elapsedTicks = (long)(sw.ElapsedTicks * SWFREQ_TO_TICKS);

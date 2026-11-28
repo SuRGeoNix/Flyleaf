@@ -253,6 +253,7 @@ public unsafe partial class Renderer
         // TBR: Currently Bitmap Subs only (possible ChildRenderer too - might separate them or create separate PS for it)
         blendStateAlpha = device.CreateBlendState(blendDesc);
         psShader["rgba"]= ShaderCompiler.CompilePS(device, "rgba", "color = float4(Texture1.Sample(Sampler, input.Texture).rgba);");
+        SetupHdrSubtitles();
 
         iccTxt          = device.CreateTexture2D(Format.R16G16B16A16_UNorm, 33 * 33, 33);
         iccSrv          = device.CreateShaderResourceView(iccTxt);
@@ -521,7 +522,7 @@ public unsafe partial class Renderer
         if (context2d != null)
             ucfg.OnD2DDraw(this, context2d);
 
-        FLSubsRender();
+        FLSubsRender(frame.Timestamp);
     }
 
     void FLRender(VideoFrame frame, ID3D11RenderTargetView rtv, Viewport view)
@@ -570,6 +571,10 @@ public unsafe partial class Renderer
         vsSimple.       Dispose();
         rsStateHVFlip.  Dispose();
         blendStateAlpha.Dispose();
+        hdrSubtitleBlend?.Dispose();
+        hdrSubtitleBlend = null;
+        hdrSubtitleBuffer?.Dispose();
+        hdrSubtitleBuffer = null;
         iccSrv.         Dispose();
         iccTxt.         Dispose();
         FLGamutDispose();

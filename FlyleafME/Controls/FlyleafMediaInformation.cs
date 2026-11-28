@@ -5,6 +5,7 @@ using Flyleaf.FFmpeg;
 using FlyleafLib.MediaPlayer;
 using FlyleafLib.MediaFramework.MediaPlaylist;
 using FlyleafLib.MediaFramework.MediaRenderer;
+using FlyleafLib.Plugins;
 using DecoderContext = FlyleafLib.MediaFramework.MediaContext.DecoderContext;
 
 namespace Flyleaf.Controls.WPF;
@@ -34,6 +35,7 @@ public sealed class FlyleafMediaInformation : NotifyPropertyChanged, IDisposable
     internal DetailSection AudioSection { get; } = new("No audio stream.");
     internal DetailSection AudioOutputSection { get; } = new("No audio output.");
     internal DetailSection SubtitleSection { get; } = new("No subtitle stream.");
+    internal DetailSection SubtitleRenderingSection { get; } = new("No subtitle renderer.");
     internal DetailSection DataSection { get; } = new("No data stream.");
     internal DetailSection ProcessingSection { get; } = new("No renderer.");
     internal DetailSection StatisticsSection { get; } = new("Statistics collection is off.");
@@ -298,7 +300,7 @@ public sealed class FlyleafMediaInformation : NotifyPropertyChanged, IDisposable
             nameof(Player.IsRecording) => Sections.Playback | Sections.Diagnostics,
             nameof(Player.LastError) => Sections.Diagnostics,
             nameof(Player.BitRate) or nameof(Player.Stats) => Sections.Statistics,
-            nameof(Player.Renderer) => Sections.Video | Sections.Processing,
+            nameof(Player.Renderer) => Sections.Video | Sections.Processing | Sections.Subtitles,
             _ => Sections.None
         };
         if (sections == Sections.None) return;
@@ -357,8 +359,13 @@ public sealed class FlyleafMediaInformation : NotifyPropertyChanged, IDisposable
         else if (sender != null && ReferenceEquals(sender, selectedItem))
             sections = name is null or "" or nameof(PlaylistItem.Title) ? Sections.Source : Sections.None;
         else if (sender != null && ReferenceEquals(sender, renderer))
-            sections = name is null or "" or nameof(Renderer.DynamicRange)
-                ? Sections.Video | Sections.Processing : Sections.Processing;
+            sections = name switch
+            {
+                null or "" => Sections.Video | Sections.Processing | Sections.Subtitles,
+                nameof(Renderer.DynamicRange) => Sections.Video | Sections.Processing,
+                nameof(Renderer.SwapChainOutput) or nameof(Renderer.SubtitleWhiteNits) => Sections.Processing | Sections.Subtitles,
+                _ => Sections.Processing
+            };
         else if (sender != null && ReferenceEquals(sender, renderer?.Pano360))
             sections = name is null or "" or nameof(Pano360Config.Enabled) ? Sections.Processing : Sections.None;
         else if (ReferenceEquals(sender, Engine.Config))
@@ -490,6 +497,7 @@ public sealed class FlyleafMediaInformation : NotifyPropertyChanged, IDisposable
             UpdateDetails(AudioSection, nameof(AudioDetails));
             UpdateDetails(AudioOutputSection, nameof(AudioOutputDetails));
             UpdateDetails(SubtitleSection, nameof(SubtitleDetails));
+            SubtitleRenderingSection.Update([]);
             UpdateDetails(DataSection, nameof(DataDetails));
             UpdateDetails(ProcessingSection, nameof(ProcessingDetails));
             UpdateDetails(StatisticsSection, nameof(StatisticsDetails));
@@ -522,15 +530,7 @@ public sealed class FlyleafMediaInformation : NotifyPropertyChanged, IDisposable
 
         if ((sections & Sections.Video) != 0) RefreshVideo(p);
         if ((sections & Sections.Audio) != 0) RefreshAudio(p);
-        if ((sections & Sections.Subtitles) != 0)
-        {
-            var subtitles = p.Subtitles.IsOpened ? p.decoder.SubtitlesStream : null;
-            UpdateDetails(SubtitleSection, nameof(SubtitleDetails), p.Subtitles.IsOpened ?
-            [
-                new("Codec", Value(p.Subtitles.Codec)), new("Track", $"#{p.Subtitles.StreamIndex} · {Value(subtitles?.Language?.ToString())}"),
-                new("Delay", Delay(p.Subtitles.Delay))
-            ] : [new("", StreamStatus(p.Subtitles.Enabled))]);
-        }
+        if ((sections & Sections.Subtitles) != 0) RefreshSubtitles(p);
         if ((sections & Sections.Data) != 0)
             UpdateDetails(DataSection, nameof(DataDetails),
                 new("Status", p.Data.IsOpened ? "Open" : StreamStatus(p.Data.Enabled)),
@@ -549,6 +549,40 @@ public sealed class FlyleafMediaInformation : NotifyPropertyChanged, IDisposable
     }
 
     string FormatPosition(Player p) => $"{Time(position)} / {Time(p.Duration)}{(p.CanPlay && p.IsLive ? " · Live" : "")}";
+
+    void RefreshSubtitles(Player p)
+    {
+        if (!p.Subtitles.IsOpened)
+        {
+            UpdateDetails(SubtitleSection, nameof(SubtitleDetails), new DetailRow("", StreamStatus(p.Subtitles.Enabled)));
+            SubtitleRenderingSection.Update([]);
+            return;
+        }
+
+        var subtitles = p.SubtitlesDecoder.SubtitlesStream;
+        UpdateDetails(SubtitleSection, nameof(SubtitleDetails),
+            new("Codec", Value(p.Subtitles.Codec)), new("Track", $"#{p.Subtitles.StreamIndex} · {Value(subtitles?.Language?.ToString())}"),
+            new("Source", p.SubtitlesDecoder.OnVideoDemuxer ? "Embedded" : "External"), new("Delay", Delay(p.Subtitles.Delay)));
+
+        var active = p.Subtitles.SubsRenderer;
+        if (active == null)
+        {
+            SubtitleRenderingSection.Update([]);
+            return;
+        }
+
+        List<DetailRow> rows = [new("Renderer", active.Name)];
+        if (active.PluginVersion != null) rows.Add(new("Plugin version", active.PluginVersion.ToString()));
+        if (!string.IsNullOrEmpty(active.FallbackReason)) rows.Add(new("Fallback reason", active.FallbackReason));
+        if (active.Mode == SubtitlesRenderMode.Text)
+            rows.Add(new("Output", "Text overlay"));
+        else if (p.Renderer is { SwapChainOutput: { } output } render)
+        {
+            rows.Add(new("Output", output.HDR ? "HDR · scRGB" : "SDR"));
+            if (render.SubtitleWhiteNits is float whiteNits) rows.Add(new("Subtitle white", $"{whiteNits:0.##} nits"));
+        }
+        SubtitleRenderingSection.Update(rows.ToArray());
+    }
 
     void RefreshVideo(Player p)
     {

@@ -2,19 +2,20 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
+using FlyleafLib.Plugins;
 
 namespace Flyleaf.Controls.WPF;
 
 /// <summary>Passive, wrapped, outlined text. Uses geometry only when text, style or layout changes.</summary>
 public sealed class FlyleafSubtitleText : FrameworkElement
 {
-    const double PlaybackBarGap = 4;
+    internal const double PlaybackBarGap = 4;
 
     public static readonly DependencyProperty TextProperty = DependencyProperty.Register(nameof(Text), typeof(string), typeof(FlyleafSubtitleText), new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender, Invalidate));
     public string Text { get => (string)GetValue(TextProperty); set => SetValue(TextProperty, value); }
     public static readonly DependencyProperty OptionsProperty = DependencyProperty.Register(nameof(Options), typeof(FlyleafSubtitleOptions), typeof(FlyleafSubtitleText), new PropertyMetadata(null, OptionsChanged));
     public FlyleafSubtitleOptions? Options { get => (FlyleafSubtitleOptions?)GetValue(OptionsProperty); set => SetValue(OptionsProperty, value); }
-    /// <summary>Video rectangle normalized to the playback surface, before clipping to the visible area.</summary>
+    /// <summary>Video rectangle normalized to the playback surface. Empty indicates that the video viewport is unavailable.</summary>
     public static readonly DependencyProperty VideoViewportProperty = DependencyProperty.Register(nameof(VideoViewport), typeof(Rect), typeof(FlyleafSubtitleText), new FrameworkPropertyMetadata(new Rect(0, 0, 1, 1), FrameworkPropertyMetadataOptions.AffectsRender, Invalidate));
     public Rect VideoViewport { get => (Rect)GetValue(VideoViewportProperty); set => SetValue(VideoViewportProperty, value); }
     static readonly FlyleafSubtitleOptions defaults = new();
@@ -24,6 +25,8 @@ public sealed class FlyleafSubtitleText : FrameworkElement
     Point origin;
     Rect clip, inkBounds;
     Rect playbackBarBounds = Rect.Empty;
+
+    internal event Action? DisplayScaleChanged;
 
     internal Rect PlaybackBarBounds
     {
@@ -51,7 +54,12 @@ public sealed class FlyleafSubtitleText : FrameworkElement
     }
     void Reset() { geometry = null; InvalidateVisual(); }
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo) { base.OnRenderSizeChanged(sizeInfo); Reset(); }
-    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi) { base.OnDpiChanged(oldDpi, newDpi); Reset(); }
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        Reset();
+        DisplayScaleChanged?.Invoke();
+    }
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
@@ -82,14 +90,16 @@ public sealed class FlyleafSubtitleText : FrameworkElement
     {
         var o = Options ?? defaults;
         var area = new Rect(0, 0, ActualWidth, ActualHeight);
-        var viewport = VideoViewport;
-        if (o.WithinVideo && !viewport.IsEmpty && double.IsFinite(viewport.X) && double.IsFinite(viewport.Y) && double.IsFinite(viewport.Width) && double.IsFinite(viewport.Height))
+        if (o.WithinVideo)
         {
+            var viewport = VideoViewport;
+            if (viewport.IsEmpty || !double.IsFinite(viewport.X) || !double.IsFinite(viewport.Y)
+                || !double.IsFinite(viewport.Width) || !double.IsFinite(viewport.Height)) return;
             var video = new Rect(viewport.X * ActualWidth, viewport.Y * ActualHeight, viewport.Width * ActualWidth, viewport.Height * ActualHeight);
             area.Intersect(video);
         }
         if (area.IsEmpty || area.Width < 2 || area.Height < 2) return;
-        double scale = Math.Clamp(0.2 + 0.8 * ActualWidth / 1920, 0.25, 4);
+        double scale = SubtitlesRenderStyle.GetViewScale(ActualWidth);
         double stroke = o.OutlineThickness * scale, padding = Math.Max(8, stroke + 2);
         var text = new FormattedText(Text, CultureInfo.CurrentUICulture, FlowDirection,
             new Typeface(new FontFamily(o.FontFamily), o.Italic ? FontStyles.Italic : FontStyles.Normal, o.Bold ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal),

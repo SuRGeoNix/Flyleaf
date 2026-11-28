@@ -355,13 +355,9 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
             speed                   = newValue;
             decoder.RequiresResync  = true;
             requiresBuffering       = true;
-            Subtitles.subsText      = "";
+            Subtitles.ClearSubsText();
             Renderer?.SubsDispose();
-            UI(() =>
-            {
-                Subtitles.SubsText = Subtitles.subsText;
-                Raise(nameof(Speed));
-            });
+            RaiseUI(nameof(Speed));
         }
     }
     double speed = 1;
@@ -389,7 +385,6 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
                 bool shouldPlay = status == Status.Playing || (status == Status.Ended && Config.Playback.AutoPlay);
                 Pause();
                 dFrame = null;
-                sFrame = null;
                 Renderer.SubsDispose();
                 Subtitles.ClearSubsText();
                 decoder.StopThreads();
@@ -446,7 +441,7 @@ public unsafe partial class Player : NotifyPropertyChanged, IDisposable
 
     internal AudioFrame     aFrame;
     internal VideoFrame     vFrame;
-    internal SubtitlesFrame sFrame, sFramePrev;
+    internal SubtitlesFrame sFramePrev;
     internal DataFrame      dFrame;
     internal volatile PlayerStats stats;
     internal LogHandler     Log;

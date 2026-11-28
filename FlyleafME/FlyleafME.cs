@@ -42,6 +42,7 @@ public partial class FlyleafME : Grid, IHostPlayer, IDisposable
         host.RefreshAppearance();
         host.ApplyMousePreferences();
         host.RefreshPanelContexts();
+        host.UpdateSubtitleRenderStyle();
         host.UIConfigChanged?.Invoke(host, EventArgs.Empty);
         if (host.IsLoaded) host.UpdatePlaybackDisplay();
     }
@@ -63,6 +64,7 @@ public partial class FlyleafME : Grid, IHostPlayer, IDisposable
         if (!ReferenceEquals(sender, observedConfig)) return;
         if (e.PropertyName is null or "" or nameof(FlyleafUIConfig.Appearance)) RefreshAppearance();
         if (e.PropertyName is null or "" or nameof(FlyleafUIConfig.Mouse)) ApplyMousePreferences();
+        if (e.PropertyName is null or "" or nameof(FlyleafUIConfig.Subtitles)) UpdateSubtitleRenderStyle();
         RefreshPanelContexts();
         UIConfigChanged?.Invoke(this, EventArgs.Empty);
         if (IsLoaded) UpdatePlaybackDisplay();

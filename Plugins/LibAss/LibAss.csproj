@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Description>Render styled SubRip and ASS/SSA subtitles in FlyleafLib with libass</Description>
+    <PackageTags>flyleaf flyleaflib plugin subtitles ass ssa srt libass</PackageTags>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseWPF>true</UseWPF>
+    <LibAssNativeDirectory Condition="'$(LibAssNativeDirectory)' == ''">$(MSBuildProjectDirectory)\native\win-x64</LibAssNativeDirectory>
+    <LibAssFlyleafVersion Condition="'$(LibAssFlyleafVersion)' == ''">[3.12.5,4.0.0)</LibAssFlyleafVersion>
+	<PackageReleaseNotes>first nuget release</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UseLocalFlyleaf)' == 'true'">
+    <ProjectReference Include="..\..\FlyleafLib\FlyleafLib.csproj" Private="false" ExcludeAssets="All" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(UseLocalFlyleaf)' != 'true'">
+    <PackageReference Include="FlyleafLib" Version="$(LibAssFlyleafVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="native\**\*" />
+    <None Include="$(LibAssNativeDirectory)\**\*" Link="native\win-x64\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" Pack="true"
+          PackagePath="tools\native\win-x64\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Update="LibAss.Dependencies.targets" Pack="true"
+          PackagePath="buildTransitive\_flyleaf\$(PackageId).dependencies.targets" />
+  </ItemGroup>
+
+  <Target Name="RequireLibAssNativeBinary" BeforeTargets="GenerateNuspec" Condition="!Exists('$(LibAssNativeDirectory)\ass.dll')">
+    <Error Text="Run Plugins/LibAss/Download-LibAss.ps1 before packing, or set LibAssNativeDirectory to the directory containing ass.dll." />
+  </Target>
+</Project>

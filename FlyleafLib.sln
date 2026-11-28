@@ -75,6 +75,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenSubtitlesOrg", "Plugins
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubtitlesConverter", "Plugins\SubtitlesConverter\SubtitlesConverter.csproj", "{EBC54F66-FDE1-4119-9A9A-68411A690AFE}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LibAss", "Plugins\LibAss\LibAss.csproj", "{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafPlayer (Custom - Rounded Corners) (WPF)", "Samples\FlyleafPlayer (Custom - Rounded Corners) (WPF)\FlyleafPlayer (Custom - Rounded Corners) (WPF).csproj", "{DD34970E-D31E-4EBE-B5CF-367844EBD153}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FlyleafPlayer (WinUI)", "Samples\FlyleafPlayer (WinUI)\FlyleafPlayer (WinUI).csproj", "{992D7616-9E3C-4B76-8146-528971B59DC1}"
@@ -443,6 +445,22 @@ Global
 		{E0F8117A-C1EF-11A5-6A02-7E0B6C6DAE85}.Release|x64.Build.0 = Release|Any CPU
 		{E0F8117A-C1EF-11A5-6A02-7E0B6C6DAE85}.Release|x86.ActiveCfg = Release|Any CPU
 		{E0F8117A-C1EF-11A5-6A02-7E0B6C6DAE85}.Release|x86.Build.0 = Release|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Debug|x64.Build.0 = Debug|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Debug|x86.Build.0 = Debug|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Release|Any CPU.Build.0 = Release|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Release|ARM64.Build.0 = Release|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Release|x64.ActiveCfg = Release|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Release|x64.Build.0 = Release|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Release|x86.ActiveCfg = Release|Any CPU
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -467,6 +485,7 @@ Global
 		{DD34970E-D31E-4EBE-B5CF-367844EBD153} = {6029F6A2-3EB6-475B-B7DB-048C4992B772}
 		{992D7616-9E3C-4B76-8146-528971B59DC1} = {6029F6A2-3EB6-475B-B7DB-048C4992B772}
 		{4FE1C774-5838-4F85-B812-085ACB93F8E1} = {01A29B6E-AD65-46B6-B3F8-B09192F2CE18}
+		{27DDC1C7-E3F9-4565-ABF8-A599D8B27347} = {BF7004C3-CDF7-41B4-980D-36F6A407969B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EA552D17-7796-4337-8E9D-A206F3AAE077}

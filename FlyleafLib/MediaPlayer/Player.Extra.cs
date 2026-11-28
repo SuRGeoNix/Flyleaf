@@ -100,7 +100,6 @@ unsafe partial class Player
             lock (stepSeekLock)
             {
                 dFrame = null;
-                sFrame = null;
                 Renderer.SubsDispose();
                 Subtitles.ClearSubsText();
                 decoder.Flush();
@@ -150,7 +149,6 @@ unsafe partial class Player
                     VideoDecoder.GetFrame(VideoDecoder.GetFrameNumber(curTime))?.Dispose();
                 }
 
-                sFrame = null;
                 Subtitles.ClearSubsText();
                 Renderer.SubsDispose();
 
@@ -197,7 +195,6 @@ unsafe partial class Player
                     shouldFlushPrev = false;
                 }
 
-                sFrame = null;
                 Subtitles.ClearSubsText();
                 Renderer.SubsDispose();
 

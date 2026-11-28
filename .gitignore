@@ -351,3 +351,4 @@ FlyleafME/docs
 
 # FFmpeg binaries
 /FFmpeg/
+/Plugins/LibAss/native/

@@ -250,6 +250,7 @@ public unsafe partial class Renderer : NotifyPropertyChanged
             if (CanDebug) Log.Debug("Disposing");
 
             Disposed = true;
+            Volatile.Write(ref videoViewport, null);
 
             if (!isDeviceReset)
             {   // Stop loops (deadlock from loop threads)
